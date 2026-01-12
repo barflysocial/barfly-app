@@ -1,0 +1,1287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title data-id="th-modified">File</title>
+  <style>
+    :root{
+      --bg:#0b0f1a; --card:#111a2b; --txt:#e9f0ff; --muted:#a7b3d1; --line:rgba(255,255,255,.12);
+      --good:#2dd4bf; --bad:#fb7185; --warn:#fbbf24; --brand:#60a5fa; --shadow:0 10px 30px rgba(0,0,0,.35); --r:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:
+      radial-gradient(1200px 800px at 20% -10%, rgba(96,165,250,.20), transparent 60%),
+      radial-gradient(900px 700px at 110% 10%, rgba(45,212,191,.18), transparent 55%),
+      var(--bg);
+      color:var(--txt);
+    }
+    .wrap{max-width:1200px;margin:0 auto;padding:18px}
+    .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--line);border-radius:var(--r);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));box-shadow:var(--shadow);position:sticky;top:10px;z-index:10;backdrop-filter:blur(10px)}
+    .left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .brand{display:flex;flex-direction:column;line-height:1.1;padding:6px 10px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .brand .t{font-weight:1000;letter-spacing:.3px;font-size:18px}
+    .brand .s{font-size:12px;color:var(--muted);font-weight:800}
+    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:9px 10px;border-radius:999px;background:rgba(255,255,255,.03);font-size:13px;color:var(--muted);white-space:nowrap}
+    .pill b{color:var(--txt);font-weight:1000}
+    .btn{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--txt);padding:11px 12px;border-radius:14px;font-weight:900;cursor:pointer;display:inline-flex;gap:8px;align-items:center;justify-content:center;user-select:none}
+    .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.08)}
+    .btn:active{transform:translateY(0)}
+    .btn.primary{background:rgba(96,165,250,.20);border-color:rgba(96,165,250,.35)}
+    .btn.good{background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35)}
+    .btn.bad{background:rgba(251,113,133,.16);border-color:rgba(251,113,133,.35)}
+    .btn.warn{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.35)}
+    .btn.small{padding:9px 10px;font-size:13px;border-radius:12px}
+    .grid{display:grid;gap:12px;grid-template-columns:1.2fr .8fr;margin-top:12px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}.topbar{position:static}}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:620px){.two{grid-template-columns:1fr}}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+    label{font-size:13px;color:var(--muted);font-weight:900}
+    input,select{width:100%;padding:12px 12px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--txt);outline:none;font-size:16px}
+    .muted{color:var(--muted)}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:12px;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.20);overflow:hidden}
+    .item strong{display:block;font-size:15px;font-weight:1000}
+    .sub{font-size:13px;color:var(--muted);line-height:1.35}
+    .badge{border:1px solid var(--line);padding:7px 9px;border-radius:999px;font-size:12px;color:var(--muted);white-space:nowrap;font-weight:900}
+    .badge.good{color:var(--good);border-color:rgba(45,212,191,.35);background:rgba(45,212,191,.10)}
+    .badge.bad{color:var(--bad);border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.10)}
+    .badge.warn{color:var(--warn);border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.10)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+    .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(17,26,43,.92);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--shadow);display:none;max-width:92vw;z-index:60}
+    .toast .t{font-weight:1000;margin-bottom:2px}
+    .toast .m{font-size:13px;color:var(--muted)}
+    .hidden{display:none !important;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="left">
+      <div class="brand">
+        <div class="t">Barfly Social</div>
+        <div class="s">Host Dashboard</div>
+      </div>
+
+      <div class="pill"><b>Room</b> <span id="roomPill" class="mono">—</span></div>
+      <div class="pill"><b>Session</b> <span id="sessionPill" class="mono">—</span></div>
+      <div class="pill"><b>WS</b> <span id="wsPill" class="mono">DISCONNECTED</span></div>
+
+      <div class="pill"><b>Min Match</b> <span>75%</span></div>
+      <div class="pill"><b>TV</b> <span>3h • 10s</span></div>
+    </div>
+
+    <div class="left">
+      <button class="btn small primary" id="btnCopyJoin">Copy Join Link</button>
+      <button class="btn small warn" id="btnCopyTV">Copy TV Link</button>
+      <button class="btn small good" id="btnExport">Export CSV</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Event Setup</h2>
+      <div class="muted">Single-location or City-wide (participating locations + travel rule).</div>
+      <div class="hr"></div>
+
+      <div class="two">
+        <div>
+          <label>Mode</label>
+          <select id="modeSelect">
+            <option value="single" selected>Single Location</option>
+            <option value="city">City-Wide Event</option>
+          </select>
+          <div class="muted" style="font-size:12px;margin-top:6px">
+            City-wide uses one shared WS room so all locations join the same event pool.
+          </div>
+        </div>
+
+        <div>
+          <label>Session code</label>
+          <div class="row">
+            <input id="sessionCode" class="mono">
+            <button class="btn primary" id="btnNewSession" type="button">New</button>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:6px">
+            Share this with guests (embedded in join link).
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="two">
+        <div>
+          <label>Locations (Bars)</label>
+          <select id="barSelect"></select>
+          <div class="row" style="margin-top:8px">
+            <input id="newBarName" placeholder="e.g., The Brickyard">
+            <button class="btn primary" id="btnAddBar" type="button">Add</button>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn bad small" id="btnDeleteBar" type="button">Delete bar</button>
+            <button class="btn warn small" id="btnClearRoster" type="button">Clear roster</button>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:8px">
+            Tip: In City mode, double-click the dropdown to toggle “participating” for the selected bar.
+          </div>
+        </div>
+
+        <div>
+          <label>City Event</label>
+          <div class="row">
+            <input id="eventName" placeholder="e.g., Baton Rouge Barfly Night">
+            <button class="btn primary" id="btnCreateEvent" type="button">Create/Update</button>
+          </div>
+
+          <div class="muted" style="font-size:12px;margin-top:8px">
+            Participating locations (only these show up in guest dropdown):
+          </div>
+          <div class="list" id="eventBars"></div>
+
+          <div class="muted" style="font-size:12px;margin-top:8px">
+            Travel rule: cross-location match allowed if at least one says <b>Yes</b>. If Yes+No → Yes travels to No.
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <button class="btn primary" id="btnRefresh" type="button">Refresh Suggestions</button>
+        <button class="btn good" id="btnComputeMutuals" type="button">Compute Mutuals → TV</button>
+        <button class="btn warn" id="btnBroadcastConfig" type="button">Broadcast Config</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="two">
+        <div>
+          <h3>Roster</h3>
+          <div class="muted" style="font-size:12px">Guests appear here when they submit via join.html.</div>
+          <div class="list" id="roster"></div>
+        </div>
+
+        <div>
+          <h3>Mutual Matches (≥ 75%)</h3>
+          <div class="muted" style="font-size:12px">These drive the TV board. Sorted high→low, visible 3 hours.</div>
+          <div class="list" id="mutuals"></div>
+
+          <div class="hr"></div>
+
+          <h3>TV Queue (Active)</h3>
+          <div class="list" id="tvQueue"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Status</h2>
+      <div class="hr"></div>
+
+      <div class="item">
+        <div style="min-width:0">
+          <strong>WebSocket Relay</strong>
+          <div class="sub mono" id="wsUrlTxt">—</div>
+        </div>
+        <div class="badge" id="wsBadge">—</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>Quick Links</h3>
+      <div class="list">
+        <div class="item">
+          <div style="min-width:0">
+            <strong>Join</strong>
+            <div class="sub mono" id="joinLink">—</div>
+          </div>
+          <button class="btn small primary" id="btnCopyJoin2" type="button">Copy</button>
+        </div>
+        <div class="item">
+          <div style="min-width:0">
+            <strong>TV</strong>
+            <div class="sub mono" id="tvLink">—</div>
+          </div>
+          <button class="btn small warn" id="btnCopyTV2" type="button">Copy</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>Counts</h3>
+      <div class="two">
+        <div>
+          <div class="muted">Joined</div>
+          <div style="font-size:30px;font-weight:1000" id="countJoined">0</div>
+        </div>
+        <div>
+          <div class="muted">Active TV Matches</div>
+          <div style="font-size:30px;font-weight:1000" id="countTV">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="t" id="toastT">Updated</div>
+    <div class="m" id="toastM">—</div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   CONFIG
+========================= */
+const WS_URL = "wss://bar-match-relay.onrender.com";
+const MIN_MATCH_SCORE = 0.75;
+const TV_EXPIRE_MS = 3 * 60 * 60 * 1000; // 3 hours
+const TV_ROTATE_MS = 10 * 1000;
+
+/* ---- NEW: heartbeat + reconnect ---- */
+const HEARTBEAT_MS = 15 * 1000;      // send ping every 15s
+const PONG_TIMEOUT_MS = 45 * 1000;   // if no pong/traffic in 45s, reconnect
+const RECONNECT_BASE_MS = 800;       // backoff base
+const RECONNECT_MAX_MS  = 10 * 1000; // backoff cap
+
+const STORAGE = {
+  BARS: "bm_bars_v6",
+  HOST: "bm_host_v6",
+  PEOPLE: "bm_people_v6",
+  LIKES: "bm_likes_v6",
+  EVENT: "bm_event_v6",
+  TV: "bm_tv_v6",
+
+  // dedupe guest submits (fingerprints)
+  DEDUPE: "bm_dedupe_v6"
+};
+
+const $ = (id)=>document.getElementById(id);
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function now(){ return Date.now(); }
+function showToast(t,m){
+  $("toastT").textContent=t; $("toastM").textContent=m;
+  const el=$("toast"); el.style.display="block";
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>{el.style.display="none"}, 2600);
+}
+function uid(){ return (crypto?.randomUUID?.() || ("id_"+Math.random().toString(16).slice(2)+"_"+Math.random().toString(16).slice(2))); }
+function genSession(){ return Math.random().toString(36).slice(2,6).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase(); }
+
+/* =========================
+   LOCAL STORAGE HELPERS
+========================= */
+function loadJSON(key, fallback){
+  try{ return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }catch{ return fallback; }
+}
+function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+/* =========================
+   STATE
+========================= */
+let bars = loadJSON(STORAGE.BARS, []);
+let host = loadJSON(STORAGE.HOST, { mode:"single", activeBarId:null, session: genSession() });
+let people = loadJSON(STORAGE.PEOPLE, []); // city-wide pool lives here
+let likes  = loadJSON(STORAGE.LIKES, {});  // {voterId:{otherId:true/false}}
+let event  = loadJSON(STORAGE.EVENT, { eventId:"", name:"", participatingBarIds:[] });
+let tv     = loadJSON(STORAGE.TV, { matches:[] }); // {aId,bId,score,code,createdAt,expiresAt,plan}
+let dedupe = loadJSON(STORAGE.DEDUPE, {});         // { fp: timestampMs }
+
+/* =========================
+   BARS
+========================= */
+function ensureDefaultBar(){
+  if(!bars.length){
+    const id = uid();
+    bars = [{id, name:"Default Bar"}];
+    saveJSON(STORAGE.BARS, bars);
+  }
+  if(!host.activeBarId) host.activeBarId = bars[0].id;
+  if(!event.eventId){
+    event.eventId = "CITY-"+uid().slice(0,6).toUpperCase();
+    saveJSON(STORAGE.EVENT, event);
+  }
+}
+function barName(id){ return bars.find(b=>b.id===id)?.name || "Bar"; }
+
+/* =========================
+   WS + HEARTBEAT
+========================= */
+let WS=null;
+let WS_STATE="DISCONNECTED";
+
+/* ---- NEW: connection health ---- */
+let lastTrafficAt = 0;       // last time we received ANY message
+let lastPongAt = 0;          // last explicit pong (or traffic treated as pong)
+let reconnectAttempts = 0;
+
+const timers = {
+  tvPurge: null,
+  rebroadcastConfig: null,
+  heartbeat: null,
+  health: null
+};
+
+function wsSetStatus(s){
+  WS_STATE=s;
+
+  // show simple state in pills
+  $("wsPill").textContent = s;
+
+  // show richer badge status (connected + seconds since last traffic)
+  const ageSec = lastTrafficAt ? Math.max(0, Math.round((now()-lastTrafficAt)/1000)) : null;
+  const label =
+    (s==="CONNECTED" && ageSec!=null) ? `CONNECTED • ${ageSec}s` :
+    (s==="CONNECTED") ? "CONNECTED" :
+    s;
+
+  $("wsBadge").textContent = label;
+  $("wsBadge").className = "badge" + (s==="CONNECTED"?" good": s==="CONNECTING"?" warn": s==="ERROR"?" bad":"");
+}
+
+function safeSend(obj){
+  try{
+    if(WS && WS.readyState===WebSocket.OPEN){
+      WS.send(JSON.stringify(obj));
+      return true;
+    }
+  }catch{}
+  return false;
+}
+
+function currentRoomId(){
+  // single: room is activeBarId
+  // city: room is eventId
+  return (host.mode === "city") ? event.eventId : host.activeBarId;
+}
+
+/* broadcast config so JOIN can populate participating venues */
+function broadcastConfig(){
+  const roomId = currentRoomId();
+  const participating = (event.participatingBarIds || [])
+    .filter(id => bars.some(b => b.id === id));
+
+  safeSend({
+    type: "config",
+    roomId,
+    session: host.session,
+    mode: host.mode,
+    event: {
+      eventId: event.eventId,
+      name: event.name || ""
+    },
+    bars: bars.map(b => ({ id:b.id, name:b.name })),
+    participatingBarIds: participating,
+    rules: {
+      minMatch: MIN_MATCH_SCORE,
+      tvExpireMs: TV_EXPIRE_MS,
+      tvRotateMs: TV_ROTATE_MS,
+      travelRule: "cross-location allowed if at least one says Yes; if Yes+No, Yes travels to No; if No+No, same-location only"
+    }
+  });
+}
+
+/* ---- NEW: heartbeat helpers ---- */
+function stopHeartbeat(){
+  if(timers.heartbeat){ clearInterval(timers.heartbeat); timers.heartbeat=null; }
+  if(timers.health){ clearInterval(timers.health); timers.health=null; }
+}
+
+function startHeartbeat(){
+  stopHeartbeat();
+  lastTrafficAt = now();
+  lastPongAt = now();
+
+  // send ping
+  timers.heartbeat = setInterval(()=>{
+    if(WS_STATE!=="CONNECTED") return;
+    // include room/session (some relays route by room)
+    safeSend({ type:"ping", roomId: currentRoomId(), session: host.session, t: now() });
+  }, HEARTBEAT_MS);
+
+  // watchdog: if no traffic, reconnect
+  timers.health = setInterval(()=>{
+    if(WS_STATE!=="CONNECTED") return;
+    const silentFor = now() - Math.max(lastPongAt||0, lastTrafficAt||0);
+    if(silentFor > PONG_TIMEOUT_MS){
+      wsSetStatus("ERROR");
+      try{ WS?.close(); }catch{}
+      scheduleReconnect();
+    }else{
+      // update badge "CONNECTED • Ns"
+      wsSetStatus("CONNECTED");
+    }
+  }, 1000);
+}
+
+function cleanupWs(){
+  stopHeartbeat();
+  try{
+    WS && (WS.onopen = WS.onmessage = WS.onerror = WS.onclose = null);
+    if(WS && (WS.readyState===WebSocket.OPEN || WS.readyState===WebSocket.CONNECTING)) WS.close();
+  }catch{}
+  WS=null;
+}
+
+function scheduleReconnect(){
+  cleanupWs();
+  const jitter = Math.floor(Math.random()*250);
+  const backoff = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts));
+  const wait = backoff + jitter;
+  reconnectAttempts = Math.min(10, reconnectAttempts+1);
+  setTimeout(()=>wsConnect(true), wait);
+}
+
+/* =========================
+   SUBMISSION HANDLING
+========================= */
+function normalizeIncomingPayload(msg){
+  // Accept many relay shapes:
+  // A) {type:"submit_payload", payload:{...}}
+  // B) {type:"payload_received", payload:{...}}
+  // C) {type:"submit_payload", ...payloadFieldsHere}
+  const p = msg?.payload || (msg?.type==="submit_payload" ? msg.payload : null);
+  if(p) return p;
+
+  // fallback: if relay flattens payload fields into msg
+  if(msg?.type==="submit_payload" && !msg.payload){
+    const copy = {...msg};
+    delete copy.type;
+    return copy;
+  }
+  return null;
+}
+
+function payloadRoomSessionOk(payload){
+  const room = payload?.roomId ?? payload?.room ?? payload?.barId ?? "";
+  const session = payload?.session ?? "";
+  if(session && session !== host.session) return false;
+  if(room && room !== currentRoomId()) return false;
+  return true;
+}
+
+function payloadFingerprint(payload){
+  const obj = {
+    room: payload?.roomId ?? payload?.room ?? payload?.barId ?? "",
+    session: payload?.session ?? "",
+    venueId: payload?.venueId ?? "",
+    travelYes: !!payload?.travelYes,
+    attrs: payload?.attrs ?? {},
+    food: (payload?.foodChips ?? []).slice().sort(),
+    act: (payload?.activityChips ?? []).slice().sort(),
+    firstLoc: payload?.firstDateLoc ?? "",
+    firstAvail: payload?.firstDateAvail ?? "",
+    pays: payload?.pays ?? "",
+    budget: payload?.budget ?? "",
+    blurb: payload?.publicBlurb ?? "",
+    starter: payload?.starter ?? ""
+  };
+  const s = JSON.stringify(obj);
+
+  let h=2166136261;
+  for(let i=0;i<s.length;i++){
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return "fp_" + (h>>>0).toString(16);
+}
+
+function dedupeSeen(fp){
+  const cutoff = now() - 10*60*1000;
+  for(const k in dedupe){
+    if(dedupe[k] < cutoff) delete dedupe[k];
+  }
+  if(dedupe[fp]) return true;
+  dedupe[fp] = now();
+  saveJSON(STORAGE.DEDUPE, dedupe);
+  return false;
+}
+
+function ackSubmit(){
+  safeSend({
+    type: "submit_ack",
+    roomId: currentRoomId(),
+    session: host.session
+  });
+}
+
+/* =========================
+   WS CONNECT
+========================= */
+function wsConnect(isReconnect=false){
+  // prevent duplicates
+  if(WS && (WS.readyState===WebSocket.OPEN || WS.readyState===WebSocket.CONNECTING)) return;
+
+  WS = new WebSocket(WS_URL);
+  wsSetStatus("CONNECTING");
+
+  WS.onopen = ()=>{
+    wsSetStatus("CONNECTED");
+
+    // reset reconnect backoff once we connect
+    reconnectAttempts = 0;
+
+    const roomId = currentRoomId();
+    $("roomPill").textContent = roomId || "—";
+
+    safeSend({ type:"join", role:"host", barId: roomId, session: host.session });
+
+    // start heartbeat after join
+    startHeartbeat();
+
+    broadcastConfig();
+    broadcastTVSync();
+
+    if(isReconnect) showToast("Reconnected", "WebSocket connection restored.");
+  };
+
+  WS.onmessage = (ev)=>{
+    // any traffic counts as “alive”
+    lastTrafficAt = now();
+
+    let msg; try{ msg = JSON.parse(ev.data); }catch{ return; }
+
+    // treat pong as alive explicitly
+    if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack"){
+      lastPongAt = now();
+      return;
+    }
+
+    // if relay echoes ping, answer with pong (harmless if ignored)
+    if(msg.type==="ping"){
+      lastPongAt = now();
+      safeSend({ type:"pong", roomId: currentRoomId(), session: host.session, t: now() });
+      return;
+    }
+
+    if(msg.type === "request_config"){
+      broadcastConfig();
+      return;
+    }
+
+    if(msg.type === "request_tv_sync"){
+      broadcastTVSync();
+      return;
+    }
+
+    if(msg.type === "submit_payload" || msg.type === "payload_received"){
+      const payload = normalizeIncomingPayload(msg);
+      if(!payload) return;
+
+      if(!payloadRoomSessionOk(payload)){
+        return;
+      }
+
+      const fp = payloadFingerprint(payload);
+      if(dedupeSeen(fp)){
+        ackSubmit();
+        return;
+      }
+
+      importGuest(payload);
+      ackSubmit();
+
+      showToast("Guest", "New guest received.");
+      broadcastConfig();
+      broadcastTVSync();
+      return;
+    }
+  };
+
+  WS.onerror = ()=>{
+    wsSetStatus("ERROR");
+  };
+
+  WS.onclose = ()=>{
+    wsSetStatus("DISCONNECTED");
+    stopHeartbeat();
+    scheduleReconnect();
+  };
+}
+
+/* =========================
+   MATCH CODES
+========================= */
+const CODE_WORDS = ["LIME","WAVE","NOVA","GOLD","MOON","JAZZ","ROSE","BAYOU","SPARK","VIBE","MINT","ONYX","SUGAR","VELVET","NEON"];
+function makeMatchCode(){
+  const w = CODE_WORDS[Math.floor(Math.random()*CODE_WORDS.length)];
+  const n = Math.floor(Math.random()*90)+10;
+  return `${w}-${n}`;
+}
+function pairKey(aId,bId){ return aId < bId ? `${aId}::${bId}` : `${bId}::${aId}`; }
+
+/* =========================
+   SCORING
+========================= */
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+function overlapScore(arrA, arrB){
+  const A = Array.from(new Set(arrA || []));
+  const B = new Set(arrB || []);
+  if(A.length===0 || B.size===0) return 0;
+  let inter=0;
+  for(const x of A) if(B.has(x)) inter++;
+  return inter / Math.max(1, Math.min(A.length, B.size));
+}
+function bandContainsAge(band, age){
+  if(!band || band==="Any") return true;
+  if(band==="55+") return age>=55;
+  const m = band.match(/(\d+)\D+(\d+)/);
+  if(!m) return true;
+  const lo = parseInt(m[1],10), hi=parseInt(m[2],10);
+  return age>=lo && age<=hi;
+}
+function meetsHardFilters(A,B){
+  const P = A.prefs || {};
+  const D = A.deal || {};
+  const attr = B.attrs || {};
+
+  function hard(field){
+    const pref = P[field];
+    const isDeal = D[field] === true;
+    if(!isDeal) return true;
+    if(pref === "Any") return true;
+    if(field==="ageBand") return bandContainsAge(pref, attr.age);
+    return pref === attr[field];
+  }
+
+  return hard("ageBand") &&
+    ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"]
+    .every(f=>hard(f));
+}
+function ageCompat(A,B){
+  const aOk = bandContainsAge(A?.prefs?.ageBand, B?.attrs?.age);
+  const bOk = bandContainsAge(B?.prefs?.ageBand, A?.attrs?.age);
+  return (aOk && bOk) ? 1 : (aOk || bOk) ? 0.6 : 0;
+}
+function preferenceScore(A,B){
+  const P = A.prefs || {};
+  const attr = B.attrs || {};
+  let used=0, good=0;
+  const fields = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"];
+  for(const f of fields){
+    if(P[f] && P[f] !== "Any"){ used++; if(P[f] === attr[f]) good++; }
+  }
+  if(P.ageBand){ used++; if(bandContainsAge(P.ageBand, attr.age)) good++; }
+  if(used===0) return 0.5;
+  return good/used;
+}
+function interestsScore(A,B){
+  const food = overlapScore(A.foodChips, B.foodChips);
+  const act  = overlapScore(A.activityChips, B.activityChips);
+  return clamp01(0.45*food + 0.55*act);
+}
+function scorePair(A,B){
+  if(!meetsHardFilters(A,B)) return -999;
+  const age = ageCompat(A,B);
+  const intr = interestsScore(A,B);
+  const prefs = preferenceScore(A,B);
+  return clamp01(0.30*age + 0.40*intr + 0.30*prefs);
+}
+
+/* =========================
+   CITY-WIDE TRAVEL RULE
+========================= */
+function travelPlan(A,B){
+  const same = A.venueId === B.venueId;
+  if(same){
+    return { allowed:true, plan:`Meet at: ${barName(A.venueId)} (same location)` };
+  }
+  const aYes = !!A.travelYes;
+  const bYes = !!B.travelYes;
+  if(!aYes && !bYes){
+    return { allowed:false, plan:"No cross-location match (both chose No travel)" };
+  }
+  if(aYes && !bYes){
+    return { allowed:true, plan:`Traveler goes to: ${barName(B.venueId)} (A travels)` };
+  }
+  if(!aYes && bYes){
+    return { allowed:true, plan:`Traveler goes to: ${barName(A.venueId)} (B travels)` };
+  }
+  return { allowed:true, plan:`Either can travel — check host stand to pick meetup bar` };
+}
+
+/* =========================
+   LIKES / MUTUALS
+========================= */
+function ensureLikes(voterId){ if(!likes[voterId]) likes[voterId] = {}; }
+function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
+function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
+
+/* =========================
+   IMPORT GUEST
+========================= */
+const ALIAS_A = ["Neon","Velvet","Midnight","Lucky","Smooth","Wild","Golden","Sugar","Cosmic","Electric","Bayou","Rouge","Moon","Star","Cajun","Whisper","Spicy","Satin","Honey","Silver"];
+const ALIAS_B = ["Muse","Wink","Charm","Heartbeat","Vibe","Spark","Sway","Crush","Flirt","Serenade","Rendezvous","Rose","Phoenix","Echo","Breeze","Glow","Nova","Julep","Daiquiri","Shot"];
+function makeAlias(){
+  const a = ALIAS_A[Math.floor(Math.random()*ALIAS_A.length)];
+  const b = ALIAS_B[Math.floor(Math.random()*ALIAS_B.length)];
+  const n = Math.floor(Math.random()*90)+10;
+  return `${a}${b}${n}`;
+}
+
+function importGuest(payload){
+  const incomingRoom = payload.roomId ?? payload.room ?? payload.barId ?? payload.roomID ?? "";
+  const p = {
+    id: uid(),
+    alias: makeAlias(),
+    roomId: incomingRoom || currentRoomId(),
+    session: payload.session,
+    venueId: payload.venueId,
+    travelYes: !!payload.travelYes,
+    attrs: payload.attrs || {},
+    prefs: payload.prefs || {},
+    deal: payload.deal || {},
+    foodChips: payload.foodChips || [],
+    activityChips: payload.activityChips || [],
+    firstDateLoc: payload.firstDateLoc || "",
+    firstDateAvail: payload.firstDateAvail || "",
+    bestPhysical: payload.bestPhysical || "",
+    bestTrait: payload.bestTrait || "",
+    publicBlurb: payload.publicBlurb || "",
+    starter: payload.starter || "",
+    pays: payload.pays || "",
+    budget: payload.budget || ""
+  };
+
+  if(p.session !== host.session) return;
+  if(p.roomId !== currentRoomId()) return;
+
+  people.push(p);
+  saveJSON(STORAGE.PEOPLE, people);
+
+  ensureLikes(p.id);
+  saveJSON(STORAGE.LIKES, likes);
+
+  renderAll();
+}
+
+/* =========================
+   MUTUAL COMPUTE + TV QUEUE
+========================= */
+function activePool(){
+  const roomId = currentRoomId();
+  return people.filter(p => p.session === host.session && p.roomId === roomId);
+}
+
+function computeMutualMatches(){
+  const pool = activePool();
+  const ids = pool.map(p=>p.id);
+
+  tv.matches = (tv.matches || []).filter(m => m.expiresAt > now());
+  const seen = new Set(tv.matches.map(m => pairKey(m.aId,m.bId)));
+
+  for(let i=0;i<ids.length;i++){
+    for(let j=i+1;j<ids.length;j++){
+      const aId=ids[i], bId=ids[j];
+      if(!isMutual(aId,bId)) continue;
+
+      const A = pool.find(x=>x.id===aId);
+      const B = pool.find(x=>x.id===bId);
+      if(!A || !B) continue;
+
+      const plan = travelPlan(A,B);
+      if(!plan.allowed) continue;
+
+      const sc = scorePair(A,B);
+      if(sc < MIN_MATCH_SCORE) continue;
+
+      const key = pairKey(aId,bId);
+      if(!seen.has(key)){
+        tv.matches.push({
+          aId,bId,
+          score: sc,
+          plan: plan.plan,
+          code: makeMatchCode(),
+          createdAt: now(),
+          expiresAt: now() + TV_EXPIRE_MS
+        });
+        seen.add(key);
+      }
+    }
+  }
+
+  tv.matches.sort((x,y)=> y.score - x.score);
+  saveJSON(STORAGE.TV, tv);
+
+  renderAll();
+  broadcastTVSync();
+  showToast("Mutuals computed", `TV queue updated (${tv.matches.length} active).`);
+}
+
+function broadcastTVSync(){
+  const roomId = currentRoomId();
+  const pool = activePool();
+
+  const active = (tv.matches || [])
+    .filter(m => m.expiresAt > now())
+    .sort((a,b) => b.score - a.score)
+    .map(m => {
+      const A = pool.find(x => x.id === m.aId);
+      const B = pool.find(x => x.id === m.bId);
+
+      return {
+        ...m,
+        aAlias: A?.alias || "Guest",
+        bAlias: B?.alias || "Guest",
+        aVenueId: A?.venueId || "",
+        bVenueId: B?.venueId || ""
+      };
+    });
+
+  safeSend({
+    type: "tv_sync",
+    roomId,
+    session: host.session,
+    matches: active
+  });
+}
+
+/* =========================
+   RENDERING
+========================= */
+function renderBars(){
+  const sel = $("barSelect");
+  sel.innerHTML = "";
+  for(const b of bars){
+    const opt=document.createElement("option");
+    opt.value=b.id; opt.textContent=b.name;
+    if(b.id===host.activeBarId) opt.selected=true;
+    sel.appendChild(opt);
+  }
+}
+
+function renderEventBars(){
+  const wrap = $("eventBars");
+  wrap.innerHTML = "";
+  const ids = event.participatingBarIds || [];
+  if(!ids.length){
+    wrap.innerHTML = `<div class="muted">No participating locations selected yet.</div>`;
+    return;
+  }
+  for(const id of ids){
+    const row=document.createElement("div");
+    row.className="item";
+    row.innerHTML = `
+      <div style="min-width:0">
+        <strong>${esc(barName(id))}</strong>
+        <div class="sub mono">${esc(id)}</div>
+      </div>
+      <button class="btn small bad" data-remove="${esc(id)}" type="button">Remove</button>
+    `;
+    wrap.appendChild(row);
+  }
+  wrap.querySelectorAll("button[data-remove]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id=btn.getAttribute("data-remove");
+      event.participatingBarIds = (event.participatingBarIds||[]).filter(x=>x!==id);
+      saveJSON(STORAGE.EVENT, event);
+      renderEventBars();
+      broadcastConfig();
+    });
+  });
+}
+
+function renderRoster(){
+  const wrap=$("roster");
+  wrap.innerHTML="";
+  const pool=activePool();
+  if(!pool.length){ wrap.innerHTML=`<div class="muted">No guests yet.</div>`; return; }
+
+  for(const p of pool.slice().reverse()){
+    const el=document.createElement("div");
+    el.className="item";
+    el.innerHTML=`
+      <div style="min-width:0">
+        <strong>${esc(p.alias)}</strong>
+        <div class="sub">
+          Venue: <span class="mono">${esc(barName(p.venueId))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
+          Foods: <span class="mono">${esc((p.foodChips||[]).join(", ")||"—")}</span><br/>
+          Activities: <span class="mono">${esc((p.activityChips||[]).join(", ")||"—")}</span><br/>
+          First date: <span class="mono">${esc(p.firstDateLoc||"—")}</span> • <span class="mono">${esc(p.firstDateAvail||"—")}</span><br/>
+          Pays: <span class="mono">${esc(p.pays||"—")}</span> • Budget: <span class="mono">${esc(p.budget||"—")}</span>
+        </div>
+      </div>
+      <div class="badge">${host.mode==="city" ? "CITY" : "LOCAL"}</div>
+    `;
+    wrap.appendChild(el);
+  }
+}
+
+function renderMutuals(){
+  const wrap=$("mutuals");
+  wrap.innerHTML="";
+  const pool=activePool();
+  const ids=pool.map(p=>p.id);
+
+  const list=[];
+  for(let i=0;i<ids.length;i++){
+    for(let j=i+1;j<ids.length;j++){
+      const aId=ids[i], bId=ids[j];
+      if(!isMutual(aId,bId)) continue;
+      const A=pool.find(x=>x.id===aId);
+      const B=pool.find(x=>x.id===bId);
+      if(!A||!B) continue;
+
+      const plan=travelPlan(A,B);
+      if(!plan.allowed) continue;
+
+      const sc=scorePair(A,B);
+      if(sc<MIN_MATCH_SCORE) continue;
+
+      list.push({A,B,score:sc,plan:plan.plan});
+    }
+  }
+  list.sort((x,y)=>y.score-x.score);
+
+  if(!list.length){ wrap.innerHTML=`<div class="muted">No mutual matches ≥ 75% yet.</div>`; return; }
+  for(const m of list){
+    const el=document.createElement("div");
+    el.className="item";
+    el.innerHTML=`
+      <div style="min-width:0">
+        <strong>💚 ${esc(m.A.alias)} &amp; ${esc(m.B.alias)} — ${Math.round(m.score*100)}%</strong>
+        <div class="sub">${esc(m.plan)}</div>
+      </div>
+      <div class="badge good">MUTUAL</div>
+    `;
+    wrap.appendChild(el);
+  }
+}
+
+function renderTVQueue(){
+  const wrap=$("tvQueue");
+  wrap.innerHTML="";
+  tv.matches = (tv.matches||[]).filter(m=>m.expiresAt > now()).sort((a,b)=>b.score-a.score);
+  saveJSON(STORAGE.TV, tv);
+
+  if(!tv.matches.length){
+    wrap.innerHTML = `<div class="muted">No active TV matches yet.</div>`;
+    return;
+  }
+
+  const pool=activePool();
+  for(const m of tv.matches.slice(0,20)){
+    const A = pool.find(x=>x.id===m.aId);
+    const B = pool.find(x=>x.id===m.bId);
+    const aAlias = A?.alias || "Guest A";
+    const bAlias = B?.alias || "Guest B";
+
+    const minsLeft = Math.max(0, Math.round((m.expiresAt-now())/60000));
+    const el=document.createElement("div");
+    el.className="item";
+    el.innerHTML=`
+      <div style="min-width:0">
+        <strong>${esc(aAlias)} + ${esc(bAlias)} — ${Math.round(m.score*100)}%</strong>
+        <div class="sub">
+          Code: <span class="mono">${esc(m.code)}</span> • Expires: <span class="mono">${minsLeft}m</span><br/>
+          ${esc(m.plan)}
+        </div>
+      </div>
+      <div class="badge good">TV</div>
+    `;
+    wrap.appendChild(el);
+  }
+}
+
+function renderCounts(){
+  const pool=activePool();
+  $("countJoined").textContent = pool.length;
+  $("countTV").textContent = (tv.matches||[]).filter(m=>m.expiresAt > now()).length;
+}
+
+function updateLinks(){
+  const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/");
+
+  const join = new URL(base + "join.html");
+  join.searchParams.set("room", currentRoomId());
+  join.searchParams.set("session", host.session);
+
+  const tv = new URL(base + "tv.html");
+  tv.searchParams.set("room", currentRoomId());
+  tv.searchParams.set("session", host.session);
+  tv.searchParams.set("venue", host.activeBarId);
+
+  $("joinLink").textContent = join.toString();
+  $("tvLink").textContent   = tv.toString();
+
+  $("sessionPill").textContent = host.session;
+  $("roomPill").textContent    = currentRoomId();
+}
+
+function renderAll(){
+  $("wsUrlTxt").textContent = WS_URL;
+  renderBars();
+  $("modeSelect").value = host.mode;
+  $("sessionCode").value = host.session;
+  $("eventName").value = event.name || "";
+  renderEventBars();
+  renderRoster();
+  renderMutuals();
+  renderTVQueue();
+  renderCounts();
+  updateLinks();
+
+  // refresh badge text with connection age
+  wsSetStatus(WS_STATE);
+}
+
+/* =========================
+   ACTIONS
+========================= */
+function addBar(name){
+  const id=uid();
+  bars.push({id,name});
+  saveJSON(STORAGE.BARS,bars);
+  host.activeBarId=id;
+  saveJSON(STORAGE.HOST,host);
+  renderAll();
+  broadcastConfig();
+}
+
+function deleteBar(){
+  if(bars.length===1){ showToast("Blocked","Keep at least one bar."); return; }
+  const id=host.activeBarId;
+  bars=bars.filter(b=>b.id!==id);
+  saveJSON(STORAGE.BARS,bars);
+  host.activeBarId=bars[0].id;
+  saveJSON(STORAGE.HOST,host);
+
+  event.participatingBarIds = (event.participatingBarIds||[]).filter(x=>x!==id);
+  saveJSON(STORAGE.EVENT,event);
+
+  renderAll();
+  broadcastConfig();
+}
+
+function clearRoster(){
+  const roomId=currentRoomId();
+
+  people = people.filter(p => !(p.roomId===roomId && p.session===host.session));
+  saveJSON(STORAGE.PEOPLE, people);
+
+  likes = {};
+  saveJSON(STORAGE.LIKES, likes);
+
+  tv.matches = [];
+  saveJSON(STORAGE.TV, tv);
+
+  dedupe = {};
+  saveJSON(STORAGE.DEDUPE, dedupe);
+
+  renderAll();
+  broadcastTVSync();
+  showToast("Cleared","Roster + likes + TV queue cleared for this room.");
+}
+
+function createOrUpdateEvent(){
+  if(!event.eventId) event.eventId = "CITY-"+uid().slice(0,6).toUpperCase();
+  event.name = $("eventName").value.trim() || event.name || "City Event";
+  saveJSON(STORAGE.EVENT,event);
+  renderAll();
+  broadcastConfig();
+  showToast("Event saved", "City event updated.");
+}
+
+function toggleParticipating(barId){
+  const list = new Set(event.participatingBarIds || []);
+  if(list.has(barId)) list.delete(barId); else list.add(barId);
+  event.participatingBarIds = Array.from(list);
+  saveJSON(STORAGE.EVENT,event);
+  renderEventBars();
+  broadcastConfig();
+}
+
+function exportCSV(){
+  const pool=activePool();
+  const headers=["alias","venue","travelYes","score_note","foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter"];
+  let csv=headers.join(",")+"\n";
+  for(const p of pool){
+    const row=[
+      p.alias,
+      barName(p.venueId),
+      p.travelYes?"Yes":"No",
+      "",
+      (p.foodChips||[]).join("|"),
+      (p.activityChips||[]).join("|"),
+      p.firstDateLoc||"",
+      p.firstDateAvail||"",
+      p.pays||"",
+      p.budget||"",
+      p.publicBlurb||"",
+      p.starter||""
+    ].map(v=>{
+      const s=String(v??"");
+      return /[,"\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    });
+    csv += row.join(",")+"\n";
+  }
+
+  csv += "\nTV_MATCHES_ALIAS_A,TV_MATCHES_ALIAS_B,SCORE_PERCENT,MATCH_CODE,PLAN,VENUE_A,VENUE_B\n";
+  for(const m of (tv.matches||[]).filter(x=>x.expiresAt>now()).sort((a,b)=>b.score-a.score)){
+    const A = pool.find(x=>x.id===m.aId);
+    const B = pool.find(x=>x.id===m.bId);
+    csv += [
+      (A?.alias||"A"),
+      (B?.alias||"B"),
+      Math.round(m.score*100),
+      m.code,
+      m.plan,
+      barName(A?.venueId),
+      barName(B?.venueId)
+    ].map(v=>{
+      const s=String(v??"");
+      return /[,"\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(",")+"\n";
+  }
+
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`barfly_host_export_${host.session}.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0);
+  showToast("Exported","CSV downloaded.");
+}
+
+function copyText(txt){
+  navigator.clipboard.writeText(txt);
+  showToast("Copied","Link copied.");
+}
+
+/* =========================
+   INTERVALS (DEDUPED)
+========================= */
+function stopIntervals(){
+  if(timers.tvPurge){ clearInterval(timers.tvPurge); timers.tvPurge=null; }
+  if(timers.rebroadcastConfig){ clearInterval(timers.rebroadcastConfig); timers.rebroadcastConfig=null; }
+}
+
+function startIntervals(){
+  stopIntervals();
+
+  // keep TV queue fresh
+  timers.tvPurge = setInterval(()=>{
+    const before=(tv.matches||[]).length;
+    tv.matches=(tv.matches||[]).filter(m=>m.expiresAt>now()).sort((a,b)=>b.score-a.score);
+    if((tv.matches||[]).length!==before){
+      saveJSON(STORAGE.TV,tv);
+      renderTVQueue();
+      renderCounts();
+      broadcastTVSync();
+    }
+  }, 30*1000);
+
+  // rebroadcast config occasionally (helps late joiners if relay doesn’t store state)
+  timers.rebroadcastConfig = setInterval(()=>broadcastConfig(), 60*1000);
+}
+
+/* =========================
+   INIT
+========================= */
+function init(){
+  ensureDefaultBar();
+  saveJSON(STORAGE.BARS,bars);
+  saveJSON(STORAGE.HOST,host);
+  saveJSON(STORAGE.EVENT,event);
+
+  renderAll();
+  startIntervals();
+  wsConnect();
+
+  $("modeSelect").addEventListener("change", ()=>{
+    host.mode = $("modeSelect").value;
+    saveJSON(STORAGE.HOST,host);
+
+    cleanupWs();
+    wsConnect();
+    renderAll();
+    broadcastConfig();
+  });
+
+  $("sessionCode").addEventListener("change", ()=>{
+    host.session = $("sessionCode").value.trim() || host.session;
+    saveJSON(STORAGE.HOST,host);
+
+    cleanupWs();
+    wsConnect();
+    renderAll();
+    broadcastConfig();
+    broadcastTVSync();
+  });
+
+  $("btnNewSession").addEventListener("click", ()=>{
+    host.session = genSession();
+    saveJSON(STORAGE.HOST,host);
+    tv.matches = [];
+    saveJSON(STORAGE.TV,tv);
+
+    dedupe = {};
+    saveJSON(STORAGE.DEDUPE, dedupe);
+
+    cleanupWs();
+    wsConnect();
+    renderAll();
+    showToast("New session","Session refreshed.");
+  });
+
+  $("barSelect").addEventListener("change", ()=>{
+    host.activeBarId = $("barSelect").value;
+    saveJSON(STORAGE.HOST,host);
+    renderAll();
+    broadcastConfig();
+    broadcastTVSync();
+  });
+
+  $("btnAddBar").addEventListener("click", ()=>{
+    const name=$("newBarName").value.trim();
+    if(!name) return showToast("Missing","Enter bar name.");
+    addBar(name);
+    $("newBarName").value="";
+  });
+
+  $("btnDeleteBar").addEventListener("click", deleteBar);
+  $("btnClearRoster").addEventListener("click", clearRoster);
+
+  $("btnCreateEvent").addEventListener("click", createOrUpdateEvent);
+
+  $("barSelect").addEventListener("dblclick", ()=>{
+    if(host.mode!=="city") return;
+    toggleParticipating(host.activeBarId);
+    showToast("Participation", "Toggled participating for selected bar.");
+  });
+
+  $("btnRefresh").addEventListener("click", ()=>{
+    renderAll();
+    showToast("Updated","Refreshed view.");
+  });
+
+  $("btnComputeMutuals").addEventListener("click", computeMutualMatches);
+
+  $("btnBroadcastConfig").addEventListener("click", ()=>{
+    broadcastConfig();
+    showToast("Broadcast","Config sent to room.");
+  });
+
+  $("btnExport").addEventListener("click", exportCSV);
+
+  $("btnCopyJoin").addEventListener("click", ()=>copyText($("joinLink").textContent));
+  $("btnCopyJoin2").addEventListener("click", ()=>copyText($("joinLink").textContent));
+  $("btnCopyTV").addEventListener("click", ()=>copyText($("tvLink").textContent));
+  $("btnCopyTV2").addEventListener("click", ()=>copyText($("tvLink").textContent));
+
+  // close cleanly
+  window.addEventListener("beforeunload", ()=>{
+    stopIntervals();
+    cleanupWs();
+  });
+}
+
+init();
+</script>
+</body>
+</html>
+

@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Barfly Social — Join</title>
+  <style>
+    :root{
+      --bg:#0b0f1a; --txt:#e9f0ff; --muted:#a7b3d1; --line:rgba(255,255,255,.12);
+      --good:#2dd4bf; --bad:#fb7185; --warn:#fbbf24; --brand:#60a5fa; --shadow:0 10px 30px rgba(0,0,0,.35); --r:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:
+      radial-gradient(1200px 800px at 20% -10%, rgba(96,165,250,.20), transparent 60%),
+      radial-gradient(900px 700px at 110% 10%, rgba(45,212,191,.18), transparent 55%),
+      var(--bg); color:var(--txt);}
+    .wrap{max-width:880px;margin:0 auto;padding:18px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px}
+    .top{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
+    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:9px 10px;border-radius:999px;background:rgba(255,255,255,.03);font-size:13px;color:var(--muted);white-space:nowrap}
+    .pill b{color:var(--txt);font-weight:1000}
+    .btn{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--txt);padding:11px 12px;border-radius:14px;font-weight:900;cursor:pointer;display:inline-flex;gap:8px;align-items:center;justify-content:center;user-select:none}
+    .btn.primary{background:rgba(96,165,250,.20);border-color:rgba(96,165,250,.35)}
+    .btn.good{background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35)}
+    .btn.bad{background:rgba(251,113,133,.16);border-color:rgba(251,113,133,.35)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:700px){.two{grid-template-columns:1fr}}
+    label{font-size:13px;color:var(--muted);font-weight:900}
+    input,select,textarea{width:100%;padding:12px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--txt);outline:none;font-size:16px}
+    textarea{min-height:80px;resize:vertical}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+    .muted{color:var(--muted)}
+    .tagbox{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);padding:10px 12px;border-radius:999px;font-size:13px;cursor:pointer;user-select:none;font-weight:900}
+    .chip.on{background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35)}
+    .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(17,26,43,.92);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--shadow);display:none;max-width:92vw;z-index:60}
+    .toast .t{font-weight:1000;margin-bottom:2px}
+    .toast .m{font-size:13px;color:var(--muted)}
+    .hidden{display:none !important;}
+    .big{font-size:18px;font-weight:1000}
+    .k{display:inline-block;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.03);color:var(--muted);font-weight:900;font-size:12px}
+    .prefRow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .dealLbl{display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--muted);font-weight:900;white-space:nowrap}
+    .dealChk{width:auto;transform:scale(1.15)}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="pill"><b>Room</b> <span id="roomPill">—</span></div>
+    <div class="pill"><b>Session</b> <span id="sessionPill">—</span></div>
+    <div class="pill"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="card" id="formCard">
+    <h2>Barfly Social — Join</h2>
+    <div class="muted">Alias-only matchmaking. Your identity stays private.</div>
+
+    <div class="hr"></div>
+
+    <div class="two">
+      <div>
+        <label>Location (Participating only)</label>
+        <select id="venueSelect">
+          <option value="" disabled selected>Waiting for host config…</option>
+        </select>
+        <div class="muted" style="font-size:12px;margin-top:6px">
+          If you don’t see your location, ask the host to broadcast the event config.
+        </div>
+      </div>
+      <div>
+        <label>Willing to travel?</label>
+        <select id="travelYes">
+          <option value="" disabled selected>Select</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+        <div class="muted" style="font-size:12px;margin-top:6px">
+          Cross-location match is allowed if at least one person says Yes.
+        </div>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <h3>Profile (mandatory)</h3>
+    <div class="two">
+      <div><label>Age</label><input id="age" type="number" min="18" max="99" placeholder="18+"/></div>
+      <div><label>Sex</label>
+        <select id="sex">
+          <option value="" disabled selected>Select</option>
+          <option>Male</option><option>Female</option><option>Non-binary</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Race</label>
+        <select id="race">
+          <option value="" disabled selected>Select</option>
+          <option>Black / African American</option><option>White</option><option>Hispanic / Latino</option><option>Asian</option>
+          <option>Native American</option><option>Middle Eastern / North African</option><option>Pacific Islander</option><option>Multiracial</option>
+          <option>Prefer not to say</option>
+        </select>
+      </div>
+      <div><label>Income</label>
+        <select id="income">
+          <option value="" disabled selected>Select</option>
+          <option>&lt;$35k</option><option>$35k–$60k</option><option>$60k–$100k</option><option>$100k+</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Height (without shoes)</label>
+        <select id="height">
+          <option value="" disabled selected>Select</option>
+          <option>&lt;5'5</option><option>5'6–5'8</option><option>5'9–5'11</option><option>6'0+</option>
+        </select>
+      </div>
+      <div><label>Body build</label>
+        <select id="build">
+          <option value="" disabled selected>Select</option>
+          <option>Slim</option><option>Average</option><option>Muscular</option><option>More to love</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Eye color</label>
+        <select id="eye">
+          <option value="" disabled selected>Select</option>
+          <option>Brown</option><option>Blue</option><option>Green</option><option>Gray</option>
+        </select>
+      </div>
+      <div><label>Hair color</label>
+        <select id="hair">
+          <option value="" disabled selected>Select</option>
+          <option>Black</option><option>Blonde</option><option>Brown</option><option>Red</option><option>Gray</option><option>No hair</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Skin tone</label>
+        <select id="skin">
+          <option value="" disabled selected>Select</option>
+          <option>Pale white</option><option>Olive</option><option>White</option><option>Light brown</option><option>Dark brown</option>
+        </select>
+      </div>
+      <div><label>Smoking</label>
+        <select id="smoke">
+          <option value="" disabled selected>Select</option>
+          <option>No</option><option>Yes</option><option>420</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Marital status</label>
+        <select id="marital">
+          <option value="" disabled selected>Select</option>
+          <option>Single</option><option>Divorced</option><option>Legally separated</option><option>Widowed</option>
+        </select>
+      </div>
+      <div><label>Political view</label>
+        <select id="politics">
+          <option value="" disabled selected>Select</option>
+          <option>Apolitical</option><option>Conservative</option><option>Moderate</option><option>Liberal</option><option>Prefer not to say</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Dating intentions</label>
+        <select id="intent">
+          <option value="" disabled selected>Select</option>
+          <option>Friends only</option><option>Casual encounter</option><option>Committed relationship</option><option>Marriage</option>
+        </select>
+      </div>
+      <div><label>Family status</label>
+        <select id="family">
+          <option value="" disabled selected>Select</option>
+          <option>No kids but wants kids</option><option>No kids and doesn't want kids</option>
+          <option>Have kids and want more</option><option>Have kids and doesn't want more</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Education</label>
+        <select id="edu">
+          <option value="" disabled selected>Select</option>
+          <option>High school</option><option>Some college</option><option>Associate</option><option>Bachelor</option><option>Master</option><option>Doctorate</option><option>Trade/Technical</option>
+        </select>
+      </div>
+      <div><label>Love language</label>
+        <select id="love">
+          <option value="" disabled selected>Select</option>
+          <option>Words of affirmation</option><option>Quality time</option><option>Acts of service</option><option>Physical touch</option><option>Gifts</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Pets</label>
+        <select id="pets">
+          <option value="" disabled selected>Select</option>
+          <option>No pets</option><option>Dog(s)</option><option>Cat(s)</option><option>Other pets</option><option>Love pets but none</option><option>Pet allergy</option>
+        </select>
+      </div>
+      <div><label>Religion</label>
+        <select id="religion">
+          <option value="" disabled selected>Select</option>
+          <option>Catholic</option><option>Baptist</option><option>Presbyterian</option><option>Muslim</option><option>Jehovah's Witness</option>
+          <option>Jewish</option><option>Christian</option><option>Atheist</option><option>Agnostic</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="religionOtherWrap" class="two hidden">
+      <div>
+        <label>Other religion (required)</label>
+        <input id="religionOther" placeholder="Type your religion"/>
+      </div>
+      <div class="muted" style="display:flex;align-items:flex-end;font-size:12px">
+        If you picked <b>Other</b>, type it exactly how you want it shown.
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <h3>Who You’re Looking For (Preferences)</h3>
+    <div class="muted" style="font-size:12px;margin-top:-6px">
+      Choose what you prefer in a match. Turn on <b>Dealbreaker</b> to require it.
+    </div>
+
+    <!-- Age + Sex -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Age range</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_ageBand" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_ageBand">
+          <option>Any</option>
+          <option>18–24</option><option>25–34</option><option>35–44</option><option>45–54</option><option>55+</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Sex</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_sex" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_sex">
+          <option>Any</option>
+          <option>Male</option><option>Female</option><option>Non-binary</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Race + Income -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Race</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_race" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_race">
+          <option>Any</option>
+          <option>Black / African American</option><option>White</option><option>Hispanic / Latino</option><option>Asian</option>
+          <option>Native American</option><option>Middle Eastern / North African</option><option>Pacific Islander</option><option>Multiracial</option>
+          <option>Prefer not to say</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Income</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_income" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_income">
+          <option>Any</option>
+          <option>&lt;$35k</option><option>$35k–$60k</option><option>$60k–$100k</option><option>$100k+</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Height + Build -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Height</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_height" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_height">
+          <option>Any</option>
+          <option>&lt;5'5</option><option>5'6–5'8</option><option>5'9–5'11</option><option>6'0+</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Body build</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_build" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_build">
+          <option>Any</option>
+          <option>Slim</option><option>Average</option><option>Muscular</option><option>More to love</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Eye + Hair -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Eye color</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_eye" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_eye">
+          <option>Any</option>
+          <option>Brown</option><option>Blue</option><option>Green</option><option>Gray</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Hair color</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_hair" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_hair">
+          <option>Any</option>
+          <option>Black</option><option>Blonde</option><option>Brown</option><option>Red</option><option>Gray</option><option>No hair</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Skin + Smoke -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Skin tone</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_skin" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_skin">
+          <option>Any</option>
+          <option>Pale white</option><option>Olive</option><option>White</option><option>Light brown</option><option>Dark brown</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Smoking</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_smoke" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_smoke">
+          <option>Any</option>
+          <option>No</option><option>Yes</option><option>420</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Marital + Politics -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Marital status</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_marital" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_marital">
+          <option>Any</option>
+          <option>Single</option><option>Divorced</option><option>Legally separated</option><option>Widowed</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Political view</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_politics" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_politics">
+          <option>Any</option>
+          <option>Apolitical</option><option>Conservative</option><option>Moderate</option><option>Liberal</option><option>Prefer not to say</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Intent + Family -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Their dating intention</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_intent" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_intent">
+          <option>Any</option>
+          <option>Friends only</option><option>Casual encounter</option><option>Committed relationship</option><option>Marriage</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Family status</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_family" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_family">
+          <option>Any</option>
+          <option>No kids but wants kids</option><option>No kids and doesn't want kids</option>
+          <option>Have kids and want more</option><option>Have kids and doesn't want more</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Edu + Love -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Education</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_edu" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_edu">
+          <option>Any</option>
+          <option>High school</option><option>Some college</option><option>Associate</option><option>Bachelor</option><option>Master</option><option>Doctorate</option><option>Trade/Technical</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Love language</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_love" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_love">
+          <option>Any</option>
+          <option>Words of affirmation</option><option>Quality time</option><option>Acts of service</option><option>Physical touch</option><option>Gifts</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Pets + Religion -->
+    <div class="two">
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Pets</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_pets" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_pets">
+          <option>Any</option>
+          <option>No pets</option><option>Dog(s)</option><option>Cat(s)</option><option>Other pets</option><option>Love pets but none</option><option>Pet allergy</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="prefRow">
+          <label style="margin:0">Religion</label>
+          <label class="dealLbl">Dealbreaker <input id="deal_religion" class="dealChk" type="checkbox"></label>
+        </div>
+        <select id="pref_religion">
+          <option>Any</option>
+          <option>Catholic</option><option>Baptist</option><option>Presbyterian</option><option>Muslim</option><option>Jehovah's Witness</option>
+          <option>Jewish</option><option>Christian</option><option>Atheist</option><option>Agnostic</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <h3>Favorites (mandatory)</h3>
+    <label>Favorite Foods (pick at least 1)</label>
+    <div class="tagbox" id="foodChips"></div>
+
+    <div class="hr"></div>
+
+    <label>Favorite Activities (pick at least 1)</label>
+    <div class="tagbox" id="actChips"></div>
+
+    <div class="hr"></div>
+
+    <h3>First Date (mandatory)</h3>
+    <div class="two">
+      <div><label>First date location</label>
+        <select id="firstLoc">
+          <option value="" disabled selected>Select</option>
+          <option>Wine bar</option><option>Dinner</option><option>Bookstore</option><option>Dancing</option><option>Church</option>
+          <option>Bingo</option><option>Breakfast</option><option>Coffee shop</option><option>Cocktail bar</option><option>Restaurant</option>
+          <option>Brunch</option><option>Movie night</option><option>Walk / park</option><option>Live music</option><option>Trivia night</option>
+        </select>
+      </div>
+      <div><label>First date availability</label>
+        <select id="firstAvail">
+          <option value="" disabled selected>Select</option>
+          <option>Weeknights</option><option>Friday night</option><option>Saturday day</option><option>Saturday night</option>
+          <option>Sunday day</option><option>Sunday night</option><option>Flexible</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two">
+      <div><label>Who pays for the first date?</label>
+        <select id="pays">
+          <option value="" disabled selected>Select</option>
+          <option>Myself</option>
+          <option>50/50</option>
+        </select>
+      </div>
+      <div><label>First date budget</label>
+        <select id="budget">
+          <option value="" disabled selected>Select</option>
+          <option>Free</option>
+          <option>&lt;$50</option>
+          <option>&lt;$99</option>
+          <option>&gt;$100</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <h3>Public Match Info (mandatory)</h3>
+    <div class="two">
+      <div><label>Best physical feature</label><input id="bestPhysical" placeholder="e.g., Smile, Eyes, Style"/></div>
+      <div><label>Best personality trait</label><input id="bestTrait" placeholder="e.g., Funny, Loyal, Chill"/></div>
+    </div>
+
+    <label style="margin-top:10px">Public blurb</label>
+    <input id="publicBlurb" placeholder="Short safe blurb shown to matches"/>
+
+    <label style="margin-top:10px">Conversation starter</label>
+    <input id="starter" placeholder="Ask me about…"/>
+
+    <div class="hr"></div>
+
+    <button class="btn primary" id="btnSubmit" type="button" style="width:100%;font-size:18px" disabled>Submit</button>
+
+    <div class="muted" style="font-size:12px;margin-top:8px">
+      Submitting requires a live WS connection. If it won’t connect, ask host to refresh / broadcast config.
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="card hidden" id="browseCard" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+      <div>
+        <div class="big">Browse Guests</div>
+        <div class="muted" style="font-size:12px">Aliases only • Like/Pass to find mutuals.</div>
+      </div>
+      <div class="k" id="counterPill">0 / 0</div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div id="candidateBox">
+      <div class="muted">Waiting for roster…</div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="two">
+      <button class="btn bad" id="btnPass" type="button">👎 Pass</button>
+      <button class="btn good" id="btnLike" type="button">💚 Like</button>
+    </div>
+
+    <div class="muted" style="font-size:12px;margin-top:10px">
+      Mutual likes will show on the TV board (and/or host’s match list).
+    </div>
+
+    <div class="hr"></div>
+
+    <button class="btn primary" id="btnNextGuest" type="button" style="width:100%">Next Guest (Start Over)</button>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="t" id="toastT">Updated</div>
+    <div class="m" id="toastM">—</div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   CONFIG
+========================= */
+const WS_URL = "wss://bar-match-relay.onrender.com";
+
+/* =========================
+   HELPERS
+========================= */
+const $ = (id)=>document.getElementById(id);
+function qs(){ const u=new URL(location.href); return Object.fromEntries(u.searchParams.entries()); }
+function showToast(t,m){
+  $("toastT").textContent=t; $("toastM").textContent=m;
+  const el=$("toast"); el.style.display="block";
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>{el.style.display="none"}, 2600);
+}
+
+/* =========================
+   CHIPS
+========================= */
+const FOOD = ["American","Asian","Latin","BBQ","Italian","Indian","Mediterranean","Seafood","Steak","Sushi"];
+
+// FIXED: commas/quotes so the page doesn’t crash
+const ACTS = [
+  "Trivia","Karaoke","Music Bingo","Bingo","Line Dancing","Latin Dancing",
+  "Crafting Cocktails","Wine Tasting","Movies","Video Games","Yoga","Daiquiris",
+  "Golf Range","Pickleball","Painting","Musical Instruments","Volunteering",
+  "Hunting","Fishing","Reading","Writing","Trampoline Park","Volleyball",
+  "Working Out","Football","Softball","Baseball","Basketball","Sports Bar",
+  "Shopping","Comedy Show","Photography","VR Sports","Cigar/Hookah","Bowling"
+];
+
+let foodSet = new Set();
+let actSet  = new Set();
+
+function renderChips(containerId, items, set){
+  const wrap=$(containerId);
+  if(!wrap) return;
+  wrap.innerHTML="";
+  for(const label of items){
+    const c=document.createElement("div");
+    c.className="chip"+(set.has(label)?" on":"");
+    c.textContent=label;
+    c.onclick=()=>{
+      if(set.has(label)) set.delete(label); else set.add(label);
+      renderChips(containerId, items, set);
+      // keep submit button state responsive
+      setWsStatus(WS_STATE);
+    };
+    wrap.appendChild(c);
+  }
+}
+
+/* =========================
+   RELIGION "OTHER"
+========================= */
+function hookReligionOther(){
+  const sel=$("religion");
+  const wrap=$("religionOtherWrap");
+  const input=$("religionOther");
+  if(!sel || !wrap || !input) return;
+
+  sel.addEventListener("change", ()=>{
+    const isOther = sel.value==="Other";
+    wrap.classList.toggle("hidden", !isOther);
+    if(!isOther) input.value="";
+  });
+}
+
+/* =========================
+   VENUE POPULATION
+========================= */
+function populateVenuesFromConfig(cfg){
+  let list = [];
+
+  if(Array.isArray(cfg?.participating) && cfg.participating.length && typeof cfg.participating[0] === "object"){
+    list = cfg.participating;
+  } else if(Array.isArray(cfg?.bars) && Array.isArray(cfg?.participatingBarIds) && cfg.participatingBarIds.length){
+    const set = new Set(cfg.participatingBarIds);
+    list = cfg.bars.filter(b=>set.has(b.id));
+  } else if(Array.isArray(cfg?.bars) && cfg.bars.length){
+    list = cfg.bars;
+  }
+
+  const sel=$("venueSelect");
+  if(!sel) return;
+
+  sel.innerHTML = `<option value="" disabled selected>Select</option>`;
+
+  if(!list.length){
+    sel.innerHTML = `<option value="" disabled selected>No participating venues received</option>`;
+    return;
+  }
+
+  for(const v of list){
+    const opt=document.createElement("option");
+    opt.value=v.id;
+    opt.textContent=v.name || v.id;
+    sel.appendChild(opt);
+  }
+
+  if(list.length === 1){
+    sel.value = list[0].id;
+  }
+}
+
+/* =========================
+   WS STATE
+========================= */
+let WS=null;
+let WS_STATE="DISCONNECTED";
+let HOST_CONFIG=null;
+
+// IMPORTANT: one nonce, one submitted flag (no duplicates)
+const clientNonce = (crypto?.randomUUID?.() || ("nonce_"+Math.random().toString(16).slice(2)));
+let submitted = false;
+let sending = false;
+
+function setWsStatus(s){
+  WS_STATE=s;
+  const pill = $("wsPill");
+  if(pill) pill.textContent=s;
+
+  const canSubmit = (s==="CONNECTED" && !!HOST_CONFIG && !submitted && !sending);
+  const btn = $("btnSubmit");
+  if(btn) btn.disabled = !canSubmit;
+}
+
+function safeSend(obj){
+  try{
+    if(WS && WS.readyState===WebSocket.OPEN){
+      WS.send(JSON.stringify(obj));
+      return true;
+    }
+  }catch{}
+  return false;
+}
+
+function connectWS(){
+  const q=qs();
+  const room=(q.room || "").trim();
+  const session=(q.session || "").trim();
+
+  $("roomPill").textContent = room || "—";
+  $("sessionPill").textContent = session || "—";
+
+  // FIX: guard missing params so we don’t “connect” to nowhere
+  if(!room || !session){
+    setWsStatus("ERROR");
+    showToast("Bad link", "Missing ?room=...&session=... in the URL.");
+    return;
+  }
+
+  try{ WS?.close(); }catch{}
+
+  WS = new WebSocket(WS_URL);
+  setWsStatus("CONNECTING");
+
+  WS.onopen=()=>{
+    setWsStatus("CONNECTED");
+    safeSend({ type:"join", role:"guest", barId: room, session });
+
+    // cleaner: include room/session in request (host can ignore)
+    safeSend({ type:"request_config", roomId: room, session });
+  };
+
+  WS.onmessage=(ev)=>{
+    let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
+
+    if(msg.type==="event_config" || msg.type==="config"){
+      const q=qs();
+      const msgRoom = msg.roomId || msg.barId || msg.room;
+
+      if(msg.session && msg.session !== q.session) return;
+      if(msgRoom && msgRoom !== q.room) return;
+
+      HOST_CONFIG = msg;
+      populateVenuesFromConfig(msg);
+      setWsStatus("CONNECTED");
+      showToast("Connected","Event config received.");
+      return;
+    }
+
+    if(msg.type==="submit_ack"){
+      // If host echoes nonce, use it; otherwise accept
+      if(msg.clientNonce && msg.clientNonce !== clientNonce) return;
+
+      submitted = true;
+      sending = false;
+      setWsStatus("CONNECTED");
+      showToast("Submitted","Sent to host successfully.");
+      return;
+    }
+  };
+
+  WS.onerror=()=>{ sending=false; setWsStatus("ERROR"); };
+  WS.onclose=()=>{ sending=false; setWsStatus("DISCONNECTED"); };
+}
+
+/* =========================
+   VALIDATION
+========================= */
+function req(id,label,errs){
+  const el=$(id);
+  const v=(el?.value||"").trim();
+  if(!v) errs.push(label);
+}
+
+function validate(){
+  const errs=[];
+  if(!HOST_CONFIG) errs.push("Host config");
+
+  req("venueSelect","Location",errs);
+  req("travelYes","Willing to travel",errs);
+
+  req("age","Age",errs);
+  req("sex","Sex",errs);
+  req("race","Race",errs);
+  req("income","Income",errs);
+  req("height","Height",errs);
+  req("build","Body build",errs);
+  req("eye","Eye color",errs);
+  req("hair","Hair color",errs);
+  req("skin","Skin tone",errs);
+  req("smoke","Smoking",errs);
+  req("marital","Marital status",errs);
+  req("politics","Political view",errs);
+  req("intent","Dating intentions",errs);
+  req("family","Family status",errs);
+  req("edu","Education",errs);
+  req("love","Love language",errs);
+  req("pets","Pets",errs);
+  req("religion","Religion",errs);
+
+  if($("religion")?.value==="Other"){
+    req("religionOther","Other religion",errs);
+  }
+
+  if(foodSet.size < 1) errs.push("At least 1 Favorite Food");
+  if(actSet.size  < 1) errs.push("At least 1 Favorite Activity");
+
+  req("firstLoc","First date location",errs);
+  req("firstAvail","First date availability",errs);
+  req("pays","Who pays",errs);
+  req("budget","Budget",errs);
+
+  req("bestPhysical","Best physical feature",errs);
+  req("bestTrait","Best personality trait",errs);
+  req("publicBlurb","Public blurb",errs);
+  req("starter","Conversation starter",errs);
+
+  return errs;
+}
+
+/* =========================
+   SUBMIT
+========================= */
+function submit(){
+  if(WS_STATE!=="CONNECTED") return showToast("Not connected","Wait for WS to connect.");
+  if(submitted) return showToast("Already submitted","You already submitted.");
+  if(sending) return showToast("Please wait","Submitting in progress…");
+
+  const errs = validate();
+  if(errs.length) return showToast("Missing fields", errs.join(" • "));
+
+  const q=qs();
+
+  let religion = $("religion").value;
+  if(religion==="Other") religion = $("religionOther").value.trim();
+
+  const payload = {
+    v: 6,
+    clientNonce,
+    roomId: q.room,
+    session: q.session,
+    venueId: $("venueSelect").value,
+    travelYes: $("travelYes").value==="yes",
+
+    attrs: {
+      age: Number($("age").value),
+      sex: $("sex").value,
+      race: $("race").value,
+      income: $("income").value,
+      height: $("height").value,
+      build: $("build").value,
+      eye: $("eye").value,
+      hair: $("hair").value,
+      skin: $("skin").value,
+      smoke: $("smoke").value,
+      marital: $("marital").value,
+      politics: $("politics").value,
+      intent: $("intent").value,
+      family: $("family").value,
+      edu: $("edu").value,
+      love: $("love").value,
+      pets: $("pets").value,
+      religion
+    },
+
+    prefs: {
+      ageBand: $("pref_ageBand")?.value || "Any",
+      sex: $("pref_sex")?.value || "Any",
+      race: $("pref_race")?.value || "Any",
+      income: $("pref_income")?.value || "Any",
+      height: $("pref_height")?.value || "Any",
+      build: $("pref_build")?.value || "Any",
+      eye: $("pref_eye")?.value || "Any",
+      hair: $("pref_hair")?.value || "Any",
+      skin: $("pref_skin")?.value || "Any",
+      smoke: $("pref_smoke")?.value || "Any",
+      marital: $("pref_marital")?.value || "Any",
+      politics: $("pref_politics")?.value || "Any",
+      intent: $("pref_intent")?.value || "Any",
+      family: $("pref_family")?.value || "Any",
+      edu: $("pref_edu")?.value || "Any",
+      love: $("pref_love")?.value || "Any",
+      pets: $("pref_pets")?.value || "Any",
+      religion: $("pref_religion")?.value || "Any"
+    },
+
+    deal: {
+      ageBand: !!$("deal_ageBand")?.checked,
+      sex:     !!$("deal_sex")?.checked,
+      race:    !!$("deal_race")?.checked,
+      income:  !!$("deal_income")?.checked,
+      height:  !!$("deal_height")?.checked,
+      build:   !!$("deal_build")?.checked,
+      eye:     !!$("deal_eye")?.checked,
+      hair:    !!$("deal_hair")?.checked,
+      skin:    !!$("deal_skin")?.checked,
+      smoke:   !!$("deal_smoke")?.checked,
+      marital: !!$("deal_marital")?.checked,
+      politics:!!$("deal_politics")?.checked,
+      intent:  !!$("deal_intent")?.checked,
+      family:  !!$("deal_family")?.checked,
+      edu:     !!$("deal_edu")?.checked,
+      love:    !!$("deal_love")?.checked,
+      pets:    !!$("deal_pets")?.checked,
+      religion:!!$("deal_religion")?.checked
+    },
+
+    foodChips: Array.from(foodSet),
+    activityChips: Array.from(actSet),
+
+    firstDateLoc: $("firstLoc").value,
+    firstDateAvail: $("firstAvail").value,
+    pays: $("pays").value,
+    budget: $("budget").value,
+
+    bestPhysical: $("bestPhysical").value.trim(),
+    bestTrait: $("bestTrait").value.trim(),
+    publicBlurb: $("publicBlurb").value.trim(),
+    starter: $("starter").value.trim()
+  };
+
+  sending = true;
+  setWsStatus("CONNECTED");
+
+  const ok = safeSend({ type:"submit_payload", payload });
+
+  if(ok){
+    showToast("Sent","Submitting…");
+    // IMPORTANT: do NOT set submitted=true here; wait for submit_ack
+    setTimeout(()=>{
+      // if no ack within 8s, let them try again
+      if(!submitted){
+        sending = false;
+        setWsStatus(WS_STATE);
+        showToast("No response", "If it didn’t submit, try again (or ask host to refresh).");
+      }
+    }, 8000);
+  }else{
+    sending = false;
+    setWsStatus(WS_STATE);
+    showToast("Send failed","Try again in a moment.");
+  }
+}
+
+/* =========================
+   INIT
+========================= */
+function init(){
+  renderChips("foodChips", FOOD, foodSet);
+  renderChips("actChips", ACTS, actSet);
+  hookReligionOther();
+
+  const btn = $("btnSubmit");
+  if(btn) btn.onclick = submit;
+
+  const ng = $("btnNextGuest");
+  if(ng) ng.onclick = ()=>location.reload();
+
+  connectWS();
+}
+
+init();
+</script>
+</body>
+</html>
+
+
+
+

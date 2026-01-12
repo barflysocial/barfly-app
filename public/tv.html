@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Barfly Social — TV</title>
+  <style>
+    :root{
+      --bg:#070a12; --txt:#e9f0ff; --muted:#a7b3d1; --line:rgba(255,255,255,.12);
+      --good:#2dd4bf; --brand:#60a5fa; --shadow:0 10px 30px rgba(0,0,0,.35); --r:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:
+      radial-gradient(1400px 900px at 10% 0%, rgba(96,165,250,.18), transparent 60%),
+      radial-gradient(1200px 800px at 100% 0%, rgba(45,212,191,.14), transparent 55%),
+      var(--bg); color:var(--txt);}
+    .wrap{max-width:1400px;margin:0 auto;padding:18px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+    .title{font-weight:1000;font-size:34px;letter-spacing:.5px}
+    .sub{color:var(--muted);font-weight:800}
+    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:10px 12px;border-radius:999px;background:rgba(255,255,255,.03);font-size:14px;color:var(--muted);white-space:nowrap}
+    .pill b{color:var(--txt)}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    @media(max-width:1200px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+    .card{border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));box-shadow:var(--shadow);padding:16px;min-height:130px}
+    .pair{font-weight:1000;font-size:22px;line-height:1.15}
+    .meta{margin-top:8px;color:var(--muted);font-weight:900}
+    .code{display:inline-block;margin-top:10px;padding:8px 10px;border-radius:999px;border:1px solid rgba(45,212,191,.35);background:rgba(45,212,191,.10);color:var(--good);font-weight:1000}
+    .footer{margin-top:14px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.03);padding:14px;color:var(--muted);font-weight:900;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .big{font-size:18px;color:var(--txt)}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="title">Now Matching 💚</div>
+      <div class="sub">Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="pill"><b>Room</b> <span id="roomPill">—</span></div>
+      <div class="pill"><b>Session</b> <span id="sessionPill">—</span></div>
+      <div class="pill"><b>Venue Filter</b> <span id="venuePill">—</span></div>
+      <div class="pill"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="footer">
+    <div class="big">If you see your alias pairing, go to the host stand to connect.</div>
+    <div>Barfly Social • Private Bar Matchmaking</div>
+  </div>
+</div>
+
+<script>
+const WS_URL = "wss://bar-match-relay.onrender.com";
+const ROTATE_MS = 10 * 1000;
+
+// existing
+const RESYNC_MS = 25 * 1000;      // ask for tv_sync occasionally (helps if relay drops messages)
+const RECONNECT_MS = 2500;        // auto-reconnect when WS drops
+
+// ✅ NEW: heartbeat + stale-connection recovery
+const HEARTBEAT_MS = 15 * 1000;   // send ping every 15s
+const STALE_MS = 45 * 1000;       // if no traffic for 45s, reconnect
+
+const $ = (id)=>document.getElementById(id);
+function qs(){ const u=new URL(location.href); return Object.fromEntries(u.searchParams.entries()); }
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+
+let WS=null;
+let WS_STATE="DISCONNECTED";
+let matches=[]; // active list from host tv_sync
+let page=0;
+let reconnectTimer=null;
+
+// ✅ NEW: heartbeat state
+let hbTimer=null;
+let staleTimer=null;
+let lastTrafficAt = Date.now();
+
+function setWsStatus(s){
+  WS_STATE=s;
+  $("wsPill").textContent=s;
+}
+
+function touchTraffic(){
+  lastTrafficAt = Date.now();
+}
+
+function safeSend(obj){
+  try{
+    if(WS && WS.readyState===WebSocket.OPEN){
+      WS.send(JSON.stringify(obj));
+      return true;
+    }
+  }catch{}
+  return false;
+}
+
+function requestSync(){
+  const q=qs();
+  const room=(q.room || "").trim();
+  const session=(q.session || "").trim();
+  safeSend({ type:"request_tv_sync", roomId: room, session });
+}
+
+function heartbeatTick(){
+  if(WS_STATE!=="CONNECTED") return;
+
+  const q=qs();
+  const room=(q.room || "").trim();
+  const session=(q.session || "").trim();
+
+  // ✅ send ping (relay can ignore, echo, or respond with pong)
+  safeSend({ type:"ping", roomId: room, session, t: Date.now() });
+
+  // ✅ stale check (no messages at all)
+  if(Date.now() - lastTrafficAt > STALE_MS){
+    // force reset
+    try{ WS?.close(); }catch{}
+  }
+}
+
+function startHeartbeat(){
+  stopHeartbeat();
+  touchTraffic(); // reset clock
+  hbTimer = setInterval(heartbeatTick, HEARTBEAT_MS);
+  staleTimer = setInterval(()=>{ if(WS_STATE==="CONNECTED" && (Date.now()-lastTrafficAt)>STALE_MS){ try{ WS?.close(); }catch{} } }, 5000);
+}
+
+function stopHeartbeat(){
+  clearInterval(hbTimer); hbTimer=null;
+  clearInterval(staleTimer); staleTimer=null;
+}
+
+function filteredMatches(){
+  const q=qs();
+  const venue = (q.venue || "").trim();
+  const t = Date.now();
+
+  // 1) Always remove expired
+  let list = (matches || []).filter(m => !m.expiresAt || m.expiresAt > t);
+
+  // 2) Optional venue filter (works only if host sends aVenueId/bVenueId)
+  if(venue){
+    list = list.filter(m => (m.aVenueId === venue) || (m.bVenueId === venue));
+  }
+
+  // 3) Always keep sorted high->low
+  list.sort((a,b)=>(b.score||0)-(a.score||0));
+  return list;
+}
+
+function render(){
+  const grid=$("grid");
+  grid.innerHTML="";
+  const list = filteredMatches();
+
+  if(!list.length){
+    grid.innerHTML = `<div class="card"><div class="pair">Waiting for matches…</div><div class="meta">No active matches in queue.</div></div>`;
+    return;
+  }
+
+  // rotate pages: show up to 9 tiles per page (3x3)
+  const perPage = 9;
+  const pages = Math.max(1, Math.ceil(list.length / perPage));
+  page = page % pages;
+
+  const slice = list.slice(page*perPage, page*perPage + perPage);
+  for(const m of slice){
+    const el=document.createElement("div");
+    el.className="card";
+    el.innerHTML=`
+      <div class="pair">${esc(m.aAlias || "Guest")} + ${esc(m.bAlias || "Guest")} — ${Math.round((m.score||0)*100)}%</div>
+      <div class="meta">${esc(m.plan || "See host to connect.")}</div>
+      <div class="code">Match Code: <span style="font-family:ui-monospace,Menlo,Consolas,monospace">${esc(m.code||"—")}</span></div>
+    `;
+    grid.appendChild(el);
+  }
+}
+
+function scheduleReconnect(){
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(()=>connectWS(), RECONNECT_MS);
+}
+
+function connectWS(){
+  const q=qs();
+  const room=(q.room || "").trim();
+  const session=(q.session || "").trim();
+  $("roomPill").textContent=room || "—";
+  $("sessionPill").textContent=session || "—";
+  $("venuePill").textContent=(q.venue || "").trim() || "All";
+
+  if(!room || !session){
+    setWsStatus("ERROR");
+    $("grid").innerHTML = `<div class="card"><div class="pair">Missing room/session</div><div class="meta">TV link must include ?room=...&session=...</div></div>`;
+    return;
+  }
+
+  // cleanup any existing socket + heartbeat
+  stopHeartbeat();
+  try{ WS?.close(); }catch{}
+
+  WS = new WebSocket(WS_URL);
+  setWsStatus("CONNECTING");
+
+  WS.onopen=()=>{
+    setWsStatus("CONNECTED");
+    touchTraffic();
+    startHeartbeat();
+
+    safeSend({ type:"join", role:"tv", barId: room, session });
+    requestSync();
+  };
+
+  WS.onmessage=(ev)=>{
+    touchTraffic();
+
+    let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
+
+    // ✅ If relay pings us, respond (harmless if relay ignores)
+    if(msg.type === "ping"){
+      const q=qs();
+      safeSend({ type:"pong", roomId: q.room, session: q.session, t: Date.now() });
+      return;
+    }
+    if(msg.type === "pong"){
+      // optional: could show RTT or just treat as traffic
+      return;
+    }
+
+    if(msg.type==="tv_sync"){
+      const q=qs();
+
+      // Accept sync even if msg.session is omitted; only reject if provided & mismatched.
+      if(msg.session && msg.session !== q.session) return;
+      if(msg.roomId && msg.roomId !== q.room) return;
+
+      matches = (msg.matches || []).map(m=>({
+        score: m.score || 0,
+        code: m.code || "",
+        plan: m.plan || "",
+        expiresAt: m.expiresAt || 0,
+        aAlias: m.aAlias || m.a || m.aliasA || "",
+        bAlias: m.bAlias || m.b || m.aliasB || "",
+        aVenueId: m.aVenueId || "",
+        bVenueId: m.bVenueId || ""
+      }));
+
+      page = 0;
+      render();
+    }
+  };
+
+  WS.onerror=()=>{
+    setWsStatus("ERROR");
+    // treat as traffic stop; reconnect via onclose typically, but some browsers won't close on error
+    try{ WS?.close(); }catch{}
+  };
+
+  WS.onclose=()=>{
+    setWsStatus("DISCONNECTED");
+    stopHeartbeat();
+    scheduleReconnect();
+  };
+}
+
+// rotate tiles
+setInterval(()=>{ page++; render(); }, ROTATE_MS);
+
+// periodically ask for sync (helps if relay misses a push)
+setInterval(()=>{ if(WS_STATE==="CONNECTED") requestSync(); }, RESYNC_MS);
+
+connectWS();
+render();
+</script>
+</body>
+</html>
+
+
+
