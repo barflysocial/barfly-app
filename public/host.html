@@ -1011,7 +1011,26 @@ function updateLinks(){
   $("sessionPill").textContent = host.session;
   $("roomPill").textContent    = currentRoomId();
 }
+function updateLinks(){
+  const base = new URL(location.href);
 
+  const join = new URL(base);
+  join.pathname = "/join.html";
+  join.searchParams.set("room", currentRoomId());
+  join.searchParams.set("session", host.session);
+
+  const tvu = new URL(base);
+  tvu.pathname = "/tv.html";
+  tvu.searchParams.set("room", currentRoomId());
+  tvu.searchParams.set("session", host.session);
+  tvu.searchParams.set("venue", host.activeBarId);
+
+  $("joinLink").textContent = join.toString();
+  $("tvLink").textContent = tvu.toString();
+
+  $("sessionPill").textContent = host.session;
+  $("roomPill").textContent = currentRoomId();
+}
 function renderAll(){
   $("wsUrlTxt").textContent = WS_URL;
   renderBars();
@@ -1284,4 +1303,5 @@ init();
 </script>
 </body>
 </html>
+
 
