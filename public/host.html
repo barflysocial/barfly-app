@@ -242,22 +242,21 @@ const MIN_MATCH_SCORE = 0.75;
 const TV_EXPIRE_MS = 3 * 60 * 60 * 1000; // 3 hours
 const TV_ROTATE_MS = 10 * 1000;
 
-/* ---- NEW: heartbeat + reconnect ---- */
-const HEARTBEAT_MS = 15 * 1000;      // send ping every 15s
-const PONG_TIMEOUT_MS = 45 * 1000;   // if no pong/traffic in 45s, reconnect
-const RECONNECT_BASE_MS = 800;       // backoff base
-const RECONNECT_MAX_MS  = 10 * 1000; // backoff cap
+/* ---- heartbeat + reconnect ---- */
+const HEARTBEAT_MS = 15 * 1000;
+const PONG_TIMEOUT_MS = 45 * 1000;
+const RECONNECT_BASE_MS = 800;
+const RECONNECT_MAX_MS  = 10 * 1000;
 
 const STORAGE = {
-  BARS: "bm_bars_v6",
-  HOST: "bm_host_v6",
-  PEOPLE: "bm_people_v6",
-  LIKES: "bm_likes_v6",
-  EVENT: "bm_event_v6",
-  TV: "bm_tv_v6",
-
-  // dedupe guest submits (fingerprints)
-  DEDUPE: "bm_dedupe_v6"
+  BARS: "bm_bars_v7",
+  HOST: "bm_host_v7",
+  PEOPLE: "bm_people_v7",
+  LIKES: "bm_likes_v7",
+  EVENT: "bm_event_v7",
+  TV: "bm_tv_v7",
+  DEDUPE: "bm_dedupe_v7",
+  CONTACTS: "bm_contacts_v7" // ✅ contact stash per guest
 };
 
 const $ = (id)=>document.getElementById(id);
@@ -285,11 +284,12 @@ function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 ========================= */
 let bars = loadJSON(STORAGE.BARS, []);
 let host = loadJSON(STORAGE.HOST, { mode:"single", activeBarId:null, session: genSession() });
-let people = loadJSON(STORAGE.PEOPLE, []); // city-wide pool lives here
-let likes  = loadJSON(STORAGE.LIKES, {});  // {voterId:{otherId:true/false}}
+let people = loadJSON(STORAGE.PEOPLE, []);
+let likes  = loadJSON(STORAGE.LIKES, {});     // likes[voterId][targetId] = true/false
+let contacts = loadJSON(STORAGE.CONTACTS, {}); // contacts[guestId] = {phone, instagram, ...}
 let event  = loadJSON(STORAGE.EVENT, { eventId:"", name:"", participatingBarIds:[] });
-let tv     = loadJSON(STORAGE.TV, { matches:[] }); // {aId,bId,score,code,createdAt,expiresAt,plan}
-let dedupe = loadJSON(STORAGE.DEDUPE, {});         // { fp: timestampMs }
+let tv     = loadJSON(STORAGE.TV, { matches:[] });
+let dedupe = loadJSON(STORAGE.DEDUPE, {});
 
 /* =========================
    BARS
@@ -306,38 +306,34 @@ function ensureDefaultBar(){
     saveJSON(STORAGE.EVENT, event);
   }
 }
-function barName(id){ return bars.find(b=>b.id===id)?.name || "Bar"; }
+function barName(id){ return bars.find(b=>b.id===id)?.name || (id ? "Bar" : "—"); }
 
 /* =========================
    WS + HEARTBEAT
 ========================= */
 let WS=null;
 let WS_STATE="DISCONNECTED";
-
-/* ---- NEW: connection health ---- */
-let lastTrafficAt = 0;       // last time we received ANY message
-let lastPongAt = 0;          // last explicit pong (or traffic treated as pong)
+let lastTrafficAt = 0;
+let lastPongAt = 0;
 let reconnectAttempts = 0;
 
+/* ✅ FIX: store ALL intervals so they can be cleared */
 const timers = {
-  tvPurge: null,
-  rebroadcastConfig: null,
-  heartbeat: null,
-  health: null
+  tvPurge:null,
+  rebroadcastConfig:null,
+  rosterSync:null,
+  heartbeat:null,
+  health:null
 };
 
 function wsSetStatus(s){
   WS_STATE=s;
-
-  // show simple state in pills
   $("wsPill").textContent = s;
 
-  // show richer badge status (connected + seconds since last traffic)
   const ageSec = lastTrafficAt ? Math.max(0, Math.round((now()-lastTrafficAt)/1000)) : null;
   const label =
     (s==="CONNECTED" && ageSec!=null) ? `CONNECTED • ${ageSec}s` :
-    (s==="CONNECTED") ? "CONNECTED" :
-    s;
+    (s==="CONNECTED") ? "CONNECTED" : s;
 
   $("wsBadge").textContent = label;
   $("wsBadge").className = "badge" + (s==="CONNECTED"?" good": s==="CONNECTING"?" warn": s==="ERROR"?" bad":"");
@@ -354,28 +350,29 @@ function safeSend(obj){
 }
 
 function currentRoomId(){
-  // single: room is activeBarId
-  // city: room is eventId
   return (host.mode === "city") ? event.eventId : host.activeBarId;
 }
 
-/* broadcast config so JOIN can populate participating venues */
+/* =========================
+   ✅ CONFIG BROADCAST
+========================= */
 function broadcastConfig(){
   const roomId = currentRoomId();
-  const participating = (event.participatingBarIds || [])
+
+  const participatingIds = (event.participatingBarIds || [])
     .filter(id => bars.some(b => b.id === id));
+
+  const participating = participatingIds.map(id => ({ id, name: barName(id) }));
 
   safeSend({
     type: "config",
-    roomId,
+    roomId, room: roomId, barId: roomId,
     session: host.session,
     mode: host.mode,
-    event: {
-      eventId: event.eventId,
-      name: event.name || ""
-    },
+    event: { eventId: event.eventId, name: event.name || "" },
     bars: bars.map(b => ({ id:b.id, name:b.name })),
-    participatingBarIds: participating,
+    participatingBarIds: participatingIds,
+    participating,
     rules: {
       minMatch: MIN_MATCH_SCORE,
       tvExpireMs: TV_EXPIRE_MS,
@@ -385,7 +382,31 @@ function broadcastConfig(){
   });
 }
 
-/* ---- NEW: heartbeat helpers ---- */
+/* =========================
+   ✅ ROSTER SYNC
+========================= */
+function broadcastRosterSync(requesterNonce=null){
+  const roomId = currentRoomId();
+  const pool = activePool();
+
+  const roster = pool.map(p => ({
+    id: p.id,
+    alias: p.alias,
+    venueId: p.venueId || ""
+  }));
+
+  const you = requesterNonce ? pool.find(p => p.clientNonce === requesterNonce) : null;
+
+  safeSend({
+    type: "roster_sync",
+    roomId, room: roomId, barId: roomId,
+    session: host.session,
+    roster,
+    people: roster, // compat
+    you: you ? { id: you.id, alias: you.alias, venueId: you.venueId || "" } : undefined
+  });
+}
+
 function stopHeartbeat(){
   if(timers.heartbeat){ clearInterval(timers.heartbeat); timers.heartbeat=null; }
   if(timers.health){ clearInterval(timers.health); timers.health=null; }
@@ -396,14 +417,12 @@ function startHeartbeat(){
   lastTrafficAt = now();
   lastPongAt = now();
 
-  // send ping
   timers.heartbeat = setInterval(()=>{
     if(WS_STATE!=="CONNECTED") return;
-    // include room/session (some relays route by room)
-    safeSend({ type:"ping", roomId: currentRoomId(), session: host.session, t: now() });
+    const roomId = currentRoomId();
+    safeSend({ type:"ping", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
   }, HEARTBEAT_MS);
 
-  // watchdog: if no traffic, reconnect
   timers.health = setInterval(()=>{
     if(WS_STATE!=="CONNECTED") return;
     const silentFor = now() - Math.max(lastPongAt||0, lastTrafficAt||0);
@@ -412,7 +431,6 @@ function startHeartbeat(){
       try{ WS?.close(); }catch{}
       scheduleReconnect();
     }else{
-      // update badge "CONNECTED • Ns"
       wsSetStatus("CONNECTED");
     }
   }, 1000);
@@ -440,14 +458,8 @@ function scheduleReconnect(){
    SUBMISSION HANDLING
 ========================= */
 function normalizeIncomingPayload(msg){
-  // Accept many relay shapes:
-  // A) {type:"submit_payload", payload:{...}}
-  // B) {type:"payload_received", payload:{...}}
-  // C) {type:"submit_payload", ...payloadFieldsHere}
   const p = msg?.payload || (msg?.type==="submit_payload" ? msg.payload : null);
   if(p) return p;
-
-  // fallback: if relay flattens payload fields into msg
   if(msg?.type==="submit_payload" && !msg.payload){
     const copy = {...msg};
     delete copy.type;
@@ -468,6 +480,7 @@ function payloadFingerprint(payload){
   const obj = {
     room: payload?.roomId ?? payload?.room ?? payload?.barId ?? "",
     session: payload?.session ?? "",
+    clientNonce: payload?.clientNonce ?? "",
     venueId: payload?.venueId ?? "",
     travelYes: !!payload?.travelYes,
     attrs: payload?.attrs ?? {},
@@ -481,39 +494,29 @@ function payloadFingerprint(payload){
     starter: payload?.starter ?? ""
   };
   const s = JSON.stringify(obj);
-
   let h=2166136261;
-  for(let i=0;i<s.length;i++){
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return "fp_" + (h>>>0).toString(16);
 }
 
 function dedupeSeen(fp){
   const cutoff = now() - 10*60*1000;
-  for(const k in dedupe){
-    if(dedupe[k] < cutoff) delete dedupe[k];
-  }
+  for(const k in dedupe){ if(dedupe[k] < cutoff) delete dedupe[k]; }
   if(dedupe[fp]) return true;
   dedupe[fp] = now();
   saveJSON(STORAGE.DEDUPE, dedupe);
   return false;
 }
 
-function ackSubmit(){
-  safeSend({
-    type: "submit_ack",
-    roomId: currentRoomId(),
-    session: host.session
-  });
+function ackSubmit(clientNonce=null){
+  const roomId = currentRoomId();
+  safeSend({ type: "submit_ack", roomId, room: roomId, barId: roomId, session: host.session, clientNonce: clientNonce || undefined });
 }
 
 /* =========================
    WS CONNECT
 ========================= */
 function wsConnect(isReconnect=false){
-  // prevent duplicates
   if(WS && (WS.readyState===WebSocket.OPEN || WS.readyState===WebSocket.CONNECTING)) return;
 
   WS = new WebSocket(WS_URL);
@@ -521,80 +524,87 @@ function wsConnect(isReconnect=false){
 
   WS.onopen = ()=>{
     wsSetStatus("CONNECTED");
-
-    // reset reconnect backoff once we connect
     reconnectAttempts = 0;
 
     const roomId = currentRoomId();
     $("roomPill").textContent = roomId || "—";
 
-    safeSend({ type:"join", role:"host", barId: roomId, session: host.session });
+    safeSend({
+      type:"join",
+      role:"host",
+      roomId,
+      room: roomId,
+      barId: roomId,
+      session: host.session
+    });
 
-    // start heartbeat after join
     startHeartbeat();
 
     broadcastConfig();
     broadcastTVSync();
+    broadcastRosterSync(null);
 
     if(isReconnect) showToast("Reconnected", "WebSocket connection restored.");
   };
 
   WS.onmessage = (ev)=>{
-    // any traffic counts as “alive”
     lastTrafficAt = now();
 
     let msg; try{ msg = JSON.parse(ev.data); }catch{ return; }
 
-    // treat pong as alive explicitly
     if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack"){
       lastPongAt = now();
       return;
     }
-
-    // if relay echoes ping, answer with pong (harmless if ignored)
     if(msg.type==="ping"){
       lastPongAt = now();
-      safeSend({ type:"pong", roomId: currentRoomId(), session: host.session, t: now() });
+      const roomId = currentRoomId();
+      safeSend({ type:"pong", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
       return;
     }
 
-    if(msg.type === "request_config"){
-      broadcastConfig();
+    if(msg.type === "request_config"){ broadcastConfig(); return; }
+    if(msg.type === "request_tv_sync"){ broadcastTVSync(); return; }
+
+    if(msg.type === "request_roster"){
+      const requesterNonce = (msg.voterNonce || msg.clientNonce || "").trim() || null;
+      broadcastRosterSync(requesterNonce);
       return;
     }
 
-    if(msg.type === "request_tv_sync"){
-      broadcastTVSync();
+    if(msg.type === "vote"){
+      handleVoteMessage(msg);
+      return;
+    }
+
+    if(msg.type === "contact_save"){
+      handleContactSave(msg);
       return;
     }
 
     if(msg.type === "submit_payload" || msg.type === "payload_received"){
       const payload = normalizeIncomingPayload(msg);
       if(!payload) return;
-
-      if(!payloadRoomSessionOk(payload)){
-        return;
-      }
+      if(!payloadRoomSessionOk(payload)) return;
 
       const fp = payloadFingerprint(payload);
       if(dedupeSeen(fp)){
-        ackSubmit();
+        ackSubmit(payload.clientNonce || null);
         return;
       }
 
       importGuest(payload);
-      ackSubmit();
+      ackSubmit(payload.clientNonce || null);
 
       showToast("Guest", "New guest received.");
       broadcastConfig();
+      broadcastRosterSync(payload.clientNonce || null);
       broadcastTVSync();
       return;
     }
   };
 
-  WS.onerror = ()=>{
-    wsSetStatus("ERROR");
-  };
+  WS.onerror = ()=>{ wsSetStatus("ERROR"); };
 
   WS.onclose = ()=>{
     wsSetStatus("DISCONNECTED");
@@ -712,7 +722,7 @@ function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
 function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
 
 /* =========================
-   IMPORT GUEST
+   IMPORT GUEST (✅ STABLE IDs)
 ========================= */
 const ALIAS_A = ["Neon","Velvet","Midnight","Lucky","Smooth","Wild","Golden","Sugar","Cosmic","Electric","Bayou","Rouge","Moon","Star","Cajun","Whisper","Spicy","Satin","Honey","Silver"];
 const ALIAS_B = ["Muse","Wink","Charm","Heartbeat","Vibe","Spark","Sway","Crush","Flirt","Serenade","Rendezvous","Rose","Phoenix","Echo","Breeze","Glow","Nova","Julep","Daiquiri","Shot"];
@@ -723,11 +733,28 @@ function makeAlias(){
   return `${a}${b}${n}`;
 }
 
+function upsertGuestById(id, patch){
+  const idx = people.findIndex(p=>p.id===id);
+  if(idx>=0){
+    people[idx] = { ...people[idx], ...patch };
+  }else{
+    people.push(patch);
+  }
+  saveJSON(STORAGE.PEOPLE, people);
+}
+
 function importGuest(payload){
   const incomingRoom = payload.roomId ?? payload.room ?? payload.barId ?? payload.roomID ?? "";
+  const stableId = (payload.clientNonce && String(payload.clientNonce).trim())
+    ? String(payload.clientNonce).trim()
+    : uid();
+
+  const existing = people.find(p=>p.id===stableId);
+
   const p = {
-    id: uid(),
-    alias: makeAlias(),
+    id: stableId,
+    clientNonce: payload.clientNonce || (existing?.clientNonce || null),
+    alias: existing?.alias || makeAlias(),
     roomId: incomingRoom || currentRoomId(),
     session: payload.session,
     venueId: payload.venueId,
@@ -744,29 +771,162 @@ function importGuest(payload){
     publicBlurb: payload.publicBlurb || "",
     starter: payload.starter || "",
     pays: payload.pays || "",
-    budget: payload.budget || ""
+    budget: payload.budget || "",
+    updatedAt: now()
   };
 
   if(p.session !== host.session) return;
   if(p.roomId !== currentRoomId()) return;
 
-  people.push(p);
-  saveJSON(STORAGE.PEOPLE, people);
+  upsertGuestById(stableId, p);
 
-  ensureLikes(p.id);
+  ensureLikes(stableId);
   saveJSON(STORAGE.LIKES, likes);
 
   renderAll();
 }
 
 /* =========================
-   MUTUAL COMPUTE + TV QUEUE
+   VOTING + AUTO TV MATCH
 ========================= */
 function activePool(){
   const roomId = currentRoomId();
   return people.filter(p => p.session === host.session && p.roomId === roomId);
 }
 
+function idFromVoterNonce(voterNonce){
+  if(!voterNonce) return null;
+  const pool = activePool();
+  const me = pool.find(p => p.clientNonce === voterNonce || p.id === voterNonce);
+  return me?.id || null;
+}
+
+function tvHasPair(aId,bId){
+  const key = pairKey(aId,bId);
+  return (tv.matches||[]).some(m => pairKey(m.aId,m.bId) === key && m.expiresAt > now());
+}
+
+function tryCreateTvMatchForPair(aId,bId){
+  const pool = activePool();
+  const A = pool.find(x=>x.id===aId);
+  const B = pool.find(x=>x.id===bId);
+  if(!A || !B) return false;
+
+  const plan = travelPlan(A,B);
+  if(!plan.allowed) return false;
+
+  const sc = scorePair(A,B);
+  if(sc < MIN_MATCH_SCORE) return false;
+
+  if(tvHasPair(aId,bId)) return false;
+
+  tv.matches = (tv.matches||[]).filter(m => m.expiresAt > now());
+  tv.matches.push({
+    aId, bId,
+    score: sc,
+    plan: plan.plan,
+    code: makeMatchCode(),
+    createdAt: now(),
+    expiresAt: now() + TV_EXPIRE_MS
+  });
+  tv.matches.sort((x,y)=> y.score - x.score);
+  saveJSON(STORAGE.TV, tv);
+
+  maybeReleaseContact(aId,bId);
+
+  renderAll();
+  broadcastTVSync();
+  return true;
+}
+
+function handleVoteMessage(msg){
+  const roomId = currentRoomId();
+  const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+  if(msg.session && msg.session !== host.session) return;
+  if(msgRoom && msgRoom !== roomId) return;
+
+  const voterNonce = (msg.voterNonce || msg.clientNonce || "").trim();
+  const voterId = idFromVoterNonce(voterNonce);
+  const targetId = (msg.targetId || "").trim();
+  const likeVal = !!msg.like;
+
+  if(!voterId) return;
+  if(!targetId) return;
+  if(voterId === targetId) return;
+
+  const pool = activePool();
+  if(!pool.some(p=>p.id===targetId)) return;
+
+  ensureLikes(voterId);
+  likes[voterId][targetId] = likeVal;
+  saveJSON(STORAGE.LIKES, likes);
+
+  if(isMutual(voterId, targetId)){
+    tryCreateTvMatchForPair(voterId, targetId);
+  }
+
+  renderMutuals();
+  renderCounts();
+  broadcastRosterSync(voterNonce || null);
+}
+
+/* =========================
+   CONTACT SAVE + RELEASE
+========================= */
+function handleContactSave(msg){
+  const roomId = currentRoomId();
+  const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+  if(msg.session && msg.session !== host.session) return;
+  if(msgRoom && msgRoom !== roomId) return;
+
+  const voterNonce = (msg.voterNonce || msg.clientNonce || "").trim();
+  const voterId = idFromVoterNonce(voterNonce);
+  if(!voterId) return;
+
+  const contact = msg.contact && typeof msg.contact === "object" ? msg.contact : {};
+  contacts[voterId] = {
+    ...contacts[voterId],
+    ...contact,
+    updatedAt: now()
+  };
+  saveJSON(STORAGE.CONTACTS, contacts);
+
+  safeSend({
+    type:"contact_saved_ack",
+    roomId, room: roomId, barId: roomId,
+    session: host.session,
+    voterNonce,
+    ok:true
+  });
+
+  const pool = activePool();
+  for(const p of pool){
+    if(p.id !== voterId && isMutual(voterId, p.id)){
+      maybeReleaseContact(voterId, p.id);
+    }
+  }
+}
+
+function maybeReleaseContact(aId,bId){
+  const A = contacts[aId];
+  const B = contacts[bId];
+  if(!A || !B) return;
+
+  const roomId = currentRoomId();
+
+  safeSend({
+    type:"contact_release",
+    roomId, room: roomId, barId: roomId,
+    session: host.session,
+    aId, bId,
+    aContact: A,
+    bContact: B
+  });
+}
+
+/* =========================
+   MUTUAL COMPUTE + TV QUEUE
+========================= */
 function computeMutualMatches(){
   const pool = activePool();
   const ids = pool.map(p=>p.id);
@@ -812,6 +972,9 @@ function computeMutualMatches(){
   showToast("Mutuals computed", `TV queue updated (${tv.matches.length} active).`);
 }
 
+/* =========================
+   TV SYNC
+========================= */
 function broadcastTVSync(){
   const roomId = currentRoomId();
   const pool = activePool();
@@ -832,12 +995,7 @@ function broadcastTVSync(){
       };
     });
 
-  safeSend({
-    type: "tv_sync",
-    roomId,
-    session: host.session,
-    matches: active
-  });
+  safeSend({ type: "tv_sync", roomId, room: roomId, barId: roomId, session: host.session, matches: active });
 }
 
 /* =========================
@@ -902,7 +1060,8 @@ function renderRoster(){
           Foods: <span class="mono">${esc((p.foodChips||[]).join(", ")||"—")}</span><br/>
           Activities: <span class="mono">${esc((p.activityChips||[]).join(", ")||"—")}</span><br/>
           First date: <span class="mono">${esc(p.firstDateLoc||"—")}</span> • <span class="mono">${esc(p.firstDateAvail||"—")}</span><br/>
-          Pays: <span class="mono">${esc(p.pays||"—")}</span> • Budget: <span class="mono">${esc(p.budget||"—")}</span>
+          Pays: <span class="mono">${esc(p.pays||"—")}</span> • Budget: <span class="mono">${esc(p.budget||"—")}</span><br/>
+          ID: <span class="mono">${esc(p.id)}</span>
         </div>
       </div>
       <div class="badge">${host.mode==="city" ? "CITY" : "LOCAL"}</div>
@@ -994,24 +1153,6 @@ function renderCounts(){
 }
 
 function updateLinks(){
-  const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/");
-
-  const join = new URL(base + "join.html");
-  join.searchParams.set("room", currentRoomId());
-  join.searchParams.set("session", host.session);
-
-  const tv = new URL(base + "tv.html");
-  tv.searchParams.set("room", currentRoomId());
-  tv.searchParams.set("session", host.session);
-  tv.searchParams.set("venue", host.activeBarId);
-
-  $("joinLink").textContent = join.toString();
-  $("tvLink").textContent   = tv.toString();
-
-  $("sessionPill").textContent = host.session;
-  $("roomPill").textContent    = currentRoomId();
-}
-function updateLinks(){
   const base = new URL(location.href);
 
   const join = new URL(base);
@@ -1023,7 +1164,12 @@ function updateLinks(){
   tvu.pathname = "/tv.html";
   tvu.searchParams.set("room", currentRoomId());
   tvu.searchParams.set("session", host.session);
-  tvu.searchParams.set("venue", host.activeBarId);
+
+  if(host.mode === "single"){
+    tvu.searchParams.set("venue", host.activeBarId);
+  }else{
+    tvu.searchParams.delete("venue");
+  }
 
   $("joinLink").textContent = join.toString();
   $("tvLink").textContent = tvu.toString();
@@ -1031,6 +1177,7 @@ function updateLinks(){
   $("sessionPill").textContent = host.session;
   $("roomPill").textContent = currentRoomId();
 }
+
 function renderAll(){
   $("wsUrlTxt").textContent = WS_URL;
   renderBars();
@@ -1043,8 +1190,6 @@ function renderAll(){
   renderTVQueue();
   renderCounts();
   updateLinks();
-
-  // refresh badge text with connection age
   wsSetStatus(WS_STATE);
 }
 
@@ -1085,6 +1230,9 @@ function clearRoster(){
   likes = {};
   saveJSON(STORAGE.LIKES, likes);
 
+  contacts = {};
+  saveJSON(STORAGE.CONTACTS, contacts);
+
   tv.matches = [];
   saveJSON(STORAGE.TV, tv);
 
@@ -1092,8 +1240,9 @@ function clearRoster(){
   saveJSON(STORAGE.DEDUPE, dedupe);
 
   renderAll();
+  broadcastRosterSync(null);
   broadcastTVSync();
-  showToast("Cleared","Roster + likes + TV queue cleared for this room.");
+  showToast("Cleared","Roster + likes + contacts + TV queue cleared for this room.");
 }
 
 function createOrUpdateEvent(){
@@ -1116,14 +1265,15 @@ function toggleParticipating(barId){
 
 function exportCSV(){
   const pool=activePool();
-  const headers=["alias","venue","travelYes","score_note","foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter"];
+  const headers=["alias","id","venue","travelYes","foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter","contact_phone","contact_instagram"];
   let csv=headers.join(",")+"\n";
   for(const p of pool){
+    const c = contacts[p.id] || {};
     const row=[
       p.alias,
+      p.id,
       barName(p.venueId),
       p.travelYes?"Yes":"No",
-      "",
       (p.foodChips||[]).join("|"),
       (p.activityChips||[]).join("|"),
       p.firstDateLoc||"",
@@ -1131,7 +1281,9 @@ function exportCSV(){
       p.pays||"",
       p.budget||"",
       p.publicBlurb||"",
-      p.starter||""
+      p.starter||"",
+      c.phone||"",
+      c.instagram||""
     ].map(v=>{
       const s=String(v??"");
       return /[,"\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
@@ -1166,9 +1318,19 @@ function exportCSV(){
   showToast("Exported","CSV downloaded.");
 }
 
-function copyText(txt){
-  navigator.clipboard.writeText(txt);
-  showToast("Copied","Link copied.");
+/* ✅ a little safer on browsers without clipboard permission */
+async function copyText(txt){
+  try{
+    await navigator.clipboard.writeText(txt);
+    showToast("Copied","Link copied.");
+  }catch{
+    const ta=document.createElement("textarea");
+    ta.value=txt; ta.style.position="fixed"; ta.style.left="-9999px";
+    document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy");
+    ta.remove();
+    showToast("Copied","Link copied.");
+  }
 }
 
 /* =========================
@@ -1177,12 +1339,12 @@ function copyText(txt){
 function stopIntervals(){
   if(timers.tvPurge){ clearInterval(timers.tvPurge); timers.tvPurge=null; }
   if(timers.rebroadcastConfig){ clearInterval(timers.rebroadcastConfig); timers.rebroadcastConfig=null; }
+  if(timers.rosterSync){ clearInterval(timers.rosterSync); timers.rosterSync=null; } /* ✅ FIX */
 }
 
 function startIntervals(){
   stopIntervals();
 
-  // keep TV queue fresh
   timers.tvPurge = setInterval(()=>{
     const before=(tv.matches||[]).length;
     tv.matches=(tv.matches||[]).filter(m=>m.expiresAt>now()).sort((a,b)=>b.score-a.score);
@@ -1194,8 +1356,12 @@ function startIntervals(){
     }
   }, 30*1000);
 
-  // rebroadcast config occasionally (helps late joiners if relay doesn’t store state)
   timers.rebroadcastConfig = setInterval(()=>broadcastConfig(), 60*1000);
+
+  /* ✅ FIX: store + clear roster interval */
+  timers.rosterSync = setInterval(()=>{
+    if(WS_STATE==="CONNECTED") broadcastRosterSync(null);
+  }, 25*1000);
 }
 
 /* =========================
@@ -1219,6 +1385,8 @@ function init(){
     wsConnect();
     renderAll();
     broadcastConfig();
+    broadcastTVSync();
+    broadcastRosterSync(null);
   });
 
   $("sessionCode").addEventListener("change", ()=>{
@@ -1230,6 +1398,7 @@ function init(){
     renderAll();
     broadcastConfig();
     broadcastTVSync();
+    broadcastRosterSync(null);
   });
 
   $("btnNewSession").addEventListener("click", ()=>{
@@ -1253,6 +1422,7 @@ function init(){
     renderAll();
     broadcastConfig();
     broadcastTVSync();
+    broadcastRosterSync(null);
   });
 
   $("btnAddBar").addEventListener("click", ()=>{
@@ -1282,17 +1452,21 @@ function init(){
 
   $("btnBroadcastConfig").addEventListener("click", ()=>{
     broadcastConfig();
+    broadcastRosterSync(null);
     showToast("Broadcast","Config sent to room.");
   });
 
   $("btnExport").addEventListener("click", exportCSV);
 
-  $("btnCopyJoin").addEventListener("click", ()=>copyText($("joinLink").textContent));
-  $("btnCopyJoin2").addEventListener("click", ()=>copyText($("joinLink").textContent));
-  $("btnCopyTV").addEventListener("click", ()=>copyText($("tvLink").textContent));
-  $("btnCopyTV2").addEventListener("click", ()=>copyText($("tvLink").textContent));
+  /* ✅ Ensure links are fresh right before copy */
+  const copyJoin = ()=>{ updateLinks(); copyText($("joinLink").textContent); };
+  const copyTV   = ()=>{ updateLinks(); copyText($("tvLink").textContent); };
 
-  // close cleanly
+  $("btnCopyJoin").addEventListener("click", copyJoin);
+  $("btnCopyJoin2").addEventListener("click", copyJoin);
+  $("btnCopyTV").addEventListener("click", copyTV);
+  $("btnCopyTV2").addEventListener("click", copyTV);
+
   window.addEventListener("beforeunload", ()=>{
     stopIntervals();
     cleanupWs();
