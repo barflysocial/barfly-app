@@ -23,6 +23,7 @@
     .btn.primary{background:rgba(96,165,250,.20);border-color:rgba(96,165,250,.35)}
     .btn.good{background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35)}
     .btn.bad{background:rgba(251,113,133,.16);border-color:rgba(251,113,133,.35)}
+    .btn.warn{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.35)}
     .btn:disabled{opacity:.6;cursor:not-allowed}
     .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     @media(max-width:700px){.two{grid-template-columns:1fr}}
@@ -43,6 +44,15 @@
     .prefRow{display:flex;justify-content:space-between;align-items:center;gap:10px}
     .dealLbl{display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--muted);font-weight:900;white-space:nowrap}
     .dealChk{width:auto;transform:scale(1.15)}
+
+    /* ✅ Voting UI */
+    .voteHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+    .voteStats{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .voteCard{border:1px solid var(--line);border-radius:18px;background:rgba(0,0,0,.20);padding:14px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .voteAlias{font-size:20px;font-weight:1000;line-height:1.1}
+    .voteSub{margin-top:6px;color:var(--muted);font-weight:900;font-size:13px;line-height:1.35}
+    .voteActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .voteList{display:flex;flex-direction:column;gap:10px}
   </style>
 </head>
 <body>
@@ -53,7 +63,7 @@
     <div class="pill"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
   </div>
 
-  <!-- STEP 1 -->
+  <!-- ✅ FORM -->
   <div class="card" id="formCard">
     <h2>Barfly Social — Join</h2>
     <div class="muted">Alias-only matchmaking. Your identity stays private.</div>
@@ -62,21 +72,24 @@
 
     <div class="two">
       <div>
-        <label>Location (Participating only)</label>
+        <label id="venueLabel">Location</label>
         <select id="venueSelect">
           <option value="" disabled selected>Waiting for host config…</option>
         </select>
-        <div class="muted" style="font-size:12px;margin-top:6px">
+
+        <div class="muted" id="venueHelp" style="font-size:12px;margin-top:6px">
           If you don’t see your location, ask the host to broadcast the event config.
         </div>
       </div>
-      <div>
+
+      <div id="travelWrap">
         <label>Willing to travel?</label>
         <select id="travelYes">
           <option value="" disabled selected>Select</option>
           <option value="yes">Yes</option>
           <option value="no">No</option>
         </select>
+
         <div class="muted" style="font-size:12px;margin-top:6px">
           Cross-location match is allowed if at least one person says Yes.
         </div>
@@ -531,6 +544,23 @@
     <label style="margin-top:10px">Conversation starter</label>
     <input id="starter" placeholder="Ask me about…"/>
 
+    <!-- ✅ CONTACT FIELDS -->
+    <div class="hr"></div>
+    <h3>Contact (optional)</h3>
+    <div class="muted" style="font-size:12px;margin-top:-6px">
+      Saved contact is <b>only released after a mutual like</b>. Phone must be <b>10 digits</b>. Instagram must start with <b>@</b>.
+    </div>
+    <div class="two" style="margin-top:10px">
+      <div>
+        <label>Phone (10 digits)</label>
+        <input id="contactPhone" inputmode="numeric" placeholder="e.g., 2255551234"/>
+      </div>
+      <div>
+        <label>Instagram (@name)</label>
+        <input id="contactInstagram" placeholder="@yourname"/>
+      </div>
+    </div>
+
     <div class="hr"></div>
 
     <button class="btn primary" id="btnSubmit" type="button" style="width:100%;font-size:18px" disabled>Submit</button>
@@ -540,36 +570,44 @@
     </div>
   </div>
 
-  <!-- STEP 2 -->
-  <div class="card hidden" id="browseCard" style="margin-top:12px">
-    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+  <!-- ✅ VOTING (shows AFTER submit) -->
+  <div class="card hidden" id="voteCard" style="margin-top:12px">
+    <div class="voteHead">
       <div>
-        <div class="big">Browse Guests</div>
-        <div class="muted" style="font-size:12px">Aliases only • Like/Pass to find mutuals.</div>
+        <h2 style="margin:0">Voting</h2>
+        <div class="muted" style="margin-top:6px">
+          You’ll see your <b>Top 12</b> best matches (highest → lowest). Tap <b>Like</b> for people you want to match with.
+        </div>
       </div>
-      <div class="k" id="counterPill">0 / 0</div>
+      <div class="voteStats">
+        <span class="pill"><b>You</b> <span id="myAliasPill">—</span></span>
+        <span class="pill"><b>Seen</b> <span id="seenCount">0</span></span>
+        <span class="pill"><b>Liked</b> <span id="likedCount">0</span></span>
+      </div>
     </div>
 
     <div class="hr"></div>
 
-    <div id="candidateBox">
+    <!-- ✅ CONTACT SAVE BUTTON (can be used even after submit) -->
+    <div class="two">
+      <button class="btn good" id="btnSaveContact" type="button">Save Contact Info</button>
+      <button class="btn warn" id="btnRequestRoster" type="button">Load Top 12</button>
+    </div>
+
+    <div class="two" style="margin-top:10px">
+      <button class="btn primary" id="btnRefreshRoster" type="button">Refresh List</button>
+      <button class="btn" id="btnClearVotes" type="button">Clear My Votes (local)</button>
+    </div>
+
+    <div class="muted" style="font-size:12px;margin-top:8px">
+      If nothing shows up, ask host to turn on roster broadcast / refresh.
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="voteList" id="voteList">
       <div class="muted">Waiting for roster…</div>
     </div>
-
-    <div class="hr"></div>
-
-    <div class="two">
-      <button class="btn bad" id="btnPass" type="button">👎 Pass</button>
-      <button class="btn good" id="btnLike" type="button">💚 Like</button>
-    </div>
-
-    <div class="muted" style="font-size:12px;margin-top:10px">
-      Mutual likes will show on the TV board (and/or host’s match list).
-    </div>
-
-    <div class="hr"></div>
-
-    <button class="btn primary" id="btnNextGuest" type="button" style="width:100%">Next Guest (Start Over)</button>
   </div>
 
   <div class="toast" id="toast">
@@ -583,25 +621,49 @@
    CONFIG
 ========================= */
 const WS_URL = "wss://bar-match-relay.onrender.com";
+const TOP_N = 12;
 
 /* =========================
    HELPERS
 ========================= */
 const $ = (id)=>document.getElementById(id);
-function qs(){ const u=new URL(location.href); return Object.fromEntries(u.searchParams.entries()); }
+function qs(){
+  const u=new URL(location.href);
+  const q = Object.fromEntries(u.searchParams.entries());
+  q.room = (q.room || q.roomId || q.barId || "").trim();
+  q.session = (q.session || "").trim();
+  return q;
+}
+function esc(s){
+  return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
 function showToast(t,m){
   $("toastT").textContent=t; $("toastM").textContent=m;
   const el=$("toast"); el.style.display="block";
   clearTimeout(showToast._t);
   showToast._t=setTimeout(()=>{el.style.display="none"}, 2600);
 }
+function digitsOnly(s){ return String(s||"").replace(/\D/g,""); }
+function normPhone10(raw){
+  const d = digitsOnly(raw);
+  return d.length ? d : "";
+}
+function validPhone10(raw){
+  const d = digitsOnly(raw);
+  return d.length === 10;
+}
+function validInstagramHandle(raw){
+  const s = String(raw||"").trim();
+  if(!s) return true; // optional
+  if(!s.startsWith("@")) return false;
+  if(s.length < 2) return false;
+  return /^@[A-Za-z0-9._]{1,30}$/.test(s);
+}
 
 /* =========================
    CHIPS
 ========================= */
 const FOOD = ["American","Asian","Latin","BBQ","Italian","Indian","Mediterranean","Seafood","Steak","Sushi"];
-
-// FIXED: commas/quotes so the page doesn’t crash
 const ACTS = [
   "Trivia","Karaoke","Music Bingo","Bingo","Line Dancing","Latin Dancing",
   "Crafting Cocktails","Wine Tasting","Movies","Video Games","Yoga","Daiquiris",
@@ -625,7 +687,6 @@ function renderChips(containerId, items, set){
     c.onclick=()=>{
       if(set.has(label)) set.delete(label); else set.add(label);
       renderChips(containerId, items, set);
-      // keep submit button state responsive
       setWsStatus(WS_STATE);
     };
     wrap.appendChild(c);
@@ -649,27 +710,76 @@ function hookReligionOther(){
 }
 
 /* =========================
-   VENUE POPULATION
+   VENUE POPULATION (CITY DEFAULTS)
 ========================= */
-function populateVenuesFromConfig(cfg){
+function barNameFromCfg(cfg, id){
+  const b = (cfg?.bars||[]).find(x=>x.id===id);
+  return b?.name || id || "Venue";
+}
+
+function lockToSingleVenue(cfg){
+  const q=qs();
+  const roomId = (q.room || "").trim();
+  const sel=$("venueSelect");
+  const travelWrap=$("travelWrap");
+  const venueLabel=$("venueLabel");
+  const venueHelp=$("venueHelp");
+
+  if(!sel) return;
+
+  const name = barNameFromCfg(cfg, roomId);
+
+  sel.innerHTML = "";
+  const opt=document.createElement("option");
+  opt.value = roomId || "";
+  opt.textContent = name;
+  sel.appendChild(opt);
+  sel.value = roomId || "";
+  sel.disabled = true;
+
+  if(travelWrap) travelWrap.classList.add("hidden");
+  const tsel=$("travelYes");
+  if(tsel){
+    tsel.innerHTML = `<option value="no" selected>No</option>`;
+    tsel.value = "no";
+  }
+
+  if(venueLabel) venueLabel.textContent = "Location (Locked)";
+  if(venueHelp) venueHelp.textContent = "Single-location event — your location is set automatically.";
+}
+
+function populateCityVenues(cfg){
   let list = [];
 
-  if(Array.isArray(cfg?.participating) && cfg.participating.length && typeof cfg.participating[0] === "object"){
-    list = cfg.participating;
-  } else if(Array.isArray(cfg?.bars) && Array.isArray(cfg?.participatingBarIds) && cfg.participatingBarIds.length){
-    const set = new Set(cfg.participatingBarIds);
-    list = cfg.bars.filter(b=>set.has(b.id));
-  } else if(Array.isArray(cfg?.bars) && cfg.bars.length){
-    list = cfg.bars;
+  const bars = Array.isArray(cfg?.bars) ? cfg.bars : [];
+  const ids  = Array.isArray(cfg?.participatingBarIds) ? cfg.participatingBarIds : [];
+
+  if(ids.length){
+    const set = new Set(ids);
+    list = bars.filter(b=>set.has(b.id));
+  } else if(bars.length){
+    list = bars.slice();
   }
 
   const sel=$("venueSelect");
-  if(!sel) return;
+  const travelWrap=$("travelWrap");
+  const venueLabel=$("venueLabel");
+  const venueHelp=$("venueHelp");
 
+  if(travelWrap) travelWrap.classList.remove("hidden");
+  if(venueLabel) venueLabel.textContent = ids.length ? "Location (Participating only)" : "Location (All venues)";
+  if(venueHelp){
+    venueHelp.textContent = ids.length
+      ? "Choose a participating location in this city-wide event."
+      : "Host hasn’t limited venues yet — all venues are available by default.";
+  }
+
+  if(!sel) return;
+  sel.disabled = false;
   sel.innerHTML = `<option value="" disabled selected>Select</option>`;
 
   if(!list.length){
-    sel.innerHTML = `<option value="" disabled selected>No participating venues received</option>`;
+    sel.innerHTML = `<option value="" disabled selected>No venues received</option>`;
     return;
   }
 
@@ -685,6 +795,15 @@ function populateVenuesFromConfig(cfg){
   }
 }
 
+function applyConfigUI(cfg){
+  const mode = (cfg?.mode || "").toLowerCase();
+  if(mode === "single"){
+    lockToSingleVenue(cfg);
+  }else{
+    populateCityVenues(cfg);
+  }
+}
+
 /* =========================
    WS STATE
 ========================= */
@@ -692,10 +811,17 @@ let WS=null;
 let WS_STATE="DISCONNECTED";
 let HOST_CONFIG=null;
 
-// IMPORTANT: one nonce, one submitted flag (no duplicates)
+/* ✅ clientNonce becomes our anonymous persistent identifier for voting too */
 const clientNonce = (crypto?.randomUUID?.() || ("nonce_"+Math.random().toString(16).slice(2)));
 let submitted = false;
 let sending = false;
+
+/* ✅ Voting state (client-side) */
+let myAlias = "";                 // if host sends it
+let roster = [];                  // [{id, alias, venueId, score?}]
+let votes = {};                   // { targetId: true/false }
+let seenCount = 0;
+let likedCount = 0;
 
 function setWsStatus(s){
   WS_STATE=s;
@@ -719,13 +845,12 @@ function safeSend(obj){
 
 function connectWS(){
   const q=qs();
-  const room=(q.room || "").trim();
-  const session=(q.session || "").trim();
+  const room=q.room;
+  const session=q.session;
 
   $("roomPill").textContent = room || "—";
   $("sessionPill").textContent = session || "—";
 
-  // FIX: guard missing params so we don’t “connect” to nowhere
   if(!room || !session){
     setWsStatus("ERROR");
     showToast("Bad link", "Missing ?room=...&session=... in the URL.");
@@ -739,37 +864,75 @@ function connectWS(){
 
   WS.onopen=()=>{
     setWsStatus("CONNECTED");
-    safeSend({ type:"join", role:"guest", barId: room, session });
-
-    // cleaner: include room/session in request (host can ignore)
-    safeSend({ type:"request_config", roomId: room, session });
+    safeSend({ type:"join", role:"guest", roomId: room, room: room, barId: room, session });
+    safeSend({ type:"request_config", roomId: room, room: room, barId: room, session });
   };
 
   WS.onmessage=(ev)=>{
     let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
 
-    if(msg.type==="event_config" || msg.type==="config"){
+    if(msg.type==="config" || msg.type==="event_config"){
       const q=qs();
-      const msgRoom = msg.roomId || msg.barId || msg.room;
+      const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
 
       if(msg.session && msg.session !== q.session) return;
       if(msgRoom && msgRoom !== q.room) return;
 
       HOST_CONFIG = msg;
-      populateVenuesFromConfig(msg);
+
+      applyConfigUI(msg);
+
       setWsStatus("CONNECTED");
       showToast("Connected","Event config received.");
       return;
     }
 
     if(msg.type==="submit_ack"){
-      // If host echoes nonce, use it; otherwise accept
       if(msg.clientNonce && msg.clientNonce !== clientNonce) return;
 
       submitted = true;
       sending = false;
       setWsStatus("CONNECTED");
-      showToast("Submitted","Sent to host successfully.");
+
+      $("formCard").classList.add("hidden");
+      $("voteCard").classList.remove("hidden");
+
+      showToast("Submitted","Now you can vote.");
+
+      // auto-save contact if user filled it
+      saveContact(true);
+
+      requestRoster();
+      return;
+    }
+
+    if(msg.type==="contact_saved_ack"){
+      // optional: show feedback
+      showToast("Saved","Contact info saved.");
+      return;
+    }
+
+    // optional future: display released contact on mutuals
+    if(msg.type==="contact_release"){
+      // guest UI could handle later; for now just notify.
+      showToast("Match contact", "A mutual match released contact info.");
+      return;
+    }
+
+    if(msg.type==="roster_sync" || msg.type==="people_sync"){
+      const q=qs();
+      const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+      if(msg.session && msg.session !== q.session) return;
+      if(msgRoom && msgRoom !== q.room) return;
+
+      const list = msg.people || msg.roster || [];
+      roster = Array.isArray(list) ? list.slice() : [];
+
+      if(msg.you && typeof msg.you === "object"){
+        myAlias = msg.you.alias || myAlias;
+      }
+
+      renderVoting();
       return;
     }
   };
@@ -787,12 +950,28 @@ function req(id,label,errs){
   if(!v) errs.push(label);
 }
 
+function validateContact(errs){
+  const phoneRaw = ($("contactPhone")?.value||"").trim();
+  const igRaw = ($("contactInstagram")?.value||"").trim();
+
+  if(phoneRaw){
+    if(!validPhone10(phoneRaw)) errs.push("Phone must be 10 digits");
+  }
+  if(igRaw){
+    if(!validInstagramHandle(igRaw)) errs.push("Instagram must start with @ (letters/numbers/._)");
+  }
+}
+
 function validate(){
   const errs=[];
   if(!HOST_CONFIG) errs.push("Host config");
 
   req("venueSelect","Location",errs);
-  req("travelYes","Willing to travel",errs);
+
+  const mode = (HOST_CONFIG?.mode || "").toLowerCase();
+  if(mode !== "single"){
+    req("travelYes","Willing to travel",errs);
+  }
 
   req("age","Age",errs);
   req("sex","Sex",errs);
@@ -830,7 +1009,61 @@ function validate(){
   req("publicBlurb","Public blurb",errs);
   req("starter","Conversation starter",errs);
 
+  // contact is optional BUT validate if present
+  validateContact(errs);
+
   return errs;
+}
+
+/* =========================
+   CONTACT SAVE
+========================= */
+function buildContact(){
+  const phoneRaw = ($("contactPhone")?.value||"").trim();
+  const igRaw = ($("contactInstagram")?.value||"").trim();
+
+  const phone = phoneRaw ? digitsOnly(phoneRaw) : "";
+  let instagram = igRaw ? igRaw.trim() : "";
+  if(instagram && !instagram.startsWith("@")) instagram = "@"+instagram;
+
+  // only include fields that have values
+  const contact = {};
+  if(phone) contact.phone = phone;
+  if(instagram) contact.instagram = instagram;
+
+  return contact;
+}
+
+function saveContact(isAuto=false){
+  const errs = [];
+  validateContact(errs);
+  if(errs.length){
+    if(!isAuto) showToast("Contact error", errs.join(" • "));
+    return false;
+  }
+
+  const contact = buildContact();
+  if(!contact.phone && !contact.instagram){
+    if(!isAuto) showToast("Nothing to save", "Enter a phone and/or Instagram handle.");
+    return false;
+  }
+
+  const q=qs();
+  const ok = safeSend({
+    type:"contact_save",
+    roomId:q.room, room:q.room, barId:q.room,
+    session:q.session,
+    voterNonce: clientNonce,
+    contact
+  });
+
+  if(!ok){
+    if(!isAuto) showToast("Not sent", "Connection issue — try again.");
+    return false;
+  }
+
+  if(!isAuto) showToast("Saved", "Contact info sent to host.");
+  return true;
 }
 
 /* =========================
@@ -845,17 +1078,22 @@ function submit(){
   if(errs.length) return showToast("Missing fields", errs.join(" • "));
 
   const q=qs();
+  const mode = (HOST_CONFIG?.mode || "").toLowerCase();
 
   let religion = $("religion").value;
   if(religion==="Other") religion = $("religionOther").value.trim();
 
+  const travelVal = (mode==="single") ? false : ($("travelYes").value==="yes");
+
   const payload = {
-    v: 6,
+    v: 7,
     clientNonce,
     roomId: q.room,
+    room: q.room,
+    barId: q.room,
     session: q.session,
     venueId: $("venueSelect").value,
-    travelYes: $("travelYes").value==="yes",
+    travelYes: travelVal,
 
     attrs: {
       age: Number($("age").value),
@@ -941,9 +1179,7 @@ function submit(){
 
   if(ok){
     showToast("Sent","Submitting…");
-    // IMPORTANT: do NOT set submitted=true here; wait for submit_ack
     setTimeout(()=>{
-      // if no ack within 8s, let them try again
       if(!submitted){
         sending = false;
         setWsStatus(WS_STATE);
@@ -958,6 +1194,100 @@ function submit(){
 }
 
 /* =========================
+   ✅ VOTING
+========================= */
+function requestRoster(){
+  const q=qs();
+  if(!q.room || !q.session) return;
+  safeSend({ type:"request_roster", roomId:q.room, room:q.room, barId:q.room, session:q.session, voterNonce: clientNonce });
+}
+
+function setVoteStats(){
+  $("seenCount").textContent = String(seenCount);
+  $("likedCount").textContent = String(likedCount);
+  $("myAliasPill").textContent = myAlias ? myAlias : "Anonymous";
+}
+
+function castVote(targetId, like){
+  const q=qs();
+  if(!targetId) return;
+
+  votes[targetId] = !!like;
+  seenCount = Object.keys(votes).length;
+  likedCount = Object.values(votes).filter(Boolean).length;
+  setVoteStats();
+
+  const ok = safeSend({
+    type:"vote",
+    roomId:q.room, room:q.room, barId:q.room,
+    session:q.session,
+    voterNonce: clientNonce,
+    targetId,
+    like: !!like
+  });
+
+  if(!ok){
+    showToast("Vote not sent","Connection issue — try again.");
+  }
+  renderVoting();
+}
+
+function renderVoting(){
+  const wrap = $("voteList");
+  wrap.innerHTML = "";
+
+  setVoteStats();
+
+  if(!Array.isArray(roster) || roster.length===0){
+    wrap.innerHTML = `<div class="muted">No roster received yet. Tap “Load Top 12”.</div>`;
+    return;
+  }
+
+  // ✅ Sort by score desc if present, otherwise bottom
+  const list = roster
+    .slice()
+    .filter(p => p && p.id)
+    .sort((a,b)=>{
+      const sa = (typeof a.score === "number") ? a.score : -1;
+      const sb = (typeof b.score === "number") ? b.score : -1;
+      return sb - sa;
+    });
+
+  // ✅ show only Top 12
+  const top = list.slice(0, TOP_N);
+
+  for(const p of top){
+    const already = (p?.id && (p.id in votes));
+    const val = already ? votes[p.id] : null;
+
+    const pct = (typeof p.score === "number" && p.score >= 0) ? Math.round(p.score*100) : null;
+
+    const el = document.createElement("div");
+    el.className = "voteCard";
+    el.innerHTML = `
+      <div style="min-width:0">
+        <div class="voteAlias">${esc(p.alias || "Guest")}${pct!=null ? ` <span class="k">${pct}%</span>` : ``}</div>
+        <div class="voteSub">
+          ${p.venueId ? `Venue: <span class="k">${esc(p.venueId)}</span>` : `<span class="muted">Venue: —</span>`}
+          ${p.plan ? `<div style="margin-top:6px">${esc(p.plan)}</div>` : ``}
+          ${already ? `<div style="margin-top:6px"><span class="k">${val ? "LIKED" : "PASSED"}</span></div>` : ``}
+        </div>
+      </div>
+      <div class="voteActions">
+        <button class="btn good" data-like="1" ${already ? "disabled" : ""}>Like</button>
+        <button class="btn bad"  data-like="0" ${already ? "disabled" : ""}>Pass</button>
+      </div>
+    `;
+    const likeBtn = el.querySelector('button[data-like="1"]');
+    const passBtn = el.querySelector('button[data-like="0"]');
+    likeBtn.onclick = ()=>castVote(p.id, true);
+    passBtn.onclick = ()=>castVote(p.id, false);
+
+    wrap.appendChild(el);
+  }
+}
+
+/* =========================
    INIT
 ========================= */
 function init(){
@@ -968,16 +1298,35 @@ function init(){
   const btn = $("btnSubmit");
   if(btn) btn.onclick = submit;
 
-  const ng = $("btnNextGuest");
-  if(ng) ng.onclick = ()=>location.reload();
+  $("btnSaveContact").addEventListener("click", ()=>saveContact(false));
+
+  $("btnRequestRoster").addEventListener("click", ()=>{
+    requestRoster();
+    showToast("Requested","Asking host for top 12…");
+  });
+
+  $("btnRefreshRoster").addEventListener("click", ()=>{
+    requestRoster();
+    renderVoting();
+  });
+
+  $("btnClearVotes").addEventListener("click", ()=>{
+    votes = {};
+    seenCount = 0;
+    likedCount = 0;
+    renderVoting();
+    showToast("Cleared", "Local vote history cleared (host votes remain).");
+  });
 
   connectWS();
+  setVoteStats();
 }
 
 init();
 </script>
 </body>
 </html>
+
 
 
 
