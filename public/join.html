@@ -49,6 +49,80 @@ textarea{min-height:80px;resize:vertical}
 .voteActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .voteList{display:flex;flex-direction:column;gap:10px}
 .small{font-size:12px}
+
+/* ✅ TITLE / GATE SCREEN */
+.hero{position:relative; overflow:hidden;border-radius:var(--r);}
+.hero::before{
+  content:""; position:absolute; inset:-1px;
+  background:
+    radial-gradient(900px 500px at 20% 0%, rgba(96,165,250,.18), transparent 60%),
+    radial-gradient(700px 450px at 90% 10%, rgba(45,212,191,.14), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  pointer-events:none;
+}
+.heroInner{position:relative; padding:18px}
+.brandRow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.logo{
+  width:210px; max-width:62vw; height:auto;
+  border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.25);
+}
+.hTitle{font-size:28px;font-weight:1000;letter-spacing:.3px;margin:0}
+.hSub{margin-top:6px;color:var(--muted);font-weight:900}
+.checkRow{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
+.checkRow input{width:auto;transform:scale(1.15);margin-top:3px}
+.checkText{font-size:13px;color:var(--muted);font-weight:900;line-height:1.35}
+.inlineLinks{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.noteBox{
+  margin-top:10px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:10px;
+  background:rgba(0,0,0,.22);
+  color:var(--muted);
+  font-weight:900;
+  font-size:12px;
+}
+
+/* ✅ MODALS */
+.modalBack{
+  position:fixed; inset:0; display:none;
+  background:rgba(0,0,0,.55);
+  z-index:80;
+  padding:18px;
+}
+.modal{
+  max-width:980px; margin:0 auto;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:rgba(17,26,43,.96);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.modalTop{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:12px 14px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+}
+.modalTop .mt{font-weight:1000}
+.modalBody{
+  padding:14px;
+  max-height:70vh;
+  overflow:auto;
+  color:var(--txt);
+}
+.modalBody h3{margin:14px 0 6px}
+.modalBody p, .modalBody li{color:var(--muted);font-weight:850;line-height:1.45}
+.modalBody ul{margin:8px 0 12px 18px}
+.modalClose{white-space:nowrap}
+
+/* Dealbreakers row */
+.prefRow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.dealLbl{display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--muted);font-weight:900;white-space:nowrap}
+.dealChk{width:auto;transform:scale(1.15)}
 </style>
 </head>
 <body>
@@ -59,14 +133,62 @@ textarea{min-height:80px;resize:vertical}
     <div class="pill"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
   </div>
 
+  <!-- ✅ TITLE / 18+ / TERMS GATE -->
+  <div class="card hero" id="gateCard">
+    <div class="heroInner">
+      <div class="brandRow">
+        <img id="brandLogo" class="logo" alt="Bar Fly Entertainment / Barfly Social Logo">
+        <div style="min-width:240px;flex:1">
+          <h1 class="hTitle">Barfly Social</h1>
+          <div class="hSub">Private, alias-only matchmaking for bar nights • Host-verified check-in</div>
+          <div class="noteBox">
+            You can submit and vote from anywhere, but <b>TV only shows your matches after you check in with the host</b> at your chosen location.
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="checkRow">
+        <input id="chk18" type="checkbox">
+        <div class="checkText">
+          <div style="color:var(--txt);font-weight:1000">I confirm I am 18 years of age or older.</div>
+          <div>Entry is restricted to adults. If you are under 18, do not use this service.</div>
+        </div>
+      </div>
+
+      <div class="checkRow">
+        <input id="chkTerms" type="checkbox">
+        <div class="checkText">
+          <div style="color:var(--txt);font-weight:1000">I agree to the Terms of Use and Privacy Notice.</div>
+          <div>By continuing, you consent to required processing to run matchmaking and to follow house rules.</div>
+        </div>
+      </div>
+
+      <div class="inlineLinks">
+        <button class="btn small" id="btnViewTerms" type="button">View Terms</button>
+        <button class="btn small" id="btnViewPrivacy" type="button">View Privacy</button>
+        <button class="btn primary" id="btnEnter" type="button" disabled style="margin-left:auto">Enter</button>
+      </div>
+
+      <div class="muted small" style="margin-top:10px">
+        Tip: If your host moves you to a different venue, they can do it from the host dashboard (guests cannot change venues).
+      </div>
+    </div>
+  </div>
+
   <!-- ✅ FORM -->
-  <div class="card" id="formCard">
-    <h2>Barfly Social — Join</h2>
-    <div class="muted">Alias-only matchmaking. Your identity stays private.</div>
+  <div class="card hidden" id="formCard">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <img id="brandLogo2" class="logo" alt="Bar Fly Entertainment / Barfly Social Logo" style="width:140px">
+      <div style="min-width:220px;flex:1">
+        <h2 style="margin:0">Barfly Social — Join</h2>
+        <div class="muted">Alias-only matchmaking. Your identity stays private.</div>
+      </div>
+    </div>
+
     <div class="hr"></div>
 
-    <!-- ✅ No more “waiting for host config”.
-         Venue list comes from join link (?bars=...) and host can still broadcast config as fallback. -->
     <div class="two">
       <div>
         <label id="venueLabel">Expected location (you will check in with host)</label>
@@ -243,17 +365,12 @@ textarea{min-height:80px;resize:vertical}
     <h3>Who You’re Looking For (Preferences)</h3>
     <div class="muted small" style="margin-top:-6px">Choose what you prefer in a match. Turn on <b>Dealbreaker</b> to require it.</div>
 
-    <!-- Dealbreakers + Prefs (kept) -->
-    <style>
-      .prefRow{display:flex;justify-content:space-between;align-items:center;gap:10px}
-      .dealLbl{display:flex;align-items:center;gap:8px;margin:0;font-size:12px;color:var(--muted);font-weight:900;white-space:nowrap}
-      .dealChk{width:auto;transform:scale(1.15)}
-    </style>
-
     <div class="two">
       <div>
         <div class="prefRow"><label style="margin:0">Age range</label><label class="dealLbl">Dealbreaker <input id="deal_ageBand" class="dealChk" type="checkbox"></label></div>
-        <select id="pref_ageBand"><option>Any</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45–54</option><option>55+</option></select>
+        <select id="pref_ageBand">
+          <option>Any</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45–54</option><option>55+</option>
+        </select>
       </div>
       <div>
         <div class="prefRow"><label style="margin:0">Sex</label><label class="dealLbl">Dealbreaker <input id="deal_sex" class="dealChk" type="checkbox"></label></div>
@@ -425,22 +542,32 @@ textarea{min-height:80px;resize:vertical}
     <div class="muted small" style="margin-top:8px">
       Submitting requires WS. If it won’t connect, ask host to refresh.
     </div>
+
+    <div class="inlineLinks" style="margin-top:10px">
+      <button class="btn small" id="btnViewTerms2" type="button">Terms</button>
+      <button class="btn small" id="btnViewPrivacy2" type="button">Privacy</button>
+    </div>
   </div>
 
   <!-- ✅ VOTING (AFTER submit) -->
   <div class="card hidden" id="voteCard" style="margin-top:12px">
-    <div class="voteHead">
-      <div>
-        <h2 style="margin:0">Voting</h2>
-        <div class="muted small" style="margin-top:6px">
-          You’ll see your <b>Top 12</b> best matches (highest → lowest). Tap <b>Like</b> to create mutuals.
-          <br><b>TV only shows matches after you check in at your location.</b>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <img id="brandLogo3" class="logo" alt="Bar Fly Entertainment / Barfly Social Logo" style="width:110px">
+      <div style="flex:1;min-width:240px">
+        <div class="voteHead" style="align-items:center">
+          <div>
+            <h2 style="margin:0">Voting</h2>
+            <div class="muted small" style="margin-top:6px">
+              You’ll see your <b>Top 12</b> best matches (highest → lowest). Tap <b>Like</b> to create mutuals.
+              <br><b>TV only shows matches after you check in at your location.</b>
+            </div>
+          </div>
+          <div class="voteStats">
+            <span class="pill"><b>You</b> <span id="myAliasPill">—</span></span>
+            <span class="pill"><b>Seen</b> <span id="seenCount">0</span></span>
+            <span class="pill"><b>Liked</b> <span id="likedCount">0</span></span>
+          </div>
         </div>
-      </div>
-      <div class="voteStats">
-        <span class="pill"><b>You</b> <span id="myAliasPill">—</span></span>
-        <span class="pill"><b>Seen</b> <span id="seenCount">0</span></span>
-        <span class="pill"><b>Liked</b> <span id="likedCount">0</span></span>
       </div>
     </div>
 
@@ -459,6 +586,11 @@ textarea{min-height:80px;resize:vertical}
 
     <div class="hr"></div>
     <div class="voteList" id="voteList"><div class="muted">Waiting for roster…</div></div>
+
+    <div class="inlineLinks" style="margin-top:12px">
+      <button class="btn small" id="btnViewTerms3" type="button">Terms</button>
+      <button class="btn small" id="btnViewPrivacy3" type="button">Privacy</button>
+    </div>
   </div>
 
   <div class="toast" id="toast">
@@ -467,7 +599,108 @@ textarea{min-height:80px;resize:vertical}
   </div>
 </div>
 
-<script>
+<!-- ✅ TERMS MODAL -->
+<div class="modalBack" id="termsBack" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Terms of Use">
+    <div class="modalTop">
+      <div class="mt">Terms of Use (Template)</div>
+      <button class="btn small modalClose" id="btnCloseTerms" type="button">Close</button>
+    </div>
+    <div class="modalBody">
+      <p><b>Important:</b> This is general “legal-style” wording for your event experience. It is not legal advice. If you want real protection, have counsel review for your state and your venue contracts.</p>
+
+      <h3>1) Acceptance of Terms</h3>
+      <p>By accessing or using Barfly Social (“Service”), you agree to be bound by these Terms of Use (“Terms”) and the Privacy Notice. If you do not agree, do not use the Service.</p>
+
+      <h3>2) Eligibility (18+ Only)</h3>
+      <p>You must be at least eighteen (18) years of age to use the Service. You represent and warrant that you meet this requirement.</p>
+
+      <h3>3) Event Nature / Host Verification</h3>
+      <ul>
+        <li>The Service is designed for in-person events and <b>host-verified check-in</b>.</li>
+        <li>You may submit and vote remotely, but match visibility and participation may require in-person check-in at a host stand.</li>
+      </ul>
+
+      <h3>4) Conduct Rules</h3>
+      <ul>
+        <li>No harassment, intimidation, stalking, threats, hate speech, or unwanted contact.</li>
+        <li>No impersonation, fraud, “catfishing,” or sharing another person’s private info without consent.</li>
+        <li>No illegal activity, solicitation for illegal services, or content that violates applicable law.</li>
+        <li>You are responsible for your own behavior and personal safety. Meet in public, trust your instincts, and involve event staff if needed.</li>
+      </ul>
+
+      <h3>5) Privacy & Data</h3>
+      <p>The Service uses <b>aliases</b> and minimizes identity sharing. Contact info (phone/Instagram) is optional and is intended to be released only after mutual matching, as configured by the host.</p>
+
+      <h3>6) No Guarantee of Matches</h3>
+      <p>Matches, compatibility scores, and venue “hotspots” are informational only. We do not guarantee any match quality, outcomes, or attendee attendance.</p>
+
+      <h3>7) Disclaimers</h3>
+      <p>The Service is provided “AS IS” and “AS AVAILABLE,” without warranties of any kind (express or implied), including merchantability, fitness for a particular purpose, and non-infringement. We do not warrant uninterrupted or error-free operation.</p>
+
+      <h3>8) Limitation of Liability</h3>
+      <p>To the maximum extent permitted by law, Barfly Social, Bar Fly Entertainment, event hosts, and venues will not be liable for indirect, incidental, special, consequential, or punitive damages, or any loss of profits, data, goodwill, or other intangible losses, arising from or related to your use of the Service or event participation.</p>
+
+      <h3>9) Assumption of Risk</h3>
+      <p>You understand that in-person social events carry inherent risks. You assume all risks related to meeting others, venue conditions, and voluntary participation.</p>
+
+      <h3>10) Termination / Removal</h3>
+      <p>The host may remove participants from the event pool at any time for safety, house rules, suspected misconduct, or operational needs. The host may also correct venue assignments and check-in status.</p>
+
+      <h3>11) Changes</h3>
+      <p>We may update these Terms from time to time. Continued use after changes means you accept the updated Terms.</p>
+
+      <h3>12) Contact</h3>
+      <p>Questions or issues should be directed to event staff or the host team for the event.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ PRIVACY MODAL -->
+<div class="modalBack" id="privacyBack" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Privacy Notice">
+    <div class="modalTop">
+      <div class="mt">Privacy Notice (Template)</div>
+      <button class="btn small modalClose" id="btnClosePrivacy" type="button">Close</button>
+    </div>
+    <div class="modalBody">
+      <p><b>Important:</b> This is a practical privacy notice for your event flow (aliases, host check-in, optional contact release). It is not legal advice.</p>
+
+      <h3>1) What We Collect</h3>
+      <ul>
+        <li><b>Profile + preferences</b> you submit (age, attributes, preferences, dealbreakers, favorites).</li>
+        <li><b>Expected venue</b> selection (where you plan to arrive).</li>
+        <li><b>Optional contact</b> (phone and/or Instagram), if you choose to provide it.</li>
+        <li><b>Votes</b> (like/pass) used to compute mutual matches.</li>
+      </ul>
+
+      <h3>2) How We Use It</h3>
+      <ul>
+        <li>Compute compatibility scores and mutual matches.</li>
+        <li>Show matches on TV <b>after host check-in</b> (per event rules).</li>
+        <li>Release optional contact info only after a mutual match (as configured).</li>
+        <li>Operate the event (e.g., host dashboards, roster management).</li>
+      </ul>
+
+      <h3>3) Aliases & Identity</h3>
+      <p>The system uses random aliases and does not require your real name. Do not enter sensitive personal info into free-text fields.</p>
+
+      <h3>4) Sharing</h3>
+      <ul>
+        <li>Your <b>alias</b> and limited match details may be displayed on venue TV screens after check-in.</li>
+        <li>Your <b>optional contact</b> is intended to be shared only with a mutual match.</li>
+        <li>Event staff/hosts can view rosters for operations and safety.</li>
+      </ul>
+
+      <h3>5) Data Retention</h3>
+      <p>Event data may be stored locally in the browser and/or handled by the host relay for real-time syncing. Hosts may export CSV for event administration.</p>
+
+      <h3>6) Your Choices</h3>
+      <p>You can leave contact fields blank. You can also ask the host to remove you from the pool.</p>
+    </div>
+  </div>
+</div>
+
 /* =========================
    CONFIG
 ========================= */
@@ -485,8 +718,8 @@ function qs(){
   q.room = (q.room || q.roomId || q.barId || "").trim();
   q.session = (q.session || "").trim();
   q.mode = (q.mode || "").trim().toLowerCase();
-  q.bars = (q.bars || "").trim(); // JSON encoded by host
-  q.participating = (q.participating || "").trim(); // ids list JSON
+  q.bars = (q.bars || "").trim();
+  q.participating = (q.participating || "").trim();
   return q;
 }
 function esc(s){
@@ -509,17 +742,98 @@ function validInstagramHandle(raw){
 }
 
 /* =========================
+   ✅ MODALS
+========================= */
+function openModal(backId){
+  const b=$(backId);
+  if(!b) return;
+  b.style.display="block";
+  b.setAttribute("aria-hidden","false");
+}
+function closeModal(backId){
+  const b=$(backId);
+  if(!b) return;
+  b.style.display="none";
+  b.setAttribute("aria-hidden","true");
+}
+function bindModals(){
+  const openTerms = ()=>openModal("termsBack");
+  const openPrivacy = ()=>openModal("privacyBack");
+
+  $("btnViewTerms")?.addEventListener("click", openTerms);
+  $("btnViewTerms2")?.addEventListener("click", openTerms);
+  $("btnViewTerms3")?.addEventListener("click", openTerms);
+
+  $("btnViewPrivacy")?.addEventListener("click", openPrivacy);
+  $("btnViewPrivacy2")?.addEventListener("click", openPrivacy);
+  $("btnViewPrivacy3")?.addEventListener("click", openPrivacy);
+
+  $("btnCloseTerms")?.addEventListener("click", ()=>closeModal("termsBack"));
+  $("btnClosePrivacy")?.addEventListener("click", ()=>closeModal("privacyBack"));
+
+  ["termsBack","privacyBack"].forEach(id=>{
+    $(id)?.addEventListener("click", (e)=>{
+      if(e.target && e.target.id===id) closeModal(id);
+    });
+  });
+
+  window.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape"){
+      closeModal("termsBack");
+      closeModal("privacyBack");
+    }
+  });
+}
+
+/* =========================
+   ✅ 18+ / TERMS GATE
+========================= */
+function gateKey(){
+  const q=qs();
+  const room=q.room||"";
+  const session=q.session||"";
+  return `bm_gate_v1_${room}_${session}`;
+}
+function isGateAccepted(){
+  try{ return localStorage.getItem(gateKey()) === "1"; }catch{ return false; }
+}
+function setGateAccepted(){
+  try{ localStorage.setItem(gateKey(), "1"); }catch{}
+}
+function updateGateButton(){
+  const ok = !!$("chk18")?.checked && !!$("chkTerms")?.checked;
+  $("btnEnter").disabled = !ok;
+}
+function showGate(){
+  $("gateCard").classList.remove("hidden");
+  $("formCard").classList.add("hidden");
+  $("voteCard").classList.add("hidden");
+}
+function enterApp(){
+  const q=qs();
+  if(!q.room || !q.session){
+    showToast("Bad link", "Missing ?room=...&session=... in the URL.");
+    return;
+  }
+  setGateAccepted();
+  $("gateCard").classList.add("hidden");
+  $("formCard").classList.remove("hidden");
+  connectWS();
+  setVoteStats();
+  showToast("Welcome", "Fill out your profile, submit, then vote.");
+}
+
+/* =========================
    BARS FROM URL (NO HOST-CONFIG WAIT)
 ========================= */
-let HOST_BARS = []; // [{id,name}]
+let HOST_BARS = [];
 let HOST_MODE = "single";
-let HOST_PARTICIPATING_IDS = []; // city mode restriction
+let HOST_PARTICIPATING_IDS = [];
 
 function parseBarsFromUrl(){
   const q = qs();
   HOST_MODE = (q.mode === "city") ? "city" : "single";
 
-  // bars
   try{
     if(q.bars){
       HOST_BARS = JSON.parse(decodeURIComponent(q.bars));
@@ -527,7 +841,6 @@ function parseBarsFromUrl(){
     }
   }catch{ HOST_BARS = []; }
 
-  // participating
   try{
     if(q.participating){
       const ids = JSON.parse(decodeURIComponent(q.participating));
@@ -559,7 +872,6 @@ function populateVenueSelect(){
   }else{
     $("venueLabel").textContent = "Expected location (single-location night)";
     $("travelWrap").classList.add("hidden");
-    // in single mode, travel forced "no" (host runs single venue)
     const tsel=$("travelYes");
     if(tsel){
       tsel.innerHTML = `<option value="no" selected>No</option>`;
@@ -642,8 +954,8 @@ function setWsStatus(s){
   const pill = $("wsPill");
   if(pill) pill.textContent=s;
 
-  // ✅ no longer require HOST_CONFIG to submit (solves “waiting config” issue)
-  const canSubmit = (s==="CONNECTED" && !submitted && !sending);
+  const gateOk = isGateAccepted() || ($("gateCard")?.classList.contains("hidden"));
+  const canSubmit = (s==="CONNECTED" && !submitted && !sending && gateOk);
   const btn = $("btnSubmit");
   if(btn) btn.disabled = !canSubmit;
 }
@@ -677,8 +989,6 @@ function connectWS(){
   WS.onopen=()=>{
     setWsStatus("CONNECTED");
     safeSend({ type:"join", role:"guest", roomId: room, room: room, barId: room, session });
-
-    // optional: ask host for config (names), but we no longer depend on it
     safeSend({ type:"request_config", roomId: room, room: room, barId: room, session });
   };
 
@@ -686,10 +996,7 @@ function connectWS(){
     let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
 
     if(msg.type==="config" || msg.type==="event_config"){
-      // config still useful for updated venue names if host changes mid-night
       HOST_CONFIG = msg;
-
-      // If host config includes updated bars, we can refresh venue list BEFORE submit
       const bars = Array.isArray(msg.bars) ? msg.bars : [];
       if(!submitted && bars.length){
         HOST_BARS = bars.map(x=>({id:x.id, name:x.name}));
@@ -711,7 +1018,6 @@ function connectWS(){
       showToast("Submitted","Now you can vote. Check in with host when you arrive.");
       saveContact(true);
       requestRoster();
-      // ✅ lock venue selection post-submit (host only can change)
       lockVenuePostSubmit();
       return;
     }
@@ -756,7 +1062,6 @@ function lockVenuePostSubmit(){
     $("venueLabel").textContent = "Expected location (locked — host can change)";
     $("venueHelp").textContent = "Your location is locked after submit. Only the host can move you.";
   }
-  // travel stays as chosen (city mode); host can still move venue later.
 }
 
 /* =========================
@@ -775,8 +1080,9 @@ function validateContact(errs){
 }
 function validate(){
   const errs=[];
-  req("venueSelect","Expected location",errs);
+  if(!isGateAccepted()) errs.push("Accept 18+ and Terms to continue");
 
+  req("venueSelect","Expected location",errs);
   if(HOST_MODE === "city") req("travelYes","Willing to travel",errs);
 
   req("age","Age",errs); req("sex","Sex",errs); req("race","Race",errs); req("income","Income",errs);
@@ -843,6 +1149,7 @@ function saveContact(isAuto=false){
    SUBMIT
 ========================= */
 function submit(){
+  if(!isGateAccepted()) return showToast("Hold up","Confirm 18+ and agree to Terms first.");
   if(WS_STATE!=="CONNECTED") return showToast("Not connected","Wait for WS to connect.");
   if(submitted) return showToast("Already submitted","You already submitted.");
   if(sending) return showToast("Please wait","Submitting in progress…");
@@ -858,18 +1165,14 @@ function submit(){
   const travelVal = (HOST_MODE==="city") ? ($("travelYes").value==="yes") : false;
 
   const payload = {
-    v: 8,
+    v: 9,
     clientNonce,
     roomId: q.room,
     room: q.room,
     barId: q.room,
     session: q.session,
-
-    // ✅ this is the guest’s expected venue choice
     venueId: $("venueSelect").value,
     expectedVenueId: $("venueSelect").value,
-
-    // ✅ host will later set checkedInVenueId and status
     travelYes: travelVal,
 
     attrs: {
@@ -1004,7 +1307,6 @@ function renderVoting(){
     return;
   }
 
-  // sort by score if host includes it later; otherwise keep stable
   const list = roster
     .slice()
     .filter(p => p && p.id)
@@ -1045,29 +1347,56 @@ function renderVoting(){
 }
 
 /* =========================
+   ✅ LOGO INJECTION
+========================= */
+function setLogoAll(dataUri){
+  ["brandLogo","brandLogo2","brandLogo3"].forEach(id=>{
+    const img=$(id);
+    if(img) img.src = dataUri;
+  });
+}
+
+/* =========================
    INIT
 ========================= */
 function init(){
+  setLogoAll(REAL_LOGO);
+
   parseBarsFromUrl();
   populateVenueSelect();
 
   renderChips("foodChips", FOOD, foodSet);
   renderChips("actChips", ACTS, actSet);
   hookReligionOther();
+  bindModals();
+
+  $("chk18")?.addEventListener("change", updateGateButton);
+  $("chkTerms")?.addEventListener("change", updateGateButton);
+  $("btnEnter")?.addEventListener("click", enterApp);
 
   $("btnSubmit").onclick = submit;
-  $("btnSaveContact").addEventListener("click", ()=>saveContact(false));
-  $("btnRequestRoster").addEventListener("click", ()=>{ requestRoster(); showToast("Requested","Asking host for top 12…"); });
-  $("btnRefreshRoster").addEventListener("click", ()=>{ requestRoster(); renderVoting(); });
-  $("btnClearVotes").addEventListener("click", ()=>{ votes={}; seenCount=0; likedCount=0; renderVoting(); showToast("Cleared","Local vote history cleared (host votes remain)."); });
+  $("btnSaveContact")?.addEventListener("click", ()=>saveContact(false));
+  $("btnRequestRoster")?.addEventListener("click", ()=>{ requestRoster(); showToast("Requested","Asking host for top 12…"); });
+  $("btnRefreshRoster")?.addEventListener("click", ()=>{ requestRoster(); renderVoting(); });
+  $("btnClearVotes")?.addEventListener("click", ()=>{ votes={}; seenCount=0; likedCount=0; renderVoting(); showToast("Cleared","Local vote history cleared (host votes remain)."); });
 
-  connectWS();
+  if(isGateAccepted()){
+    $("gateCard").classList.add("hidden");
+    $("formCard").classList.remove("hidden");
+    connectWS();
+  }else{
+    showGate();
+    updateGateButton();
+    setWsStatus("DISCONNECTED");
+  }
+
   setVoteStats();
 }
 init();
 </script>
 </body>
 </html>
+
 
 
 
