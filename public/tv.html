@@ -53,13 +53,10 @@
     <div class="pillRow" style="min-width:320px">
       <div class="pill"><b>Room</b> <span id="roomPill">—</span></div>
       <div class="pill"><b>Session</b> <span id="sessionPill">—</span></div>
-
-      <!-- Venue pill hides automatically when All Venues -->
       <div class="pill" id="venuePillWrap"><b>Venue</b> <span id="venuePill">—</span></div>
 
       <div class="pill" id="wsPillWrap"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
 
-      <!-- ✅ NEW: counts (Option C hybrid) -->
       <div class="pill warn"><b>Expected</b> <span id="expectedPill">0</span></div>
       <div class="pill good"><b>Checked In</b> <span id="checkedInPill">0</span></div>
       <div class="pill good"><b>Active Matches</b> <span id="activeMatchesPill">0</span></div>
@@ -77,14 +74,9 @@
 
 <script>
 /* ============================================================
-   TV — CHECK-IN MODEL SUPPORT
-   - Only show matches where BOTH guests are checked-in
-   - Counts use Option C hybrid:
-       Expected = pending who picked a venue
-       CheckedIn = host-confirmed
-       ActiveMatches = tv matches between checked-in guests
-       Tonight's Hotspot = venue with most active matches
-   - Works even if host hasn't been updated yet (falls back gracefully)
+   TV — CHECK-IN MODEL SUPPORT (v11)
+   - Show matches ONLY when BOTH are checked-in
+   - Prefer host-provided counts/hotspot, fallback when missing
 ============================================================ */
 
 const WS_URL = "wss://bar-match-relay.onrender.com";
@@ -109,10 +101,6 @@ function qs(){
 function esc(s){
   return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
-
-/* Venue normalization:
-   - missing / "ALL" / "*" => treated as no filter (All Venues)
-*/
 function normVenue(v){
   const s = String(v||"").trim();
   if(!s) return "";
@@ -121,7 +109,7 @@ function normVenue(v){
 }
 
 /* =========================
-   CONFIG (to show venue NAMES)
+   CONFIG (venue names)
 ========================= */
 let HOST_CONFIG = null;
 
@@ -136,7 +124,6 @@ function labelVenue(id){
   if(!clean) return "Venue";
   return barNameFromCfg(clean) || clean;
 }
-
 function applyVenuePillUI(){
   const q = qs();
   const v = normVenue(q.venue);
@@ -144,7 +131,7 @@ function applyVenuePillUI(){
   const pill = $("venuePill");
 
   if(!v){
-    wrap.classList.add("hidden"); // city mode default (all venues)
+    wrap.classList.add("hidden");
   }else{
     wrap.classList.remove("hidden");
     pill.textContent = labelVenue(v);
@@ -156,13 +143,15 @@ function applyVenuePillUI(){
 ========================= */
 let WS=null;
 let WS_STATE="DISCONNECTED";
-let matches=[];     // host tv_sync matches (may include check-in flags)
+let matches=[];
 let page=0;
 let reconnectTimer=null;
 
 let hbTimer=null;
 let staleTimer=null;
 let lastTrafficAt = Date.now();
+
+let lastCountsAt = 0;
 
 function setWsStatus(s){
   WS_STATE=s;
@@ -181,13 +170,11 @@ function safeSend(obj){
   return false;
 }
 
-/* TV should REQUEST sync (host responds with tv_sync) */
 function requestSync(){
   const q=qs();
   if(!q.room || !q.session) return;
   safeSend({ type:"request_tv_sync", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 }
-/* Optional: request config so we can show venue names */
 function requestConfig(){
   const q=qs();
   if(!q.room || !q.session) return;
@@ -206,7 +193,11 @@ function startHeartbeat(){
   stopHeartbeat();
   touchTraffic();
   hbTimer = setInterval(heartbeatTick, HEARTBEAT_MS);
-  staleTimer = setInterval(()=>{ if(WS_STATE==="CONNECTED" && (Date.now()-lastTrafficAt)>STALE_MS){ try{ WS?.close(); }catch{} } }, 5000);
+  staleTimer = setInterval(()=>{
+    if(WS_STATE==="CONNECTED" && (Date.now()-lastTrafficAt)>STALE_MS){
+      try{ WS?.close(); }catch{}
+    }
+  }, 5000);
 }
 function stopHeartbeat(){
   clearInterval(hbTimer); hbTimer=null;
@@ -214,41 +205,27 @@ function stopHeartbeat(){
 }
 
 /* =========================
-   ✅ CHECK-IN FILTER + COUNTS
+   CHECK-IN FILTER + COUNTS
 ========================= */
-
-/* A match is TV-eligible ONLY if both checked in.
-   Host update will send:
-     - aCheckedIn / bCheckedIn   OR
-     - aStatus / bStatus ("checked_in") OR
-     - checkedInA / checkedInB
-   Backward compatible: if host doesn't send anything, we assume checked-in (old behavior).
-*/
 function isCheckedInFlag(m, side){
-  const keyA = side==="a";
-  const v1 = keyA ? m.aCheckedIn : m.bCheckedIn;
-  const v2 = keyA ? m.checkedInA : m.checkedInB;
-  const st = keyA ? (m.aStatus || m.statusA) : (m.bStatus || m.statusB);
+  const isA = side==="a";
+  const v1 = isA ? m.aCheckedIn : m.bCheckedIn;
+  const v2 = isA ? m.checkedInA : m.checkedInB;
+  const st = isA ? (m.aStatus || m.statusA) : (m.bStatus || m.statusB);
 
   if(typeof v1 === "boolean") return v1;
   if(typeof v2 === "boolean") return v2;
   if(typeof st === "string") return st.toLowerCase().includes("check");
-  // fallback for old host: treat as eligible
-  return true;
+  return true; // old host fallback
 }
-
 function filteredMatches(){
   const q=qs();
   const venue = normVenue(q.venue);
   const t = Date.now();
 
-  // active time window
   let list = (matches || []).filter(m => !m.expiresAt || m.expiresAt > t);
-
-  // ✅ check-in enforcement
   list = list.filter(m => isCheckedInFlag(m,"a") && isCheckedInFlag(m,"b"));
 
-  // optional venue filter for venue-specific tv
   if(venue){
     list = list.filter(m => (m.aVenueId === venue) || (m.bVenueId === venue));
   }
@@ -257,16 +234,7 @@ function filteredMatches(){
   return list;
 }
 
-function formatAliasWithVenue(alias, venueId, showVenue){
-  const a = alias || "Guest";
-  if(!showVenue) return a;
-  const v = String(venueId||"").trim();
-  if(!v) return a;
-  return `${a} @ ${labelVenue(v)}`;
-}
-
 function computeHotspotFromList(list){
-  // counts "active matches" per venue: count appearances of venue across all active matches
   const counts = new Map();
   for(const m of list){
     const av = String(m.aVenueId||"").trim();
@@ -283,8 +251,6 @@ function computeHotspotFromList(list){
 }
 
 function setCountsFromMsg(msg){
-  // Prefer host-provided counts (Option C hybrid)
-  // Accept multiple field shapes for forward compatibility.
   const c = msg.counts || msg.stats || msg.summary || {};
 
   const expected =
@@ -302,31 +268,30 @@ function setCountsFromMsg(msg){
     typeof c.tvActive === "number" ? c.tvActive :
     typeof msg.activeMatches === "number" ? msg.activeMatches : null);
 
-  const hotspot =
-    (typeof c.hotspot === "string" ? c.hotspot :
-    typeof c.hotspotLabel === "string" ? c.hotspotLabel :
-    (c.hotspot && typeof c.hotspot === "object" && c.hotspot.label ? String(c.hotspot.label) : null));
+  const hotspotLabel =
+    (typeof c.hotspotLabel === "string" ? c.hotspotLabel :
+     typeof c.hotspot === "string" ? c.hotspot :
+     (c.hotspot && typeof c.hotspot === "object" && c.hotspot.label ? String(c.hotspot.label) : null));
 
-  if(expected!=null) $("expectedPill").textContent = String(expected);
-  if(checkedIn!=null) $("checkedInPill").textContent = String(checkedIn);
-  if(activeMatches!=null) $("activeMatchesPill").textContent = String(activeMatches);
+  let changed = false;
+  if(expected!=null){ $("expectedPill").textContent = String(expected); changed=true; }
+  if(checkedIn!=null){ $("checkedInPill").textContent = String(checkedIn); changed=true; }
+  if(activeMatches!=null){ $("activeMatchesPill").textContent = String(activeMatches); changed=true; }
 
-  if(hotspot!=null){
-    $("hotspotPill").textContent = hotspot || "—";
-    return true;
+  if(hotspotLabel!=null){
+    $("hotspotPill").textContent = hotspotLabel || "—";
+    changed=true;
   }
-  return false;
+
+  if(changed) lastCountsAt = Date.now();
+  return changed;
 }
 
 function setCountsFallback(){
-  // If host hasn't been updated to send counts:
-  // - we can still show Active Matches + hotspot from the filtered list
   const active = filteredMatches();
   $("activeMatchesPill").textContent = String(active.length);
 
-  // expected/checked in are unknown without host updates
-  // keep whatever is already there (default 0)
-
+  // Expected/CheckedIn unknown without host counts; leave as-is.
   const hs = computeHotspotFromList(active);
   $("hotspotPill").textContent = hs.label;
 }
@@ -334,13 +299,23 @@ function setCountsFallback(){
 /* =========================
    RENDER
 ========================= */
+function formatAliasWithVenue(alias, venueId, showVenue){
+  const a = alias || "Guest";
+  if(!showVenue) return a;
+  const v = String(venueId||"").trim();
+  if(!v) return a;
+  return `${a} @ ${labelVenue(v)}`;
+}
+
 function render(){
   const grid=$("grid");
   grid.innerHTML="";
   const list = filteredMatches();
 
-  // counts fallback (if host didn't send explicit counts)
-  setCountsFallback();
+  // ✅ Only fallback if host hasn't given counts recently
+  if(Date.now() - lastCountsAt > 5000){
+    setCountsFallback();
+  }
 
   if(!list.length){
     grid.innerHTML = `
@@ -433,7 +408,6 @@ function connectWS(){
     touchTraffic();
     let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
 
-    // ping/pong compatibility
     if(msg.type === "ping"){
       const q=qs();
       safeSend({ type:"pong", roomId: q.room, room: q.room, barId: q.room, session: q.session, t: Date.now() });
@@ -441,7 +415,6 @@ function connectWS(){
     }
     if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack"){ return; }
 
-    // config for venue names
     if(msg.type==="config" || msg.type==="event_config"){
       const q=qs();
       const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
@@ -460,7 +433,6 @@ function connectWS(){
       if(msg.session && msg.session !== q.session) return;
       if(msgRoom && msgRoom !== q.room) return;
 
-      // accept flexible fields + pass through check-in flags if present
       matches = (msg.matches || []).map(m=>({
         score: m.score || 0,
         code: m.code || "",
@@ -473,20 +445,13 @@ function connectWS(){
         aVenueId: m.aVenueId || "",
         bVenueId: m.bVenueId || "",
 
-        // ✅ optional check-in info (new host model)
         aCheckedIn: (typeof m.aCheckedIn === "boolean") ? m.aCheckedIn : (typeof m.checkedInA === "boolean" ? m.checkedInA : undefined),
         bCheckedIn: (typeof m.bCheckedIn === "boolean") ? m.bCheckedIn : (typeof m.checkedInB === "boolean" ? m.checkedInB : undefined),
         aStatus: m.aStatus || m.statusA || "",
         bStatus: m.bStatus || m.statusB || ""
       }));
 
-      // set counts if host provided them; otherwise fallback will compute what it can
-      const gotCounts = setCountsFromMsg(msg);
-
-      if(!gotCounts){
-        // keep expected/checkedIn at whatever the host last set (or 0)
-        // active/hotspot computed in fallback
-      }
+      setCountsFromMsg(msg);
 
       page = 0;
       render();
@@ -514,6 +479,7 @@ render();
 </script>
 </body>
 </html>
+
 
 
 
