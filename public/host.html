@@ -323,6 +323,8 @@ const PONG_TIMEOUT_MS = 45 * 1000;
 const RECONNECT_BASE_MS = 800;
 const RECONNECT_MAX_MS  = 10 * 1000;
 
+const TOP_N = 12; // ✅ NEW: Top 12 roster per guest
+
 const STORAGE = {
   BARS: "bm_bars_v10",
   HOST: "bm_host_v10",
@@ -474,33 +476,187 @@ function broadcastConfig(){
 }
 
 /* =========================
-   POOL + ROSTER SYNC
+   POOL
 ========================= */
 function activePool(){
   const roomId = currentRoomId();
   return people.filter(p => p.session === host.session && p.roomId === roomId && p.status !== "removed");
 }
+
+/* =========================
+   MATCH / SCORE
+========================= */
+const CODE_WORDS = ["LIME","WAVE","NOVA","GOLD","MOON","JAZZ","ROSE","BAYOU","SPARK","VIBE","MINT","ONYX","SUGAR","VELVET","NEON"];
+function makeMatchCode(){
+  const w = CODE_WORDS[Math.floor(Math.random()*CODE_WORDS.length)];
+  const n = Math.floor(Math.random()*90)+10;
+  return `${w}-${n}`;
+}
+function pairKey(aId,bId){ return aId < bId ? `${aId}::${bId}` : `${bId}::${aId}`; }
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+function overlapScore(arrA, arrB){
+  const A = Array.from(new Set(arrA || []));
+  const B = new Set(arrB || []);
+  if(A.length===0 || B.size===0) return 0;
+  let inter=0;
+  for(const x of A) if(B.has(x)) inter++;
+  return inter / Math.max(1, Math.min(A.length, B.size));
+}
+function bandContainsAge(band, age){
+  if(!band || band==="Any") return true;
+  if(band==="55+") return age>=55;
+  const m = band.match(/(\d+)\D+(\d+)/);
+  if(!m) return true;
+  const lo = parseInt(m[1],10), hi=parseInt(m[2],10);
+  return age>=lo && age<=hi;
+}
+function meetsHardFilters(A,B){
+  const P = A.prefs || {};
+  const D = A.deal || {};
+  const attr = B.attrs || {};
+  function hard(field){
+    const pref = P[field];
+    const isDeal = D[field] === true;
+    if(!isDeal) return true;
+    if(pref === "Any") return true;
+    if(field==="ageBand") return bandContainsAge(pref, attr.age);
+    return pref === attr[field];
+  }
+  return hard("ageBand") &&
+    ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"]
+    .every(f=>hard(f));
+}
+function ageCompat(A,B){
+  const aOk = bandContainsAge(A?.prefs?.ageBand, B?.attrs?.age);
+  const bOk = bandContainsAge(B?.prefs?.ageBand, A?.attrs?.age);
+  return (aOk && bOk) ? 1 : (aOk || bOk) ? 0.6 : 0;
+}
+function preferenceScore(A,B){
+  const P = A.prefs || {};
+  const attr = B.attrs || {};
+  let used=0, good=0;
+  const fields = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"];
+  for(const f of fields){
+    if(P[f] && P[f] !== "Any"){ used++; if(P[f] === attr[f]) good++; }
+  }
+  if(P.ageBand){ used++; if(bandContainsAge(P.ageBand, attr.age)) good++; }
+  if(used===0) return 0.5;
+  return good/used;
+}
+function interestsScore(A,B){
+  const food = overlapScore(A.foodChips, B.foodChips);
+  const act  = overlapScore(A.activityChips, B.activityChips);
+  return clamp01(0.45*food + 0.55*act);
+}
+function scorePair(A,B){
+  if(!meetsHardFilters(A,B)) return -999;
+  const age = ageCompat(A,B);
+  const intr = interestsScore(A,B);
+  const prefs = preferenceScore(A,B);
+  return clamp01(0.30*age + 0.40*intr + 0.30*prefs);
+}
+function travelPlan(A,B){
+  const aVenue = A.checkedInVenueId || A.expectedVenueId || A.venueId;
+  const bVenue = B.checkedInVenueId || B.expectedVenueId || B.venueId;
+  const same = aVenue === bVenue;
+  if(same) return { allowed:true, plan:`Meet at: ${barName(aVenue)} (same location)` };
+  const aYes = !!A.travelYes, bYes = !!B.travelYes;
+  if(!aYes && !bYes) return { allowed:false, plan:"No cross-location match (both chose No travel)" };
+  if(aYes && !bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(bVenue)} (A travels)` };
+  if(!aYes && bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(aVenue)} (B travels)` };
+  return { allowed:true, plan:`Either can travel — check host stand to pick meetup bar` };
+}
+
+/* =========================
+   LIKES / MUTUALS
+========================= */
+function ensureLikes(voterId){ if(!likes[voterId]) likes[voterId] = {}; }
+function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
+function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
+
+/* =========================
+   ROSTER SYNC (✅ UPDATED)
+========================= */
+function findGuestByNonceOrId(requesterNonce){
+  if(!requesterNonce) return null;
+  const pool = activePool();
+  return pool.find(p => p.clientNonce === requesterNonce || p.id === requesterNonce) || null;
+}
+
+/**
+ * ✅ NEW:
+ * If requesterNonce is provided, send that guest ONLY their Top 12 matches w/ score.
+ * If requesterNonce is null, broadcast a simple roster (no scores) to everyone.
+ */
 function broadcastRosterSync(requesterNonce=null){
   const roomId = currentRoomId();
   const pool = activePool();
+
+  if(requesterNonce){
+    const me = findGuestByNonceOrId(requesterNonce);
+    if(!me){
+      // still send something minimal (prevents blank UI)
+      safeSend({
+        type:"roster_sync",
+        roomId, room: roomId, barId: roomId,
+        session: host.session,
+        roster: [],
+        people: [],
+        you: undefined
+      });
+      return;
+    }
+
+    const scored = [];
+    for(const other of pool){
+      if(!other || other.id===me.id) continue;
+      if(other.status === "removed") continue;
+
+      const sc = scorePair(me, other);
+      if(sc < 0) continue; // hard filter failed
+      scored.push({
+        id: other.id,
+        alias: other.alias,
+        venueId: other.expectedVenueId || other.venueId || "",
+        status: other.status || "pending",
+        score: sc
+      });
+    }
+
+    scored.sort((a,b)=> (b.score - a.score) || String(a.alias||"").localeCompare(String(b.alias||""), undefined, {sensitivity:"base"}));
+    const top = scored.slice(0, TOP_N);
+
+    safeSend({
+      type:"roster_sync",
+      roomId, room: roomId, barId: roomId,
+      session: host.session,
+      roster: top,
+      people: top,
+      you: { id: me.id, alias: me.alias, venueId: me.expectedVenueId || "", status: me.status || "pending" }
+    });
+    return;
+  }
+
+  // Broadcast simple roster (no scores) for general “everyone refresh”
   const roster = pool.map(p => ({
     id: p.id,
     alias: p.alias,
     venueId: p.expectedVenueId || p.venueId || "",
     status: p.status || "pending"
   }));
-  const you = requesterNonce ? pool.find(p => p.clientNonce === requesterNonce || p.id === requesterNonce) : null;
 
   safeSend({
-    type: "roster_sync",
+    type:"roster_sync",
     roomId, room: roomId, barId: roomId,
     session: host.session,
     roster,
-    people: roster,
-    you: you ? { id: you.id, alias: you.alias, venueId: you.expectedVenueId || "", status: you.status || "pending" } : undefined
+    people: roster
   });
 }
 
+/* =========================
+   HEARTBEAT
+========================= */
 function stopHeartbeat(){
   if(timers.heartbeat){ clearInterval(timers.heartbeat); timers.heartbeat=null; }
   if(timers.health){ clearInterval(timers.health); timers.health=null; }
@@ -602,97 +758,6 @@ function ackSubmit(clientNonce=null){
 }
 
 /* =========================
-   MATCH / SCORE
-========================= */
-const CODE_WORDS = ["LIME","WAVE","NOVA","GOLD","MOON","JAZZ","ROSE","BAYOU","SPARK","VIBE","MINT","ONYX","SUGAR","VELVET","NEON"];
-function makeMatchCode(){
-  const w = CODE_WORDS[Math.floor(Math.random()*CODE_WORDS.length)];
-  const n = Math.floor(Math.random()*90)+10;
-  return `${w}-${n}`;
-}
-function pairKey(aId,bId){ return aId < bId ? `${aId}::${bId}` : `${bId}::${aId}`; }
-function clamp01(x){ return Math.max(0, Math.min(1, x)); }
-function overlapScore(arrA, arrB){
-  const A = Array.from(new Set(arrA || []));
-  const B = new Set(arrB || []);
-  if(A.length===0 || B.size===0) return 0;
-  let inter=0;
-  for(const x of A) if(B.has(x)) inter++;
-  return inter / Math.max(1, Math.min(A.length, B.size));
-}
-function bandContainsAge(band, age){
-  if(!band || band==="Any") return true;
-  if(band==="55+") return age>=55;
-  const m = band.match(/(\d+)\D+(\d+)/);
-  if(!m) return true;
-  const lo = parseInt(m[1],10), hi=parseInt(m[2],10);
-  return age>=lo && age<=hi;
-}
-function meetsHardFilters(A,B){
-  const P = A.prefs || {};
-  const D = A.deal || {};
-  const attr = B.attrs || {};
-  function hard(field){
-    const pref = P[field];
-    const isDeal = D[field] === true;
-    if(!isDeal) return true;
-    if(pref === "Any") return true;
-    if(field==="ageBand") return bandContainsAge(pref, attr.age);
-    return pref === attr[field];
-  }
-  return hard("ageBand") &&
-    ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"]
-    .every(f=>hard(f));
-}
-function ageCompat(A,B){
-  const aOk = bandContainsAge(A?.prefs?.ageBand, B?.attrs?.age);
-  const bOk = bandContainsAge(B?.prefs?.ageBand, A?.attrs?.age);
-  return (aOk && bOk) ? 1 : (aOk || bOk) ? 0.6 : 0;
-}
-function preferenceScore(A,B){
-  const P = A.prefs || {};
-  const attr = B.attrs || {};
-  let used=0, good=0;
-  const fields = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"];
-  for(const f of fields){
-    if(P[f] && P[f] !== "Any"){ used++; if(P[f] === attr[f]) good++; }
-  }
-  if(P.ageBand){ used++; if(bandContainsAge(P.ageBand, attr.age)) good++; }
-  if(used===0) return 0.5;
-  return good/used;
-}
-function interestsScore(A,B){
-  const food = overlapScore(A.foodChips, B.foodChips);
-  const act  = overlapScore(A.activityChips, B.activityChips);
-  return clamp01(0.45*food + 0.55*act);
-}
-function scorePair(A,B){
-  if(!meetsHardFilters(A,B)) return -999;
-  const age = ageCompat(A,B);
-  const intr = interestsScore(A,B);
-  const prefs = preferenceScore(A,B);
-  return clamp01(0.30*age + 0.40*intr + 0.30*prefs);
-}
-function travelPlan(A,B){
-  const aVenue = A.checkedInVenueId || A.expectedVenueId || A.venueId;
-  const bVenue = B.checkedInVenueId || B.expectedVenueId || B.venueId;
-  const same = aVenue === bVenue;
-  if(same) return { allowed:true, plan:`Meet at: ${barName(aVenue)} (same location)` };
-  const aYes = !!A.travelYes, bYes = !!B.travelYes;
-  if(!aYes && !bYes) return { allowed:false, plan:"No cross-location match (both chose No travel)" };
-  if(aYes && !bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(bVenue)} (A travels)` };
-  if(!aYes && bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(aVenue)} (B travels)` };
-  return { allowed:true, plan:`Either can travel — check host stand to pick meetup bar` };
-}
-
-/* =========================
-   LIKES / MUTUALS
-========================= */
-function ensureLikes(voterId){ if(!likes[voterId]) likes[voterId] = {}; }
-function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
-function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
-
-/* =========================
    IMPORT GUEST
 ========================= */
 const ALIAS_A = ["Neon","Velvet","Midnight","Lucky","Smooth","Wild","Golden","Sugar","Cosmic","Electric","Bayou","Rouge","Moon","Star","Cajun","Whisper","Spicy","Satin","Honey","Silver"];
@@ -710,11 +775,9 @@ function upsertGuestById(id, patch){
   saveJSON(STORAGE.PEOPLE, people);
 }
 function extractIdentityPhone(payload, stableId){
-  // Preferred: payload.identityPhone (from join submit)
   const direct = digitsOnly(payload?.identityPhone || "");
   if(direct.length===10) return direct;
 
-  // Fallbacks (if you later pass contact in submit)
   const c1 = digitsOnly(payload?.contactPhone || "");
   if(c1.length===10) return c1;
 
@@ -724,7 +787,6 @@ function extractIdentityPhone(payload, stableId){
   const c3 = digitsOnly(payload?.attrs?.identityPhone || "");
   if(c3.length===10) return c3;
 
-  // If contact_save already happened and we stored it, use it:
   const stored = digitsOnly(contacts?.[stableId]?.phone || "");
   if(stored.length===10) return stored;
 
@@ -785,7 +847,6 @@ function hostSetStatus(id, status, venueOverrideId=null){
 
   if(status === "checked_in"){
     p.status = "checked_in";
-    // ✅ Host assigns/overrides venue at check-in:
     const v = (venueOverrideId || host.activeBarId || p.expectedVenueId || p.venueId || "").trim();
     p.checkedInVenueId = v;
   }else if(status === "pending"){
@@ -802,7 +863,7 @@ function hostSetStatus(id, status, venueOverrideId=null){
   }
 
   renderAll();
-  broadcastRosterSync(p.clientNonce || p.id);
+  broadcastRosterSync(p.clientNonce || p.id); // ✅ send that guest their updated Top 12
   broadcastTVSync();
 }
 
@@ -848,7 +909,6 @@ function phoneCheckIn(){
 
   const matches = findGuestsByPhone(d);
   if(matches.length === 0){
-    // helpful: search across all statuses, in case already checked in
     const any = activePool().filter(p => digitsOnly(p.identityPhone)===d);
     if(any.length){
       return showToast("Already found", `That phone belongs to ${any[0].alias} (status: ${any[0].status || "pending"}).`);
@@ -863,7 +923,6 @@ function phoneCheckIn(){
     return;
   }
 
-  // multiple matches (rare) — prompt host to choose alias
   const opts = matches.map((p,i)=>`${i+1}) ${p.alias} (Expected: ${barName(p.expectedVenueId || p.venueId || "")})`).join("\n");
   const pick = prompt("Multiple pending guests share this phone.\nChoose number:\n\n"+opts, "1");
   const idx = Math.max(1, parseInt(pick||"1",10)) - 1;
@@ -951,7 +1010,7 @@ function handleVoteMessage(msg){
   }
 
   renderAll();
-  broadcastRosterSync(voterNonce || null);
+  broadcastRosterSync(voterNonce || null); // ✅ refresh Top 12 for voter
   broadcastTVSync();
 }
 
@@ -977,7 +1036,6 @@ function handleContactSave(msg){
   if(instagram) contacts[voterId].instagram = instagram;
   saveJSON(STORAGE.CONTACTS, contacts);
 
-  // if guest exists, update identityPhone if missing
   const p = people.find(x=>x.id===voterId);
   if(p && !digitsOnly(p.identityPhone) && phone.length===10){
     p.identityPhone = phone;
@@ -1055,14 +1113,15 @@ function wsConnect(isReconnect=false){
 
     if(msg.type === "request_config"){ broadcastConfig(); return; }
     if(msg.type === "request_tv_sync"){ broadcastTVSync(); return; }
+
+    // ✅ request_roster now returns Top 12 for that voter
     if(msg.type === "request_roster"){
       const requesterNonce = (msg.voterNonce || msg.clientNonce || "").trim() || null;
       broadcastRosterSync(requesterNonce);
       return;
     }
-    if(msg.type === "vote"){ handleVoteMessage(msg); return; }
 
-    // ✅ contact save support
+    if(msg.type === "vote"){ handleVoteMessage(msg); return; }
     if(msg.type === "contact_save"){ handleContactSave(msg); return; }
 
     if(msg.type === "submit_payload" || msg.type === "payload_received"){
@@ -1081,7 +1140,7 @@ function wsConnect(isReconnect=false){
 
       showToast("Guest", "New guest received (Pending).");
       broadcastConfig();
-      broadcastRosterSync(payload.clientNonce || null);
+      broadcastRosterSync(payload.clientNonce || null); // ✅ give new guest Top 12 immediately
       broadcastTVSync();
       return;
     }
@@ -1096,7 +1155,7 @@ function wsConnect(isReconnect=false){
 }
 
 /* =========================
-   RENDERING
+   RENDERING (unchanged except link encoding fix below)
 ========================= */
 function renderBars(){
   const sel = $("barSelect");
@@ -1351,6 +1410,7 @@ function renderCounts(){
   $("countJoined").textContent = pool.length;
 }
 
+/* ✅ FIXED: no double-encoding for join params */
 function updateLinks(){
   const base = new URL(location.href);
   const roomId = currentRoomId();
@@ -1360,8 +1420,8 @@ function updateLinks(){
   join.searchParams.set("room", roomId);
   join.searchParams.set("session", host.session);
   join.searchParams.set("mode", host.mode);
-  join.searchParams.set("bars", encodeURIComponent(JSON.stringify(bars.map(b=>({id:b.id,name:b.name})))));
-  join.searchParams.set("participating", encodeURIComponent(JSON.stringify(event.participatingBarIds || [])));
+  join.searchParams.set("bars", JSON.stringify(bars.map(b=>({id:b.id,name:b.name}))));
+  join.searchParams.set("participating", JSON.stringify(event.participatingBarIds || []));
 
   const tvu = new URL(base);
   tvu.pathname = "/tv.html";
@@ -1398,7 +1458,7 @@ function renderAll(){
 }
 
 /* =========================
-   ACTIONS
+   ACTIONS (same as your original)
 ========================= */
 function addBar(name){
   const id=uid();
@@ -1523,6 +1583,8 @@ function startIntervals(){
   }, 30*1000);
 
   timers.rebroadcastConfig = setInterval(()=>broadcastConfig(), 60*1000);
+
+  // broadcast "general roster" periodically (guest-specific top12 happens on request_roster)
   timers.rosterSync = setInterval(()=>{ if(WS_STATE==="CONNECTED") broadcastRosterSync(null); }, 25*1000);
 }
 
@@ -1535,11 +1597,9 @@ function init(){
   saveJSON(STORAGE.HOST,host);
   saveJSON(STORAGE.EVENT,event);
 
-  // restore search UI
   $("searchAlias").value = ui.search || "";
   setSearch(ui.search);
 
-  // search events
   $("searchAlias").addEventListener("input", (e)=>{
     setSearch(e.target.value);
     renderAll();
@@ -1558,7 +1618,6 @@ function init(){
     renderAll();
   });
 
-  // phone check-in
   $("btnPhoneCheckin").addEventListener("click", phoneCheckIn);
   $("checkinPhone").addEventListener("keydown", (e)=>{
     if(e.key==="Enter") phoneCheckIn();
@@ -1695,6 +1754,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
