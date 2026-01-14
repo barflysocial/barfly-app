@@ -1154,7 +1154,10 @@ function validate(){
   req("venueSelect","Expected location",errs);
   if(HOST_MODE === "city") req("travelYes","Willing to travel",errs);
 
-  req("age","Age",errs); req("sex","Sex",errs); req("race","Race",errs); req("income","Income",errs);
+  const ageVal = Number($("age")?.value || 0);
+if(!ageVal || ageVal < 18) errs.push("Age must be 18 or older"); 
+  
+  req("sex","Sex",errs); req("race","Race",errs); req("income","Income",errs);
   req("height","Height",errs); req("build","Body build",errs); req("eye","Eye color",errs); req("hair","Hair color",errs);
   req("skin","Skin tone",errs); req("smoke","Smoking",errs); req("marital","Marital status",errs); req("politics","Political view",errs);
   req("intent","Dating intentions",errs); req("family","Family status",errs); req("edu","Education",errs); req("love","Love language",errs);
@@ -1454,6 +1457,7 @@ init();
 </script>
 </body>
 </html>
+
 
 
 
