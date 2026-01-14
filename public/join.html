@@ -7,19 +7,50 @@
 <style>
 :root{
   --bg:#0b0f1a; --txt:#e9f0ff; --muted:#a7b3d1; --line:rgba(255,255,255,.12);
-  --good:#2dd4bf; --bad:#fb7185; --warn:#fbbf24; --brand:#60a5fa; --shadow:0 10px 30px rgba(0,0,0,.35); --r:18px;
+  --good:#2dd4bf; --bad:#fb7185; --warn:#fbbf24; --brand:#60a5fa;
+  --shadow:0 10px 30px rgba(0,0,0,.35); --r:18px;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:
-  radial-gradient(1200px 800px at 20% -10%, rgba(96,165,250,.20), transparent 60%),
-  radial-gradient(900px 700px at 110% 10%, rgba(45,212,191,.18), transparent 55%),
-  var(--bg); color:var(--txt);}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  background:
+    radial-gradient(1200px 800px at 20% -10%, rgba(96,165,250,.20), transparent 60%),
+    radial-gradient(900px 700px at 110% 10%, rgba(45,212,191,.18), transparent 55%),
+    var(--bg);
+  color:var(--txt);
+}
 .wrap{max-width:880px;margin:0 auto;padding:18px}
-.card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px}
+.card{
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  box-shadow:var(--shadow);
+  padding:14px
+}
 .top{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
-.pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:9px 10px;border-radius:999px;background:rgba(255,255,255,.03);font-size:13px;color:var(--muted);white-space:nowrap}
+.pill{
+  display:inline-flex;gap:8px;align-items:center;
+  border:1px solid var(--line);
+  padding:9px 10px;border-radius:999px;
+  background:rgba(255,255,255,.03);
+  font-size:13px;color:var(--muted);white-space:nowrap
+}
 .pill b{color:var(--txt);font-weight:1000}
-.btn{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--txt);padding:11px 12px;border-radius:14px;font-weight:900;cursor:pointer;display:inline-flex;gap:8px;align-items:center;justify-content:center;user-select:none}
+.btn{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.06);
+  color:var(--txt);
+  padding:11px 12px;
+  border-radius:14px;
+  font-weight:900;
+  cursor:pointer;
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  justify-content:center;
+  user-select:none
+}
 .btn.primary{background:rgba(96,165,250,.20);border-color:rgba(96,165,250,.35)}
 .btn.good{background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35)}
 .btn.bad{background:rgba(251,113,133,.16);border-color:rgba(251,113,133,.35)}
@@ -28,22 +59,68 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;backgrou
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:700px){.two{grid-template-columns:1fr}}
 label{font-size:13px;color:var(--muted);font-weight:900}
-input,select,textarea{width:100%;padding:12px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--txt);outline:none;font-size:16px}
+input,select,textarea{
+  width:100%;
+  padding:12px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:rgba(0,0,0,.25);
+  color:var(--txt);
+  outline:none;
+  font-size:16px
+}
 textarea{min-height:80px;resize:vertical}
 .hr{height:1px;background:var(--line);margin:12px 0}
 .muted{color:var(--muted)}
 .tagbox{display:flex;flex-wrap:wrap;gap:8px}
-.chip{border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--txt);padding:10px 12px;border-radius:999px;font-size:13px;cursor:pointer;user-select:none;font-weight:900}
+.chip{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.04);
+  color:var(--txt);
+  padding:10px 12px;
+  border-radius:999px;
+  font-size:13px;
+  cursor:pointer;
+  user-select:none;
+  font-weight:900
+}
 .chip.on{background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35)}
-.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(17,26,43,.92);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--shadow);display:none;max-width:92vw;z-index:60}
+.toast{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+  background:rgba(17,26,43,.92);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:12px;
+  box-shadow:var(--shadow);
+  display:none;
+  max-width:92vw;
+  z-index:60
+}
 .toast .t{font-weight:1000;margin-bottom:2px}
 .toast .m{font-size:13px;color:var(--muted)}
 .hidden{display:none !important;}
-.big{font-size:18px;font-weight:1000}
-.k{display:inline-block;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.03);color:var(--muted);font-weight:900;font-size:12px}
+.k{
+  display:inline-block;
+  padding:7px 10px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-weight:900;
+  font-size:12px
+}
 .voteHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
 .voteStats{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.voteCard{border:1px solid var(--line);border-radius:18px;background:rgba(0,0,0,.20);padding:14px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.voteCard{
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:rgba(0,0,0,.20);
+  padding:14px;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:flex-start
+}
 .voteAlias{font-size:20px;font-weight:1000;line-height:1.1}
 .voteSub{margin-top:6px;color:var(--muted);font-weight:900;font-size:13px;line-height:1.35}
 .voteActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -62,13 +139,6 @@ textarea{min-height:80px;resize:vertical}
 }
 .heroInner{position:relative; padding:18px}
 .brandRow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-.logo{
-  width:210px; max-width:62vw; height:auto;
-  border-radius:14px;
-  box-shadow:0 10px 30px rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(0,0,0,.25);
-}
 .hTitle{font-size:28px;font-weight:1000;letter-spacing:.3px;margin:0}
 .hSub{margin-top:6px;color:var(--muted);font-weight:900}
 .checkRow{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
@@ -125,6 +195,7 @@ textarea{min-height:80px;resize:vertical}
 .dealChk{width:auto;transform:scale(1.15)}
 </style>
 </head>
+
 <body>
 <div class="wrap">
   <div class="top">
@@ -133,11 +204,10 @@ textarea{min-height:80px;resize:vertical}
     <div class="pill"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
   </div>
 
-  <!-- ✅ TITLE / 18+ / TERMS GATE -->
+  <!-- ✅ TITLE / 18+ / TERMS GATE (NO LOGO) -->
   <div class="card hero" id="gateCard">
     <div class="heroInner">
       <div class="brandRow">
-        <img id="brandLogo" class="logo" alt="Bar Fly Entertainment / Barfly Social Logo">
         <div style="min-width:240px;flex:1">
           <h1 class="hTitle">Barfly Social</h1>
           <div class="hSub">Private, alias-only matchmaking for bar nights • Host-verified check-in</div>
@@ -177,10 +247,9 @@ textarea{min-height:80px;resize:vertical}
     </div>
   </div>
 
-  <!-- ✅ FORM -->
+  <!-- ✅ FORM (NO LOGO) -->
   <div class="card hidden" id="formCard">
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <img id="brandLogo2" class="logo" alt="Bar Fly Entertainment / Barfly Social Logo" style="width:140px">
       <div style="min-width:220px;flex:1">
         <h2 style="margin:0">Barfly Social — Join</h2>
         <div class="muted">Alias-only matchmaking. Your identity stays private.</div>
@@ -549,10 +618,9 @@ textarea{min-height:80px;resize:vertical}
     </div>
   </div>
 
-  <!-- ✅ VOTING (AFTER submit) -->
+  <!-- ✅ VOTING (AFTER submit) (NO LOGO) -->
   <div class="card hidden" id="voteCard" style="margin-top:12px">
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-      <img id="brandLogo3" class="logo" alt="Bar Fly Entertainment / Barfly Social Logo" style="width:110px">
       <div style="flex:1;min-width:240px">
         <div class="voteHead" style="align-items:center">
           <div>
@@ -701,6 +769,7 @@ textarea{min-height:80px;resize:vertical}
   </div>
 </div>
 
+<script>
 /* =========================
    CONFIG
 ========================= */
@@ -718,8 +787,8 @@ function qs(){
   q.room = (q.room || q.roomId || q.barId || "").trim();
   q.session = (q.session || "").trim();
   q.mode = (q.mode || "").trim().toLowerCase();
-  q.bars = (q.bars || "").trim();
-  q.participating = (q.participating || "").trim();
+  q.bars = (q.bars || "").trim();           // JSON (urlencoded)
+  q.participating = (q.participating || "").trim(); // JSON (urlencoded)
   return q;
 }
 function esc(s){
@@ -742,7 +811,7 @@ function validInstagramHandle(raw){
 }
 
 /* =========================
-   ✅ MODALS
+   MODALS
 ========================= */
 function openModal(backId){
   const b=$(backId);
@@ -786,7 +855,7 @@ function bindModals(){
 }
 
 /* =========================
-   ✅ 18+ / TERMS GATE
+   18+ / TERMS GATE
 ========================= */
 function gateKey(){
   const q=qs();
@@ -826,9 +895,9 @@ function enterApp(){
 /* =========================
    BARS FROM URL (NO HOST-CONFIG WAIT)
 ========================= */
-let HOST_BARS = [];
-let HOST_MODE = "single";
-let HOST_PARTICIPATING_IDS = [];
+let HOST_BARS = [];                 // [{id,name}]
+let HOST_MODE = "single";           // "single" | "city"
+let HOST_PARTICIPATING_IDS = [];    // [id,id...]
 
 function parseBarsFromUrl(){
   const q = qs();
@@ -1171,6 +1240,7 @@ function submit(){
     room: q.room,
     barId: q.room,
     session: q.session,
+
     venueId: $("venueSelect").value,
     expectedVenueId: $("venueSelect").value,
     travelYes: travelVal,
@@ -1347,21 +1417,9 @@ function renderVoting(){
 }
 
 /* =========================
-   ✅ LOGO INJECTION
-========================= */
-function setLogoAll(dataUri){
-  ["brandLogo","brandLogo2","brandLogo3"].forEach(id=>{
-    const img=$(id);
-    if(img) img.src = dataUri;
-  });
-}
-
-/* =========================
    INIT
 ========================= */
 function init(){
-  setLogoAll(REAL_LOGO);
-
   parseBarsFromUrl();
   populateVenueSelect();
 
@@ -1396,6 +1454,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
