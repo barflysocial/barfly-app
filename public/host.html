@@ -57,8 +57,6 @@
     .toast .m{font-size:13px;color:var(--muted)}
     .hidden{display:none !important;}
     .mini{font-size:12px;color:var(--muted);font-weight:900}
-
-    /* ✅ Phone check-in */
     .kbd{
       border:1px solid var(--line);
       padding:7px 10px;
@@ -89,6 +87,7 @@
 
       <div class="pill"><b>Min Match</b> <span id="minMatchPill">75%</span></div>
       <div class="pill"><b>Hotspot</b> <span id="hotspotPill">—</span></div>
+      <div class="pill" id="pinPillWrap"><b>Host Lock</b> <span id="pinPill">ON</span></div>
     </div>
 
     <div class="left">
@@ -165,11 +164,11 @@
         <button class="btn primary" id="btnRefresh" type="button">Refresh View</button>
         <button class="btn good" id="btnComputeMutuals" type="button">Compute Mutuals → TV</button>
         <button class="btn warn" id="btnBroadcastConfig" type="button">Broadcast Config</button>
+        <button class="btn small" id="btnHostPin" type="button">Set/Unlock Host PIN</button>
       </div>
 
       <div class="hr"></div>
 
-      <!-- ✅ Search -->
       <div class="two">
         <div>
           <label>Search alias (filters Arrivals + Checked-In)</label>
@@ -188,7 +187,6 @@
 
       <div class="hr"></div>
 
-      <!-- ✅ NEW: PHONE CHECK-IN -->
       <div class="two">
         <div>
           <h3>Phone Check-In (Recommended)</h3>
@@ -202,7 +200,7 @@
             <span class="kbd">Host assigns venue</span>
           </div>
           <div class="mini" style="margin-top:8px">
-            If multiple guests share a phone (should be rare), you’ll be prompted to pick the alias.
+            If multiple guests share a phone (rare), you’ll be prompted to pick the alias.
           </div>
         </div>
 
@@ -210,7 +208,7 @@
           <h3>Manual (Fallback)</h3>
           <div class="mini">Use alias search + buttons if phone wasn’t captured on submit.</div>
           <div class="mini" style="margin-top:8px">
-            If a guest has no phone stored, the arrival card will show <b>Phone: —</b>.
+            Tip: manual actions use the <b>Check-In Venue</b> dropdown (no bar IDs required).
           </div>
         </div>
       </div>
@@ -231,7 +229,7 @@
         </div>
 
         <div>
-          <h3>Venue Counts (Mode C Hybrid)</h3>
+          <h3>Venue Counts (Option C Hybrid)</h3>
           <div class="mini">Expected = pending who selected venue • Checked In = host verified • Active Matches = TV pairs involving that venue</div>
           <div class="list" id="venueCounts"></div>
 
@@ -323,18 +321,17 @@ const PONG_TIMEOUT_MS = 45 * 1000;
 const RECONNECT_BASE_MS = 800;
 const RECONNECT_MAX_MS  = 10 * 1000;
 
-const TOP_N = 12; // ✅ NEW: Top 12 roster per guest
-
 const STORAGE = {
-  BARS: "bm_bars_v10",
-  HOST: "bm_host_v10",
-  PEOPLE: "bm_people_v10",
-  LIKES: "bm_likes_v10",
-  EVENT: "bm_event_v10",
-  TV: "bm_tv_v10",
-  DEDUPE: "bm_dedupe_v10",
-  CONTACTS: "bm_contacts_v10",
-  UI: "bm_ui_v10"
+  BARS: "bm_bars_v11",
+  HOST: "bm_host_v11",
+  PEOPLE: "bm_people_v11",
+  LIKES: "bm_likes_v11",
+  EVENT: "bm_event_v11",
+  TV: "bm_tv_v11",
+  DEDUPE: "bm_dedupe_v11",
+  CONTACTS: "bm_contacts_v11",
+  UI: "bm_ui_v11",
+  HOSTPIN: "bm_host_pin_v11"
 };
 
 const $ = (id)=>document.getElementById(id);
@@ -361,6 +358,69 @@ function phoneLast4(s){
   return d.slice(-4);
 }
 function isPhone10(s){ return digitsOnly(s).length === 10; }
+
+/* =========================
+   HOST PIN (light lock)
+========================= */
+let hostPin = (localStorage.getItem(STORAGE.HOSTPIN) || "").trim();
+let hostUnlocked = false;
+
+function pinHash(str){
+  // simple hash (not crypto-secure) - enough to deter casual tampering
+  const s = String(str||"");
+  let h=2166136261;
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return "h"+(h>>>0).toString(16);
+}
+function setPinPill(){
+  $("pinPill").textContent = hostPin ? (hostUnlocked ? "UNLOCKED" : "LOCKED") : "OFF";
+  $("pinPillWrap").className = "pill" + (hostPin ? (hostUnlocked ? " good":" warn") : "");
+}
+function requireUnlock(){
+  if(!hostPin) return true; // no pin set
+  if(hostUnlocked) return true;
+  const attempt = prompt("Host PIN required:", "");
+  if(!attempt) return false;
+  if(pinHash(attempt) === hostPin){
+    hostUnlocked = true;
+    setPinPill();
+    showToast("Unlocked","Host controls unlocked.");
+    return true;
+  }
+  showToast("Denied","Incorrect PIN.");
+  return false;
+}
+function handlePinButton(){
+  const cur = hostPin ? prompt("Enter current PIN to change/unlock (or Cancel):", "") : null;
+  if(hostPin){
+    if(!cur) { // unlock attempt
+      return requireUnlock();
+    }
+    if(pinHash(cur) !== hostPin){
+      showToast("Denied","Incorrect PIN.");
+      return;
+    }
+  }
+  const next = prompt("Set a NEW PIN (4-8 digits). Leave blank to turn OFF:", "");
+  if(!next){
+    hostPin = "";
+    localStorage.removeItem(STORAGE.HOSTPIN);
+    hostUnlocked = false;
+    setPinPill();
+    showToast("PIN","Host PIN turned OFF.");
+    return;
+  }
+  const d = digitsOnly(next);
+  if(d.length < 4 || d.length > 8){
+    showToast("PIN","Use 4–8 digits.");
+    return;
+  }
+  hostPin = pinHash(d);
+  localStorage.setItem(STORAGE.HOSTPIN, hostPin);
+  hostUnlocked = true;
+  setPinPill();
+  showToast("PIN","Host PIN set and unlocked.");
+}
 
 /* =========================
    UI STATE (search)
@@ -405,7 +465,20 @@ function ensureDefaultBar(){
     saveJSON(STORAGE.EVENT, event);
   }
 }
-function barName(id){ return bars.find(b=>b.id===id)?.name || (id ? "Bar" : "—"); }
+function barName(id){ return bars.find(b=>b.id===id)?.name || (id ? id : "—"); }
+
+function participatingSet(){
+  return new Set((event.participatingBarIds || []).filter(id => bars.some(b=>b.id===id)));
+}
+function isVenueAllowed(venueId){
+  const v = String(venueId||"").trim();
+  if(!v) return true;
+  if(host.mode !== "city") return true;
+  const set = participatingSet();
+  if(set.size === 0) return true; // if host never selected participating, allow all
+  return set.has(v);
+}
+
 function populateCheckinVenueSelect(){
   const sel = $("checkinVenue");
   if(!sel) return;
@@ -456,7 +529,7 @@ function currentRoomId(){
 ========================= */
 function broadcastConfig(){
   const roomId = currentRoomId();
-  const participatingIds = (event.participatingBarIds || []).filter(id => bars.some(b => b.id === id));
+  const participatingIds = Array.from(participatingSet());
   safeSend({
     type: "config",
     roomId, room: roomId, barId: roomId,
@@ -471,192 +544,39 @@ function broadcastConfig(){
       tvRotateMs: TV_ROTATE_MS,
       checkIn: "phone_or_manual_host_only",
       venueChange: "host_only"
-    }
+    },
+    hostLock: hostPin ? "pin_enabled" : "off"
   });
 }
 
 /* =========================
-   POOL
+   POOL + ROSTER SYNC
 ========================= */
 function activePool(){
   const roomId = currentRoomId();
   return people.filter(p => p.session === host.session && p.roomId === roomId && p.status !== "removed");
 }
-
-/* =========================
-   MATCH / SCORE
-========================= */
-const CODE_WORDS = ["LIME","WAVE","NOVA","GOLD","MOON","JAZZ","ROSE","BAYOU","SPARK","VIBE","MINT","ONYX","SUGAR","VELVET","NEON"];
-function makeMatchCode(){
-  const w = CODE_WORDS[Math.floor(Math.random()*CODE_WORDS.length)];
-  const n = Math.floor(Math.random()*90)+10;
-  return `${w}-${n}`;
-}
-function pairKey(aId,bId){ return aId < bId ? `${aId}::${bId}` : `${bId}::${aId}`; }
-function clamp01(x){ return Math.max(0, Math.min(1, x)); }
-function overlapScore(arrA, arrB){
-  const A = Array.from(new Set(arrA || []));
-  const B = new Set(arrB || []);
-  if(A.length===0 || B.size===0) return 0;
-  let inter=0;
-  for(const x of A) if(B.has(x)) inter++;
-  return inter / Math.max(1, Math.min(A.length, B.size));
-}
-function bandContainsAge(band, age){
-  if(!band || band==="Any") return true;
-  if(band==="55+") return age>=55;
-  const m = band.match(/(\d+)\D+(\d+)/);
-  if(!m) return true;
-  const lo = parseInt(m[1],10), hi=parseInt(m[2],10);
-  return age>=lo && age<=hi;
-}
-function meetsHardFilters(A,B){
-  const P = A.prefs || {};
-  const D = A.deal || {};
-  const attr = B.attrs || {};
-  function hard(field){
-    const pref = P[field];
-    const isDeal = D[field] === true;
-    if(!isDeal) return true;
-    if(pref === "Any") return true;
-    if(field==="ageBand") return bandContainsAge(pref, attr.age);
-    return pref === attr[field];
-  }
-  return hard("ageBand") &&
-    ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"]
-    .every(f=>hard(f));
-}
-function ageCompat(A,B){
-  const aOk = bandContainsAge(A?.prefs?.ageBand, B?.attrs?.age);
-  const bOk = bandContainsAge(B?.prefs?.ageBand, A?.attrs?.age);
-  return (aOk && bOk) ? 1 : (aOk || bOk) ? 0.6 : 0;
-}
-function preferenceScore(A,B){
-  const P = A.prefs || {};
-  const attr = B.attrs || {};
-  let used=0, good=0;
-  const fields = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"];
-  for(const f of fields){
-    if(P[f] && P[f] !== "Any"){ used++; if(P[f] === attr[f]) good++; }
-  }
-  if(P.ageBand){ used++; if(bandContainsAge(P.ageBand, attr.age)) good++; }
-  if(used===0) return 0.5;
-  return good/used;
-}
-function interestsScore(A,B){
-  const food = overlapScore(A.foodChips, B.foodChips);
-  const act  = overlapScore(A.activityChips, B.activityChips);
-  return clamp01(0.45*food + 0.55*act);
-}
-function scorePair(A,B){
-  if(!meetsHardFilters(A,B)) return -999;
-  const age = ageCompat(A,B);
-  const intr = interestsScore(A,B);
-  const prefs = preferenceScore(A,B);
-  return clamp01(0.30*age + 0.40*intr + 0.30*prefs);
-}
-function travelPlan(A,B){
-  const aVenue = A.checkedInVenueId || A.expectedVenueId || A.venueId;
-  const bVenue = B.checkedInVenueId || B.expectedVenueId || B.venueId;
-  const same = aVenue === bVenue;
-  if(same) return { allowed:true, plan:`Meet at: ${barName(aVenue)} (same location)` };
-  const aYes = !!A.travelYes, bYes = !!B.travelYes;
-  if(!aYes && !bYes) return { allowed:false, plan:"No cross-location match (both chose No travel)" };
-  if(aYes && !bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(bVenue)} (A travels)` };
-  if(!aYes && bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(aVenue)} (B travels)` };
-  return { allowed:true, plan:`Either can travel — check host stand to pick meetup bar` };
-}
-
-/* =========================
-   LIKES / MUTUALS
-========================= */
-function ensureLikes(voterId){ if(!likes[voterId]) likes[voterId] = {}; }
-function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
-function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
-
-/* =========================
-   ROSTER SYNC (✅ UPDATED)
-========================= */
-function findGuestByNonceOrId(requesterNonce){
-  if(!requesterNonce) return null;
-  const pool = activePool();
-  return pool.find(p => p.clientNonce === requesterNonce || p.id === requesterNonce) || null;
-}
-
-/**
- * ✅ NEW:
- * If requesterNonce is provided, send that guest ONLY their Top 12 matches w/ score.
- * If requesterNonce is null, broadcast a simple roster (no scores) to everyone.
- */
 function broadcastRosterSync(requesterNonce=null){
   const roomId = currentRoomId();
   const pool = activePool();
-
-  if(requesterNonce){
-    const me = findGuestByNonceOrId(requesterNonce);
-    if(!me){
-      // still send something minimal (prevents blank UI)
-      safeSend({
-        type:"roster_sync",
-        roomId, room: roomId, barId: roomId,
-        session: host.session,
-        roster: [],
-        people: [],
-        you: undefined
-      });
-      return;
-    }
-
-    const scored = [];
-    for(const other of pool){
-      if(!other || other.id===me.id) continue;
-      if(other.status === "removed") continue;
-
-      const sc = scorePair(me, other);
-      if(sc < 0) continue; // hard filter failed
-      scored.push({
-        id: other.id,
-        alias: other.alias,
-        venueId: other.expectedVenueId || other.venueId || "",
-        status: other.status || "pending",
-        score: sc
-      });
-    }
-
-    scored.sort((a,b)=> (b.score - a.score) || String(a.alias||"").localeCompare(String(b.alias||""), undefined, {sensitivity:"base"}));
-    const top = scored.slice(0, TOP_N);
-
-    safeSend({
-      type:"roster_sync",
-      roomId, room: roomId, barId: roomId,
-      session: host.session,
-      roster: top,
-      people: top,
-      you: { id: me.id, alias: me.alias, venueId: me.expectedVenueId || "", status: me.status || "pending" }
-    });
-    return;
-  }
-
-  // Broadcast simple roster (no scores) for general “everyone refresh”
   const roster = pool.map(p => ({
     id: p.id,
     alias: p.alias,
     venueId: p.expectedVenueId || p.venueId || "",
     status: p.status || "pending"
   }));
+  const you = requesterNonce ? pool.find(p => p.clientNonce === requesterNonce || p.id === requesterNonce) : null;
 
   safeSend({
-    type:"roster_sync",
+    type: "roster_sync",
     roomId, room: roomId, barId: roomId,
     session: host.session,
     roster,
-    people: roster
+    people: roster,
+    you: you ? { id: you.id, alias: you.alias, venueId: you.expectedVenueId || "", status: you.status || "pending" } : undefined
   });
 }
 
-/* =========================
-   HEARTBEAT
-========================= */
 function stopHeartbeat(){
   if(timers.heartbeat){ clearInterval(timers.heartbeat); timers.heartbeat=null; }
   if(timers.health){ clearInterval(timers.health); timers.health=null; }
@@ -758,6 +678,97 @@ function ackSubmit(clientNonce=null){
 }
 
 /* =========================
+   MATCH / SCORE
+========================= */
+const CODE_WORDS = ["LIME","WAVE","NOVA","GOLD","MOON","JAZZ","ROSE","BAYOU","SPARK","VIBE","MINT","ONYX","SUGAR","VELVET","NEON"];
+function makeMatchCode(){
+  const w = CODE_WORDS[Math.floor(Math.random()*CODE_WORDS.length)];
+  const n = Math.floor(Math.random()*90)+10;
+  return `${w}-${n}`;
+}
+function pairKey(aId,bId){ return aId < bId ? `${aId}::${bId}` : `${bId}::${aId}`; }
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+function overlapScore(arrA, arrB){
+  const A = Array.from(new Set(arrA || []));
+  const B = new Set(arrB || []);
+  if(A.length===0 || B.size===0) return 0;
+  let inter=0;
+  for(const x of A) if(B.has(x)) inter++;
+  return inter / Math.max(1, Math.min(A.length, B.size));
+}
+function bandContainsAge(band, age){
+  if(!band || band==="Any") return true;
+  if(band==="55+") return age>=55;
+  const m = band.match(/(\d+)\D+(\d+)/);
+  if(!m) return true;
+  const lo = parseInt(m[1],10), hi=parseInt(m[2],10);
+  return age>=lo && age<=hi;
+}
+function meetsHardFilters(A,B){
+  const P = A.prefs || {};
+  const D = A.deal || {};
+  const attr = B.attrs || {};
+  function hard(field){
+    const pref = P[field];
+    const isDeal = D[field] === true;
+    if(!isDeal) return true;
+    if(pref === "Any") return true;
+    if(field==="ageBand") return bandContainsAge(pref, attr.age);
+    return pref === attr[field];
+  }
+  return hard("ageBand") &&
+    ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"]
+    .every(f=>hard(f));
+}
+function ageCompat(A,B){
+  const aOk = bandContainsAge(A?.prefs?.ageBand, B?.attrs?.age);
+  const bOk = bandContainsAge(B?.prefs?.ageBand, A?.attrs?.age);
+  return (aOk && bOk) ? 1 : (aOk || bOk) ? 0.6 : 0;
+}
+function preferenceScore(A,B){
+  const P = A.prefs || {};
+  const attr = B.attrs || {};
+  let used=0, good=0;
+  const fields = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"];
+  for(const f of fields){
+    if(P[f] && P[f] !== "Any"){ used++; if(P[f] === attr[f]) good++; }
+  }
+  if(P.ageBand){ used++; if(bandContainsAge(P.ageBand, attr.age)) good++; }
+  if(used===0) return 0.5;
+  return good/used;
+}
+function interestsScore(A,B){
+  const food = overlapScore(A.foodChips, B.foodChips);
+  const act  = overlapScore(A.activityChips, B.activityChips);
+  return clamp01(0.45*food + 0.55*act);
+}
+function scorePair(A,B){
+  if(!meetsHardFilters(A,B)) return -999;
+  const age = ageCompat(A,B);
+  const intr = interestsScore(A,B);
+  const prefs = preferenceScore(A,B);
+  return clamp01(0.30*age + 0.40*intr + 0.30*prefs);
+}
+function travelPlan(A,B){
+  const aVenue = A.checkedInVenueId || A.expectedVenueId || A.venueId;
+  const bVenue = B.checkedInVenueId || B.expectedVenueId || B.venueId;
+  const same = aVenue === bVenue;
+  if(same) return { allowed:true, plan:`Meet at: ${barName(aVenue)} (same location)` };
+  const aYes = !!A.travelYes, bYes = !!B.travelYes;
+  if(!aYes && !bYes) return { allowed:false, plan:"No cross-location match (both chose No travel)" };
+  if(aYes && !bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(bVenue)} (A travels)` };
+  if(!aYes && bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(aVenue)} (B travels)` };
+  return { allowed:true, plan:`Either can travel — check host stand to pick meetup bar` };
+}
+
+/* =========================
+   LIKES / MUTUALS
+========================= */
+function ensureLikes(voterId){ if(!likes[voterId]) likes[voterId] = {}; }
+function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
+function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
+
+/* =========================
    IMPORT GUEST
 ========================= */
 const ALIAS_A = ["Neon","Velvet","Midnight","Lucky","Smooth","Wild","Golden","Sugar","Cosmic","Electric","Bayou","Rouge","Moon","Star","Cajun","Whisper","Spicy","Satin","Honey","Silver"];
@@ -792,6 +803,7 @@ function extractIdentityPhone(payload, stableId){
 
   return "";
 }
+
 function importGuest(payload){
   const incomingRoom = payload.roomId ?? payload.room ?? payload.barId ?? payload.roomID ?? "";
   const stableId = (payload.clientNonce && String(payload.clientNonce).trim()) ? String(payload.clientNonce).trim() : uid();
@@ -828,8 +840,15 @@ function importGuest(payload){
     updatedAt: now()
   };
 
+  // Strict room/session guard
   if(p.session !== host.session) return;
   if(p.roomId !== currentRoomId()) return;
+
+  // ✅ City mode participating enforcement
+  if(host.mode==="city" && expectedVenue && !isVenueAllowed(expectedVenue)){
+    showToast("Blocked", `Guest selected a non-participating venue: ${barName(expectedVenue)}.`);
+    return;
+  }
 
   upsertGuestById(stableId, p);
   ensureLikes(stableId);
@@ -841,13 +860,28 @@ function importGuest(payload){
 /* =========================
    CHECK-IN / MOVE / KICK
 ========================= */
+function pickVenueByName(title){
+  if(!bars.length) return null;
+  const lines = bars.map((b,i)=>`${i+1}) ${b.name}`).join("\n");
+  const pick = prompt(`${title}\n\nChoose a number:\n${lines}`, "1");
+  const idx = Math.max(1, parseInt(pick||"1",10)) - 1;
+  const chosen = bars[idx];
+  return chosen ? chosen.id : null;
+}
+
 function hostSetStatus(id, status, venueOverrideId=null){
+  if(!requireUnlock()) return;
+
   const p = people.find(x=>x.id===id);
   if(!p) return;
 
   if(status === "checked_in"){
     p.status = "checked_in";
     const v = (venueOverrideId || host.activeBarId || p.expectedVenueId || p.venueId || "").trim();
+    if(host.mode==="city" && v && !isVenueAllowed(v)){
+      showToast("Blocked", `Cannot check in to non-participating venue: ${barName(v)}`);
+      return;
+    }
     p.checkedInVenueId = v;
   }else if(status === "pending"){
     p.status = "pending";
@@ -863,15 +897,23 @@ function hostSetStatus(id, status, venueOverrideId=null){
   }
 
   renderAll();
-  broadcastRosterSync(p.clientNonce || p.id); // ✅ send that guest their updated Top 12
+  broadcastRosterSync(p.clientNonce || p.id);
   broadcastTVSync();
 }
 
 function hostMoveVenue(id, newVenueId){
+  if(!requireUnlock()) return;
+
   const p = people.find(x=>x.id===id);
   if(!p) return;
-  p.expectedVenueId = newVenueId;
-  if(p.status === "checked_in") p.checkedInVenueId = newVenueId;
+  const v = String(newVenueId||"").trim();
+  if(host.mode==="city" && v && !isVenueAllowed(v)){
+    showToast("Blocked", `Cannot move to non-participating venue: ${barName(v)}`);
+    return;
+  }
+
+  p.expectedVenueId = v;
+  if(p.status === "checked_in") p.checkedInVenueId = v;
   p.updatedAt = now();
   saveJSON(STORAGE.PEOPLE, people);
 
@@ -900,12 +942,18 @@ function findGuestsByPhone(phone10){
   return activePool().filter(p => (p.status||"pending")==="pending" && digitsOnly(p.identityPhone) === d);
 }
 function phoneCheckIn(){
+  if(!requireUnlock()) return;
+
   const raw = ($("checkinPhone")?.value || "").trim();
   const d = digitsOnly(raw);
   if(d.length !== 10) return showToast("Phone needed", "Enter a 10-digit phone number.");
 
   const venueId = ($("checkinVenue")?.value || host.activeBarId || "").trim();
   if(!venueId) return showToast("Venue needed", "Select a venue for check-in.");
+
+  if(host.mode==="city" && !isVenueAllowed(venueId)){
+    return showToast("Blocked", `Venue not participating: ${barName(venueId)}`);
+  }
 
   const matches = findGuestsByPhone(d);
   if(matches.length === 0){
@@ -1010,12 +1058,12 @@ function handleVoteMessage(msg){
   }
 
   renderAll();
-  broadcastRosterSync(voterNonce || null); // ✅ refresh Top 12 for voter
+  broadcastRosterSync(voterNonce || null);
   broadcastTVSync();
 }
 
 /* =========================
-   CONTACT SAVE (from join.html)
+   CONTACT SAVE
 ========================= */
 function handleContactSave(msg){
   const roomId = currentRoomId();
@@ -1049,7 +1097,39 @@ function handleContactSave(msg){
 }
 
 /* =========================
-   TV SYNC
+   COUNTS + HOTSPOT
+========================= */
+function computeCountsAndHotspot(){
+  const pool = activePool();
+  const expected = pool.filter(p => (p.status||"pending")==="pending" && (p.expectedVenueId || p.venueId));
+  const checked = pool.filter(p => (p.status||"pending")==="checked_in");
+
+  const active = activeTvMatches();
+  const counts = new Map();
+  for(const m of active){
+    const A = pool.find(x=>x.id===m.aId);
+    const B = pool.find(x=>x.id===m.bId);
+    const aV = (A?.checkedInVenueId || A?.expectedVenueId || "").trim();
+    const bV = (B?.checkedInVenueId || B?.expectedVenueId || "").trim();
+    if(aV) counts.set(aV, (counts.get(aV)||0)+1);
+    if(bV) counts.set(bV, (counts.get(bV)||0)+1);
+  }
+  let bestId="", bestCount=0;
+  for(const [id,c] of counts.entries()){
+    if(c>bestCount){ bestId=id; bestCount=c; }
+  }
+  const hotspotLabel = bestId ? `${barName(bestId)} (${bestCount})` : "—";
+
+  return {
+    expected: expected.length,
+    checkedIn: checked.length,
+    activeMatches: active.length,
+    hotspotLabel
+  };
+}
+
+/* =========================
+   TV SYNC (includes flags + counts)
 ========================= */
 function broadcastTVSync(){
   const roomId = currentRoomId();
@@ -1067,11 +1147,25 @@ function broadcastTVSync(){
         aAlias: A?.alias || "Guest",
         bAlias: B?.alias || "Guest",
         aVenueId: aVenue,
-        bVenueId: bVenue
+        bVenueId: bVenue,
+
+        // ✅ explicit check-in flags + statuses
+        aCheckedIn: (A?.status === "checked_in"),
+        bCheckedIn: (B?.status === "checked_in"),
+        aStatus: A?.status || "pending",
+        bStatus: B?.status || "pending"
       };
     });
 
-  safeSend({ type: "tv_sync", roomId, room: roomId, barId: roomId, session: host.session, matches: active });
+  const counts = computeCountsAndHotspot();
+
+  safeSend({
+    type: "tv_sync",
+    roomId, room: roomId, barId: roomId,
+    session: host.session,
+    matches: active,
+    counts
+  });
 }
 
 /* =========================
@@ -1113,14 +1207,11 @@ function wsConnect(isReconnect=false){
 
     if(msg.type === "request_config"){ broadcastConfig(); return; }
     if(msg.type === "request_tv_sync"){ broadcastTVSync(); return; }
-
-    // ✅ request_roster now returns Top 12 for that voter
     if(msg.type === "request_roster"){
       const requesterNonce = (msg.voterNonce || msg.clientNonce || "").trim() || null;
       broadcastRosterSync(requesterNonce);
       return;
     }
-
     if(msg.type === "vote"){ handleVoteMessage(msg); return; }
     if(msg.type === "contact_save"){ handleContactSave(msg); return; }
 
@@ -1140,7 +1231,7 @@ function wsConnect(isReconnect=false){
 
       showToast("Guest", "New guest received (Pending).");
       broadcastConfig();
-      broadcastRosterSync(payload.clientNonce || null); // ✅ give new guest Top 12 immediately
+      broadcastRosterSync(payload.clientNonce || null);
       broadcastTVSync();
       return;
     }
@@ -1155,7 +1246,7 @@ function wsConnect(isReconnect=false){
 }
 
 /* =========================
-   RENDERING (unchanged except link encoding fix below)
+   RENDERING
 ========================= */
 function renderBars(){
   const sel = $("barSelect");
@@ -1190,6 +1281,7 @@ function renderEventBars(){
   }
   wrap.querySelectorAll("button[data-remove]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
+      if(!requireUnlock()) return;
       const id=btn.getAttribute("data-remove");
       event.participatingBarIds = (event.participatingBarIds||[]).filter(x=>x!==id);
       saveJSON(STORAGE.EVENT, event);
@@ -1217,11 +1309,12 @@ function renderArrivals(){
   for(const p of pool){
     const expected = p.expectedVenueId || p.venueId || "";
     const last4 = phoneLast4(p.identityPhone);
+    const invalid = (host.mode==="city" && expected && !isVenueAllowed(expected));
     const el=document.createElement("div");
     el.className="item";
     el.innerHTML = `
       <div style="min-width:0">
-        <strong>${esc(p.alias)}</strong>
+        <strong>${esc(p.alias)} ${invalid ? `<span class="badge bad" style="margin-left:8px">INVALID VENUE</span>` : ``}</strong>
         <div class="sub">
           Expected: <span class="mono">${esc(barName(expected))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
           Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • ID: <span class="mono">${esc(p.id)}</span>
@@ -1242,15 +1335,16 @@ function renderArrivals(){
 
     btn.addEventListener("click", ()=>{
       if(act==="checkin"){
-        const venueId = prompt("Check in at which bar ID? (host assigns)", host.activeBarId || "");
-        if(!venueId) return;
-        return hostSetStatus(id, "checked_in", venueId.trim());
+        const venueId = ($("checkinVenue")?.value || host.activeBarId || "").trim();
+        if(!venueId) return showToast("Venue needed","Pick a venue in the Check-In dropdown.");
+        return hostSetStatus(id, "checked_in", venueId);
       }
       if(act==="kick") return hostSetStatus(id, "removed");
       if(act==="move"){
-        const newId = prompt("Move expected venue to which bar ID?", host.activeBarId || "");
-        if(!newId) return;
-        hostMoveVenue(id, newId.trim());
+        if(!requireUnlock()) return;
+        const chosen = pickVenueByName("Move expected venue to:");
+        if(!chosen) return;
+        hostMoveVenue(id, chosen);
       }
     });
   });
@@ -1297,9 +1391,10 @@ function renderCheckedIn(){
     btn.addEventListener("click", ()=>{
       if(act==="kick") return hostSetStatus(id, "removed");
       if(act==="move"){
-        const newId = prompt("Move checked-in guest to which bar ID?", host.activeBarId || "");
-        if(!newId) return;
-        hostMoveVenue(id, newId.trim());
+        if(!requireUnlock()) return;
+        const chosen = pickVenueByName("Move checked-in guest to:");
+        if(!chosen) return;
+        hostMoveVenue(id, chosen);
       }
     });
   });
@@ -1377,7 +1472,7 @@ function renderTVQueue(){
   }
 
   const pool=activePool();
-  for(const m of tv.matches.slice(0,20)){
+  for(const m of tv.matches /* no slice: show all */){
     const A = pool.find(x=>x.id===m.aId);
     const B = pool.find(x=>x.id===m.bId);
     const aAlias = A?.alias || "Guest A";
@@ -1410,7 +1505,6 @@ function renderCounts(){
   $("countJoined").textContent = pool.length;
 }
 
-/* ✅ FIXED: no double-encoding for join params */
 function updateLinks(){
   const base = new URL(location.href);
   const roomId = currentRoomId();
@@ -1420,6 +1514,7 @@ function updateLinks(){
   join.searchParams.set("room", roomId);
   join.searchParams.set("session", host.session);
   join.searchParams.set("mode", host.mode);
+  // ✅ FIX: do NOT encodeURIComponent() before putting into searchParams (it will encode for you)
   join.searchParams.set("bars", JSON.stringify(bars.map(b=>({id:b.id,name:b.name}))));
   join.searchParams.set("participating", JSON.stringify(event.participatingBarIds || []));
 
@@ -1455,12 +1550,14 @@ function renderAll(){
 
   setSearch(ui.search);
   wsSetStatus(WS_STATE);
+  setPinPill();
 }
 
 /* =========================
-   ACTIONS (same as your original)
+   ACTIONS
 ========================= */
 function addBar(name){
+  if(!requireUnlock()) return;
   const id=uid();
   bars.push({id,name});
   saveJSON(STORAGE.BARS,bars);
@@ -1470,6 +1567,7 @@ function addBar(name){
   broadcastConfig();
 }
 function deleteBar(){
+  if(!requireUnlock()) return;
   if(bars.length===1){ showToast("Blocked","Keep at least one bar."); return; }
   const id=host.activeBarId;
   bars=bars.filter(b=>b.id!==id);
@@ -1484,20 +1582,42 @@ function deleteBar(){
   broadcastConfig();
 }
 function clearRoster(){
+  if(!requireUnlock()) return;
+
   const roomId=currentRoomId();
+  const toRemove = people.filter(p => p.roomId===roomId && p.session===host.session).map(p=>p.id);
+  const removeSet = new Set(toRemove);
+
+  // Remove people only for this room/session
   people = people.filter(p => !(p.roomId===roomId && p.session===host.session));
   saveJSON(STORAGE.PEOPLE, people);
-  likes = {}; saveJSON(STORAGE.LIKES, likes);
-  contacts = {}; saveJSON(STORAGE.CONTACTS, contacts);
-  tv.matches = []; saveJSON(STORAGE.TV, tv);
-  dedupe = {}; saveJSON(STORAGE.DEDUPE, dedupe);
+
+  // ✅ Remove likes/contacts only for removed ids (don’t wipe global)
+  for(const id of removeSet){
+    delete likes[id];
+    delete contacts[id];
+  }
+  for(const voterId in likes){
+    for(const targetId in (likes[voterId]||{})){
+      if(removeSet.has(targetId)) delete likes[voterId][targetId];
+    }
+  }
+  saveJSON(STORAGE.LIKES, likes);
+  saveJSON(STORAGE.CONTACTS, contacts);
+
+  tv.matches = tv.matches.filter(m => !(removeSet.has(m.aId) || removeSet.has(m.bId)));
+  saveJSON(STORAGE.TV, tv);
+
+  dedupe = {};
+  saveJSON(STORAGE.DEDUPE, dedupe);
 
   renderAll();
   broadcastRosterSync(null);
   broadcastTVSync();
-  showToast("Cleared","Roster + likes + contacts + TV queue cleared for this room.");
+  showToast("Cleared","Roster + likes + contacts + TV queue cleared for this room/session.");
 }
 function createOrUpdateEvent(){
+  if(!requireUnlock()) return;
   if(!event.eventId) event.eventId = "CITY-"+uid().slice(0,6).toUpperCase();
   event.name = $("eventName").value.trim() || event.name || "City Event";
   saveJSON(STORAGE.EVENT,event);
@@ -1506,6 +1626,7 @@ function createOrUpdateEvent(){
   showToast("Event saved", "City event updated.");
 }
 function toggleParticipating(barId){
+  if(!requireUnlock()) return;
   const list = new Set(event.participatingBarIds || []);
   if(list.has(barId)) list.delete(barId); else list.add(barId);
   event.participatingBarIds = Array.from(list);
@@ -1583,8 +1704,6 @@ function startIntervals(){
   }, 30*1000);
 
   timers.rebroadcastConfig = setInterval(()=>broadcastConfig(), 60*1000);
-
-  // broadcast "general roster" periodically (guest-specific top12 happens on request_roster)
   timers.rosterSync = setInterval(()=>{ if(WS_STATE==="CONNECTED") broadcastRosterSync(null); }, 25*1000);
 }
 
@@ -1596,6 +1715,9 @@ function init(){
   saveJSON(STORAGE.BARS,bars);
   saveJSON(STORAGE.HOST,host);
   saveJSON(STORAGE.EVENT,event);
+
+  $("btnHostPin").addEventListener("click", handlePinButton);
+  setPinPill();
 
   $("searchAlias").value = ui.search || "";
   setSearch(ui.search);
@@ -1628,6 +1750,7 @@ function init(){
   wsConnect();
 
   $("modeSelect").addEventListener("change", ()=>{
+    if(!requireUnlock()) { $("modeSelect").value = host.mode; return; }
     host.mode = $("modeSelect").value;
     saveJSON(STORAGE.HOST,host);
     cleanupWs(); wsConnect();
@@ -1636,6 +1759,7 @@ function init(){
   });
 
   $("sessionCode").addEventListener("change", ()=>{
+    if(!requireUnlock()) { $("sessionCode").value = host.session; return; }
     host.session = $("sessionCode").value.trim() || host.session;
     saveJSON(STORAGE.HOST,host);
     cleanupWs(); wsConnect();
@@ -1644,6 +1768,7 @@ function init(){
   });
 
   $("btnNewSession").addEventListener("click", ()=>{
+    if(!requireUnlock()) return;
     host.session = genSession();
     saveJSON(STORAGE.HOST,host);
     tv.matches = [];
@@ -1656,6 +1781,7 @@ function init(){
   });
 
   $("barSelect").addEventListener("change", ()=>{
+    if(!requireUnlock()) { $("barSelect").value = host.activeBarId; return; }
     host.activeBarId = $("barSelect").value;
     saveJSON(STORAGE.HOST,host);
     renderAll();
@@ -1685,6 +1811,8 @@ function init(){
   $("btnRefresh").addEventListener("click", ()=>{ renderAll(); showToast("Updated","Refreshed view."); });
 
   $("btnComputeMutuals").addEventListener("click", ()=>{
+    if(!requireUnlock()) return;
+
     const pool = activePool();
     const ids = pool.map(p=>p.id);
     tv.matches = activeTvMatches();
@@ -1730,9 +1858,11 @@ function init(){
   });
 
   $("btnBroadcastConfig").addEventListener("click", ()=>{
+    if(!requireUnlock()) return;
     broadcastConfig();
     broadcastRosterSync(null);
-    showToast("Broadcast","Config + roster sent to room.");
+    broadcastTVSync();
+    showToast("Broadcast","Config + roster + TV sent to room.");
   });
 
   $("btnExport").addEventListener("click", exportCSV);
@@ -1754,6 +1884,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
