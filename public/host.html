@@ -57,6 +57,21 @@
     .toast .m{font-size:13px;color:var(--muted)}
     .hidden{display:none !important;}
     .mini{font-size:12px;color:var(--muted);font-weight:900}
+
+    /* ✅ Phone check-in */
+    .kbd{
+      border:1px solid var(--line);
+      padding:7px 10px;
+      border-radius:999px;
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-weight:900;
+      font-size:12px;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      white-space:nowrap;
+    }
   </style>
 </head>
 <body>
@@ -65,7 +80,7 @@
     <div class="left">
       <div class="brand">
         <div class="t">Barfly Social</div>
-        <div class="s">Host Dashboard • Manual Check-In</div>
+        <div class="s">Host Dashboard • Phone Check-In</div>
       </div>
 
       <div class="pill"><b>Room</b> <span id="roomPill" class="mono">—</span></div>
@@ -86,7 +101,10 @@
   <div class="grid">
     <div class="card">
       <h2>Event Setup</h2>
-      <div class="muted">Guests pick an <b>expected</b> location from the join link. Host manually toggles <b>Checked In</b> when they arrive.</div>
+      <div class="muted">
+        Guests submit an <b>expected</b> location. At arrival, host verifies with <b>phone number</b> and assigns/checks-in the guest.
+        <br><span class="kbd">Rule</span> <span class="mini">TV matches require: mutual like + score ≥ min + both checked in.</span>
+      </div>
       <div class="hr"></div>
 
       <div class="two">
@@ -151,12 +169,12 @@
 
       <div class="hr"></div>
 
-      <!-- ✅ NEW: Host Search -->
+      <!-- ✅ Search -->
       <div class="two">
         <div>
           <label>Search alias (filters Arrivals + Checked-In)</label>
           <input id="searchAlias" placeholder="Type 2–3 letters… (press Esc to clear)">
-          <div class="mini" style="margin-top:6px">Fast check-in: type an alias fragment and click Check In.</div>
+          <div class="mini" style="margin-top:6px">Filters the lists below (alias only).</div>
         </div>
         <div>
           <label>Search helper</label>
@@ -170,10 +188,39 @@
 
       <div class="hr"></div>
 
+      <!-- ✅ NEW: PHONE CHECK-IN -->
+      <div class="two">
+        <div>
+          <h3>Phone Check-In (Recommended)</h3>
+          <div class="mini">Ask guest for phone → enter 10 digits → choose where they are standing → Check In.</div>
+          <div class="row" style="margin-top:8px">
+            <input id="checkinPhone" inputmode="numeric" placeholder="Phone (10 digits)">
+            <button class="btn good" id="btnPhoneCheckin" type="button">Check In</button>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <select id="checkinVenue"></select>
+            <span class="kbd">Host assigns venue</span>
+          </div>
+          <div class="mini" style="margin-top:8px">
+            If multiple guests share a phone (should be rare), you’ll be prompted to pick the alias.
+          </div>
+        </div>
+
+        <div>
+          <h3>Manual (Fallback)</h3>
+          <div class="mini">Use alias search + buttons if phone wasn’t captured on submit.</div>
+          <div class="mini" style="margin-top:8px">
+            If a guest has no phone stored, the arrival card will show <b>Phone: —</b>.
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
       <div class="two">
         <div>
           <h3>Arrivals Queue (Pending • A→Z)</h3>
-          <div class="mini">Guests show here after submit. You must manually <b>Check In</b> when they arrive.</div>
+          <div class="mini">Guests appear after submit. Check them in when they arrive.</div>
           <div class="list" id="arrivals"></div>
 
           <div class="hr"></div>
@@ -185,7 +232,7 @@
 
         <div>
           <h3>Venue Counts (Mode C Hybrid)</h3>
-          <div class="mini">Expected = pending guests who selected venue • Checked In = host toggled • Active Matches = TV pairs involving that venue</div>
+          <div class="mini">Expected = pending who selected venue • Checked In = host verified • Active Matches = TV pairs involving that venue</div>
           <div class="list" id="venueCounts"></div>
 
           <div class="hr"></div>
@@ -277,15 +324,15 @@ const RECONNECT_BASE_MS = 800;
 const RECONNECT_MAX_MS  = 10 * 1000;
 
 const STORAGE = {
-  BARS: "bm_bars_v9",
-  HOST: "bm_host_v9",
-  PEOPLE: "bm_people_v9",
-  LIKES: "bm_likes_v9",
-  EVENT: "bm_event_v9",
-  TV: "bm_tv_v9",
-  DEDUPE: "bm_dedupe_v9",
-  CONTACTS: "bm_contacts_v9",
-  UI: "bm_ui_v9"
+  BARS: "bm_bars_v10",
+  HOST: "bm_host_v10",
+  PEOPLE: "bm_people_v10",
+  LIKES: "bm_likes_v10",
+  EVENT: "bm_event_v10",
+  TV: "bm_tv_v10",
+  DEDUPE: "bm_dedupe_v10",
+  CONTACTS: "bm_contacts_v10",
+  UI: "bm_ui_v10"
 };
 
 const $ = (id)=>document.getElementById(id);
@@ -304,6 +351,14 @@ function loadJSON(key, fallback){
   try{ return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }catch{ return fallback; }
 }
 function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+function digitsOnly(s){ return String(s||"").replace(/\D/g,""); }
+function phoneLast4(s){
+  const d = digitsOnly(s);
+  if(d.length < 4) return "";
+  return d.slice(-4);
+}
+function isPhone10(s){ return digitsOnly(s).length === 10; }
 
 /* =========================
    UI STATE (search)
@@ -349,6 +404,18 @@ function ensureDefaultBar(){
   }
 }
 function barName(id){ return bars.find(b=>b.id===id)?.name || (id ? "Bar" : "—"); }
+function populateCheckinVenueSelect(){
+  const sel = $("checkinVenue");
+  if(!sel) return;
+  sel.innerHTML = "";
+  for(const b of bars){
+    const opt = document.createElement("option");
+    opt.value = b.id;
+    opt.textContent = b.name;
+    if(b.id === host.activeBarId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
 
 /* =========================
    WS + HEARTBEAT
@@ -400,7 +467,7 @@ function broadcastConfig(){
       minMatch: MIN_MATCH_SCORE,
       tvExpireMs: TV_EXPIRE_MS,
       tvRotateMs: TV_ROTATE_MS,
-      checkIn: "manual_host_only",
+      checkIn: "phone_or_manual_host_only",
       venueChange: "host_only"
     }
   });
@@ -505,6 +572,7 @@ function payloadFingerprint(payload){
     clientNonce: payload?.clientNonce ?? "",
     venueId: payload?.venueId ?? payload?.expectedVenueId ?? "",
     travelYes: !!payload?.travelYes,
+    identityPhone: digitsOnly(payload?.identityPhone || payload?.contactPhone || payload?.contact?.phone || payload?.attrs?.identityPhone || ""),
     attrs: payload?.attrs ?? {},
     food: (payload?.foodChips ?? []).slice().sort(),
     act: (payload?.activityChips ?? []).slice().sort(),
@@ -534,7 +602,7 @@ function ackSubmit(clientNonce=null){
 }
 
 /* =========================
-   MATCH / SCORE (kept same as prior build)
+   MATCH / SCORE
 ========================= */
 const CODE_WORDS = ["LIME","WAVE","NOVA","GOLD","MOON","JAZZ","ROSE","BAYOU","SPARK","VIBE","MINT","ONYX","SUGAR","VELVET","NEON"];
 function makeMatchCode(){
@@ -641,11 +709,34 @@ function upsertGuestById(id, patch){
   else people.push(patch);
   saveJSON(STORAGE.PEOPLE, people);
 }
+function extractIdentityPhone(payload, stableId){
+  // Preferred: payload.identityPhone (from join submit)
+  const direct = digitsOnly(payload?.identityPhone || "");
+  if(direct.length===10) return direct;
+
+  // Fallbacks (if you later pass contact in submit)
+  const c1 = digitsOnly(payload?.contactPhone || "");
+  if(c1.length===10) return c1;
+
+  const c2 = digitsOnly(payload?.contact?.phone || "");
+  if(c2.length===10) return c2;
+
+  const c3 = digitsOnly(payload?.attrs?.identityPhone || "");
+  if(c3.length===10) return c3;
+
+  // If contact_save already happened and we stored it, use it:
+  const stored = digitsOnly(contacts?.[stableId]?.phone || "");
+  if(stored.length===10) return stored;
+
+  return "";
+}
 function importGuest(payload){
   const incomingRoom = payload.roomId ?? payload.room ?? payload.barId ?? payload.roomID ?? "";
   const stableId = (payload.clientNonce && String(payload.clientNonce).trim()) ? String(payload.clientNonce).trim() : uid();
   const existing = people.find(p=>p.id===stableId);
   const expectedVenue = payload.expectedVenueId || payload.venueId || "";
+
+  const identityPhone = extractIdentityPhone(payload, stableId);
 
   const p = {
     id: stableId,
@@ -658,6 +749,8 @@ function importGuest(payload){
     checkedInVenueId: existing?.checkedInVenueId || "",
     status: existing?.status || "pending",
     travelYes: !!payload.travelYes,
+
+    identityPhone: identityPhone || (existing?.identityPhone || ""),
 
     attrs: payload.attrs || {},
     prefs: payload.prefs || {},
@@ -686,13 +779,15 @@ function importGuest(payload){
 /* =========================
    CHECK-IN / MOVE / KICK
 ========================= */
-function hostSetStatus(id, status){
+function hostSetStatus(id, status, venueOverrideId=null){
   const p = people.find(x=>x.id===id);
   if(!p) return;
 
   if(status === "checked_in"){
     p.status = "checked_in";
-    p.checkedInVenueId = p.checkedInVenueId || p.expectedVenueId || "";
+    // ✅ Host assigns/overrides venue at check-in:
+    const v = (venueOverrideId || host.activeBarId || p.expectedVenueId || p.venueId || "").trim();
+    p.checkedInVenueId = v;
   }else if(status === "pending"){
     p.status = "pending";
     p.checkedInVenueId = "";
@@ -710,6 +805,7 @@ function hostSetStatus(id, status){
   broadcastRosterSync(p.clientNonce || p.id);
   broadcastTVSync();
 }
+
 function hostMoveVenue(id, newVenueId){
   const p = people.find(x=>x.id===id);
   if(!p) return;
@@ -722,6 +818,7 @@ function hostMoveVenue(id, newVenueId){
   broadcastRosterSync(p.clientNonce || p.id);
   broadcastTVSync();
 }
+
 function activateTvForGuest(id){
   const pool = activePool();
   const me = pool.find(x=>x.id===id);
@@ -731,6 +828,51 @@ function activateTvForGuest(id){
     if(!isMutual(id, other.id)) continue;
     tryCreateTvMatchForPair(id, other.id);
   }
+}
+
+/* =========================
+   PHONE CHECK-IN
+========================= */
+function findGuestsByPhone(phone10){
+  const d = digitsOnly(phone10);
+  if(d.length !== 10) return [];
+  return activePool().filter(p => (p.status||"pending")==="pending" && digitsOnly(p.identityPhone) === d);
+}
+function phoneCheckIn(){
+  const raw = ($("checkinPhone")?.value || "").trim();
+  const d = digitsOnly(raw);
+  if(d.length !== 10) return showToast("Phone needed", "Enter a 10-digit phone number.");
+
+  const venueId = ($("checkinVenue")?.value || host.activeBarId || "").trim();
+  if(!venueId) return showToast("Venue needed", "Select a venue for check-in.");
+
+  const matches = findGuestsByPhone(d);
+  if(matches.length === 0){
+    // helpful: search across all statuses, in case already checked in
+    const any = activePool().filter(p => digitsOnly(p.identityPhone)===d);
+    if(any.length){
+      return showToast("Already found", `That phone belongs to ${any[0].alias} (status: ${any[0].status || "pending"}).`);
+    }
+    return showToast("Not found", "No pending guest with that phone in this room/session.");
+  }
+
+  if(matches.length === 1){
+    hostSetStatus(matches[0].id, "checked_in", venueId);
+    $("checkinPhone").value = "";
+    showToast("Checked in", `${matches[0].alias} checked in at ${barName(venueId)}.`);
+    return;
+  }
+
+  // multiple matches (rare) — prompt host to choose alias
+  const opts = matches.map((p,i)=>`${i+1}) ${p.alias} (Expected: ${barName(p.expectedVenueId || p.venueId || "")})`).join("\n");
+  const pick = prompt("Multiple pending guests share this phone.\nChoose number:\n\n"+opts, "1");
+  const idx = Math.max(1, parseInt(pick||"1",10)) - 1;
+  const chosen = matches[idx];
+  if(!chosen) return;
+
+  hostSetStatus(chosen.id, "checked_in", venueId);
+  $("checkinPhone").value = "";
+  showToast("Checked in", `${chosen.alias} checked in at ${barName(venueId)}.`);
 }
 
 /* =========================
@@ -814,6 +956,41 @@ function handleVoteMessage(msg){
 }
 
 /* =========================
+   CONTACT SAVE (from join.html)
+========================= */
+function handleContactSave(msg){
+  const roomId = currentRoomId();
+  const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+  if(msg.session && msg.session !== host.session) return;
+  if(msgRoom && msgRoom !== roomId) return;
+
+  const voterNonce = (msg.voterNonce || msg.clientNonce || "").trim();
+  const voterId = idFromVoterNonce(voterNonce);
+  if(!voterId) return;
+
+  const contact = (msg.contact && typeof msg.contact === "object") ? msg.contact : {};
+  const phone = digitsOnly(contact.phone || "");
+  const instagram = String(contact.instagram || "").trim();
+
+  if(!contacts[voterId]) contacts[voterId] = {};
+  if(phone.length===10) contacts[voterId].phone = phone;
+  if(instagram) contacts[voterId].instagram = instagram;
+  saveJSON(STORAGE.CONTACTS, contacts);
+
+  // if guest exists, update identityPhone if missing
+  const p = people.find(x=>x.id===voterId);
+  if(p && !digitsOnly(p.identityPhone) && phone.length===10){
+    p.identityPhone = phone;
+    p.updatedAt = now();
+    saveJSON(STORAGE.PEOPLE, people);
+  }
+
+  safeSend({ type:"contact_saved_ack", roomId, room:roomId, barId:roomId, session:host.session, voterNonce, ok:true });
+  showToast("Contact saved", `Saved for ${p?.alias || "guest"}.`);
+  renderAll();
+}
+
+/* =========================
    TV SYNC
 ========================= */
 function broadcastTVSync(){
@@ -885,6 +1062,9 @@ function wsConnect(isReconnect=false){
     }
     if(msg.type === "vote"){ handleVoteMessage(msg); return; }
 
+    // ✅ contact save support
+    if(msg.type === "contact_save"){ handleContactSave(msg); return; }
+
     if(msg.type === "submit_payload" || msg.type === "payload_received"){
       const payload = normalizeIncomingPayload(msg);
       if(!payload) return;
@@ -927,6 +1107,7 @@ function renderBars(){
     if(b.id===host.activeBarId) opt.selected=true;
     sel.appendChild(opt);
   }
+  populateCheckinVenueSelect();
 }
 function renderEventBars(){
   const wrap = $("eventBars");
@@ -976,6 +1157,7 @@ function renderArrivals(){
 
   for(const p of pool){
     const expected = p.expectedVenueId || p.venueId || "";
+    const last4 = phoneLast4(p.identityPhone);
     const el=document.createElement("div");
     el.className="item";
     el.innerHTML = `
@@ -983,7 +1165,7 @@ function renderArrivals(){
         <strong>${esc(p.alias)}</strong>
         <div class="sub">
           Expected: <span class="mono">${esc(barName(expected))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
-          ID: <span class="mono">${esc(p.id)}</span>
+          Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • ID: <span class="mono">${esc(p.id)}</span>
         </div>
       </div>
       <div class="row" style="justify-content:flex-end">
@@ -1000,10 +1182,14 @@ function renderArrivals(){
     const act = btn.getAttribute("data-act");
 
     btn.addEventListener("click", ()=>{
-      if(act==="checkin") return hostSetStatus(id, "checked_in");
+      if(act==="checkin"){
+        const venueId = prompt("Check in at which bar ID? (host assigns)", host.activeBarId || "");
+        if(!venueId) return;
+        return hostSetStatus(id, "checked_in", venueId.trim());
+      }
       if(act==="kick") return hostSetStatus(id, "removed");
       if(act==="move"){
-        const newId = prompt("Move to which bar ID?", host.activeBarId || "");
+        const newId = prompt("Move expected venue to which bar ID?", host.activeBarId || "");
         if(!newId) return;
         hostMoveVenue(id, newId.trim());
       }
@@ -1027,6 +1213,7 @@ function renderCheckedIn(){
 
   for(const p of pool){
     const v = p.checkedInVenueId || p.expectedVenueId || "";
+    const last4 = phoneLast4(p.identityPhone);
     const el=document.createElement("div");
     el.className="item";
     el.innerHTML = `
@@ -1034,7 +1221,7 @@ function renderCheckedIn(){
         <strong>${esc(p.alias)}</strong>
         <div class="sub">
           Checked In: <span class="mono">${esc(barName(v))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
-          ID: <span class="mono">${esc(p.id)}</span>
+          Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • ID: <span class="mono">${esc(p.id)}</span>
         </div>
       </div>
       <div class="row" style="justify-content:flex-end">
@@ -1206,7 +1393,7 @@ function renderAll(){
   renderCounts();
   updateLinks();
 
-  setSearch(ui.search); // refresh pill
+  setSearch(ui.search);
   wsSetStatus(WS_STATE);
 }
 
@@ -1248,7 +1435,7 @@ function clearRoster(){
   renderAll();
   broadcastRosterSync(null);
   broadcastTVSync();
-  showToast("Cleared","Roster + likes + TV queue cleared for this room.");
+  showToast("Cleared","Roster + likes + contacts + TV queue cleared for this room.");
 }
 function createOrUpdateEvent(){
   if(!event.eventId) event.eventId = "CITY-"+uid().slice(0,6).toUpperCase();
@@ -1270,13 +1457,14 @@ function toggleParticipating(barId){
 
 function exportCSV(){
   const pool=activePool();
-  const headers=["alias","id","status","expectedVenue","checkedInVenue","travelYes","foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter"];
+  const headers=["alias","id","status","identityPhone","expectedVenue","checkedInVenue","travelYes","foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter"];
   let csv=headers.join(",")+"\n";
   for(const p of pool){
     const row=[
       p.alias,
       p.id,
       p.status || "pending",
+      (p.identityPhone ? digitsOnly(p.identityPhone) : ""),
       barName(p.expectedVenueId || p.venueId),
       barName(p.checkedInVenueId || ""),
       p.travelYes?"Yes":"No",
@@ -1370,6 +1558,12 @@ function init(){
     renderAll();
   });
 
+  // phone check-in
+  $("btnPhoneCheckin").addEventListener("click", phoneCheckIn);
+  $("checkinPhone").addEventListener("keydown", (e)=>{
+    if(e.key==="Enter") phoneCheckIn();
+  });
+
   renderAll();
   startIntervals();
   wsConnect();
@@ -1432,7 +1626,6 @@ function init(){
   $("btnRefresh").addEventListener("click", ()=>{ renderAll(); showToast("Updated","Refreshed view."); });
 
   $("btnComputeMutuals").addEventListener("click", ()=>{
-    // recompute mutual TV matches (still requires checked-in)
     const pool = activePool();
     const ids = pool.map(p=>p.id);
     tv.matches = activeTvMatches();
@@ -1502,6 +1695,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
