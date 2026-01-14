@@ -1227,6 +1227,11 @@ function submit(){
   if(sending) return showToast("Please wait","Submitting in progress…");
 
   const errs = validate();
+  const ageNum = Number($("age")?.value || 0);
+if(ageNum < 18){
+  showToast("Age Restriction","You must be 18 or older to use this service.");
+  return;
+}
   if(errs.length) return showToast("Missing fields", errs.join(" • "));
 
   const q=qs();
@@ -1457,6 +1462,7 @@ init();
 </script>
 </body>
 </html>
+
 
 
 
