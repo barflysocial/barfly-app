@@ -20,7 +20,12 @@
     .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--line);border-radius:var(--r);
       background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));box-shadow:var(--shadow);position:sticky;top:10px;z-index:10;backdrop-filter:blur(10px)}
     .left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .brand{display:flex;flex-direction:column;line-height:1.1;padding:6px 10px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .brand{display:flex;gap:10px;align-items:center;line-height:1.1;padding:6px 10px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .logo{
+      width:34px;height:34px;border-radius:10px;border:1px solid var(--line);
+      background:rgba(0,0,0,.18);object-fit:contain;display:block;
+    }
+    .brandText{display:flex;flex-direction:column}
     .brand .t{font-weight:1000;letter-spacing:.3px;font-size:18px}
     .brand .s{font-size:12px;color:var(--muted);font-weight:800}
     .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:9px 10px;border-radius:999px;background:rgba(255,255,255,.03);font-size:13px;color:var(--muted);white-space:nowrap}
@@ -70,6 +75,28 @@
       align-items:center;
       white-space:nowrap;
     }
+
+    /* QR modal */
+    .modalBack{
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      display:none; align-items:center; justify-content:center; padding:16px; z-index:80;
+    }
+    .modal{
+      width:min(520px, 94vw);
+      border:1px solid var(--line); border-radius:22px;
+      background:linear-gradient(180deg, rgba(17,26,43,.98), rgba(17,26,43,.92));
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    .modalTop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .modalTitle{font-weight:1000;font-size:18px}
+    .qrBox{
+      margin-top:12px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+      border:1px solid var(--line); border-radius:18px; padding:12px; background:rgba(0,0,0,.18);
+    }
+    .qrImg{width:260px;height:260px;border-radius:14px;border:1px solid var(--line);background:#0a1020;object-fit:contain}
+    .modalSmall{color:var(--muted);font-weight:900;font-size:12px;line-height:1.35;max-width:200px}
+    .modalLink{margin-top:10px; font-size:12px; color:var(--muted); word-break:break-all}
   </style>
 </head>
 <body>
@@ -77,8 +104,12 @@
   <div class="topbar">
     <div class="left">
       <div class="brand">
-        <div class="t">Barfly Social</div>
-        <div class="s">Host Dashboard • Phone Check-In</div>
+        <!-- If /logo.png exists in your deploy, it will show. If not, it just looks like a neat placeholder. -->
+        <img class="logo" id="brandLogo" alt="Barfly logo" src="/logo.png" onerror="this.style.display='none'">
+        <div class="brandText">
+          <div class="t">Barfly Social</div>
+          <div class="s">Host Dashboard • Phone Check-In</div>
+        </div>
       </div>
 
       <div class="pill"><b>Room</b> <span id="roomPill" class="mono">—</span></div>
@@ -92,7 +123,9 @@
 
     <div class="left">
       <button class="btn small primary" id="btnCopyJoin">Copy Join Link</button>
+      <button class="btn small primary" id="btnShowJoinQR">Join QR</button>
       <button class="btn small warn" id="btnCopyTV">Copy TV Link</button>
+      <button class="btn small warn" id="btnShowTVQR">TV QR</button>
       <button class="btn small good" id="btnExport">Export CSV</button>
     </div>
   </div>
@@ -298,12 +331,40 @@
           <div style="font-size:30px;font-weight:1000" id="countJoined">0</div>
         </div>
       </div>
+
+      <div class="hr"></div>
+
+      <div class="muted" style="font-weight:900;line-height:1.35">
+        If guests say “Waiting for host config,” confirm:<br>
+        1) Host is open and <b>WS shows CONNECTED</b><br>
+        2) The guest link uses the <b>same room + session</b> shown in the pills above
+      </div>
     </div>
   </div>
 
   <div class="toast" id="toast">
     <div class="t" id="toastT">Updated</div>
     <div class="m" id="toastM">—</div>
+  </div>
+</div>
+
+<!-- QR modal -->
+<div class="modalBack" id="qrBack" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modalTop">
+      <div class="modalTitle" id="qrTitle">QR Code</div>
+      <button class="btn small" id="btnCloseQR" type="button">Close</button>
+    </div>
+    <div class="qrBox">
+      <img class="qrImg" id="qrImg" alt="QR code">
+      <div class="modalSmall">
+        Point your phone camera at the QR code to open the link.
+        <div style="margin-top:10px" class="mini">
+          Pro tip: Use <b>Join QR</b> on flyers, and <b>TV QR</b> for the screen operator.
+        </div>
+      </div>
+    </div>
+    <div class="modalLink mono" id="qrLinkTxt">—</div>
   </div>
 </div>
 
@@ -322,20 +383,20 @@ const RECONNECT_BASE_MS = 800;
 const RECONNECT_MAX_MS  = 10 * 1000;
 
 const STORAGE = {
-  BARS: "bm_bars_v11",
-  HOST: "bm_host_v11",
-  PEOPLE: "bm_people_v11",
-  LIKES: "bm_likes_v11",
-  EVENT: "bm_event_v11",
-  TV: "bm_tv_v11",
-  DEDUPE: "bm_dedupe_v11",
-  CONTACTS: "bm_contacts_v11",
-  UI: "bm_ui_v11",
-  HOSTPIN: "bm_host_pin_v11"
+  BARS: "bm_bars_v12",
+  HOST: "bm_host_v12",
+  PEOPLE: "bm_people_v12",
+  LIKES: "bm_likes_v12",
+  EVENT: "bm_event_v12",
+  TV: "bm_tv_v12",
+  DEDUPE: "bm_dedupe_v12",
+  CONTACTS: "bm_contacts_v12",
+  UI: "bm_ui_v12",
+  HOSTPIN: "bm_host_pin_v12"
 };
 
 const $ = (id)=>document.getElementById(id);
-function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;"," >":"&gt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
 function now(){ return Date.now(); }
 function showToast(t,m){
   $("toastT").textContent=t; $("toastM").textContent=m;
@@ -357,7 +418,6 @@ function phoneLast4(s){
   if(d.length < 4) return "";
   return d.slice(-4);
 }
-function isPhone10(s){ return digitsOnly(s).length === 10; }
 
 /* =========================
    HOST PIN (light lock)
@@ -366,7 +426,6 @@ let hostPin = (localStorage.getItem(STORAGE.HOSTPIN) || "").trim();
 let hostUnlocked = false;
 
 function pinHash(str){
-  // simple hash (not crypto-secure) - enough to deter casual tampering
   const s = String(str||"");
   let h=2166136261;
   for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -377,7 +436,7 @@ function setPinPill(){
   $("pinPillWrap").className = "pill" + (hostPin ? (hostUnlocked ? " good":" warn") : "");
 }
 function requireUnlock(){
-  if(!hostPin) return true; // no pin set
+  if(!hostPin) return true;
   if(hostUnlocked) return true;
   const attempt = prompt("Host PIN required:", "");
   if(!attempt) return false;
@@ -393,9 +452,7 @@ function requireUnlock(){
 function handlePinButton(){
   const cur = hostPin ? prompt("Enter current PIN to change/unlock (or Cancel):", "") : null;
   if(hostPin){
-    if(!cur) { // unlock attempt
-      return requireUnlock();
-    }
+    if(!cur) { return requireUnlock(); }
     if(pinHash(cur) !== hostPin){
       showToast("Denied","Incorrect PIN.");
       return;
@@ -475,7 +532,7 @@ function isVenueAllowed(venueId){
   if(!v) return true;
   if(host.mode !== "city") return true;
   const set = participatingSet();
-  if(set.size === 0) return true; // if host never selected participating, allow all
+  if(set.size === 0) return true;
   return set.has(v);
 }
 
@@ -840,11 +897,9 @@ function importGuest(payload){
     updatedAt: now()
   };
 
-  // Strict room/session guard
   if(p.session !== host.session) return;
   if(p.roomId !== currentRoomId()) return;
 
-  // ✅ City mode participating enforcement
   if(host.mode==="city" && expectedVenue && !isVenueAllowed(expectedVenue)){
     showToast("Blocked", `Guest selected a non-participating venue: ${barName(expectedVenue)}.`);
     return;
@@ -1064,6 +1119,7 @@ function handleVoteMessage(msg){
 
 /* =========================
    CONTACT SAVE
+   Supports: phone, instagram, tiktok, facebook (optional fields)
 ========================= */
 function handleContactSave(msg){
   const roomId = currentRoomId();
@@ -1078,10 +1134,14 @@ function handleContactSave(msg){
   const contact = (msg.contact && typeof msg.contact === "object") ? msg.contact : {};
   const phone = digitsOnly(contact.phone || "");
   const instagram = String(contact.instagram || "").trim();
+  const tiktok = String(contact.tiktok || "").trim();
+  const facebook = String(contact.facebook || "").trim();
 
   if(!contacts[voterId]) contacts[voterId] = {};
   if(phone.length===10) contacts[voterId].phone = phone;
   if(instagram) contacts[voterId].instagram = instagram;
+  if(tiktok) contacts[voterId].tiktok = tiktok;
+  if(facebook) contacts[voterId].facebook = facebook;
   saveJSON(STORAGE.CONTACTS, contacts);
 
   const p = people.find(x=>x.id===voterId);
@@ -1148,8 +1208,6 @@ function broadcastTVSync(){
         bAlias: B?.alias || "Guest",
         aVenueId: aVenue,
         bVenueId: bVenue,
-
-        // ✅ explicit check-in flags + statuses
         aCheckedIn: (A?.status === "checked_in"),
         bCheckedIn: (B?.status === "checked_in"),
         aStatus: A?.status || "pending",
@@ -1472,7 +1530,7 @@ function renderTVQueue(){
   }
 
   const pool=activePool();
-  for(const m of tv.matches /* no slice: show all */){
+  for(const m of tv.matches){
     const A = pool.find(x=>x.id===m.aId);
     const B = pool.find(x=>x.id===m.bId);
     const aAlias = A?.alias || "Guest A";
@@ -1514,7 +1572,6 @@ function updateLinks(){
   join.searchParams.set("room", roomId);
   join.searchParams.set("session", host.session);
   join.searchParams.set("mode", host.mode);
-  // ✅ FIX: do NOT encodeURIComponent() before putting into searchParams (it will encode for you)
   join.searchParams.set("bars", JSON.stringify(bars.map(b=>({id:b.id,name:b.name}))));
   join.searchParams.set("participating", JSON.stringify(event.participatingBarIds || []));
 
@@ -1588,11 +1645,9 @@ function clearRoster(){
   const toRemove = people.filter(p => p.roomId===roomId && p.session===host.session).map(p=>p.id);
   const removeSet = new Set(toRemove);
 
-  // Remove people only for this room/session
   people = people.filter(p => !(p.roomId===roomId && p.session===host.session));
   saveJSON(STORAGE.PEOPLE, people);
 
-  // ✅ Remove likes/contacts only for removed ids (don’t wipe global)
   for(const id of removeSet){
     delete likes[id];
     delete contacts[id];
@@ -1638,9 +1693,10 @@ function toggleParticipating(barId){
 
 function exportCSV(){
   const pool=activePool();
-  const headers=["alias","id","status","identityPhone","expectedVenue","checkedInVenue","travelYes","foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter"];
+  const headers=["alias","id","status","identityPhone","expectedVenue","checkedInVenue","travelYes","foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter","instagram","tiktok","facebook"];
   let csv=headers.join(",")+"\n";
   for(const p of pool){
+    const c = contacts[p.id] || {};
     const row=[
       p.alias,
       p.id,
@@ -1656,7 +1712,10 @@ function exportCSV(){
       p.pays||"",
       p.budget||"",
       p.publicBlurb||"",
-      p.starter||""
+      p.starter||"",
+      c.instagram||"",
+      c.tiktok||"",
+      c.facebook||""
     ].map(v=>{
       const s=String(v??"");
       return /[,"\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
@@ -1705,6 +1764,28 @@ function startIntervals(){
 
   timers.rebroadcastConfig = setInterval(()=>broadcastConfig(), 60*1000);
   timers.rosterSync = setInterval(()=>{ if(WS_STATE==="CONNECTED") broadcastRosterSync(null); }, 25*1000);
+}
+
+/* =========================
+   QR HELPERS
+========================= */
+function openQR(title, url){
+  const back = $("qrBack");
+  $("qrTitle").textContent = title;
+  $("qrLinkTxt").textContent = url;
+
+  // simple hosted QR image (works great on phones)
+  const qr = $("qrImg");
+  const api = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(url);
+  qr.src = api;
+
+  back.style.display = "flex";
+}
+function closeQR(){ $("qrBack").style.display = "none"; }
+function wireQR(){
+  $("btnCloseQR").addEventListener("click", closeQR);
+  $("qrBack").addEventListener("click", (e)=>{ if(e.target.id==="qrBack") closeQR(); });
+  window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeQR(); });
 }
 
 /* =========================
@@ -1875,6 +1956,17 @@ function init(){
   $("btnCopyTV").addEventListener("click", copyTV);
   $("btnCopyTV2").addEventListener("click", copyTV);
 
+  // QR buttons
+  $("btnShowJoinQR").addEventListener("click", ()=>{
+    updateLinks();
+    openQR("Join QR", $("joinLink").textContent);
+  });
+  $("btnShowTVQR").addEventListener("click", ()=>{
+    updateLinks();
+    openQR("TV QR", $("tvLink").textContent);
+  });
+  wireQR();
+
   window.addEventListener("beforeunload", ()=>{
     stopIntervals();
     cleanupWs();
@@ -1884,6 +1976,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
