@@ -217,7 +217,6 @@ textarea{min-height:80px;resize:vertical}
     <div class="heroInner">
       <div class="brandRow">
         <div class="logo" title="Barfly Social">
-          <!-- Put logo.png next to join.html (or in /public on Render). If missing, it just shows an empty tile. -->
           <img src="logo.png" alt="Barfly Social logo" onerror="this.style.display='none'">
         </div>
         <div style="min-width:240px;flex:1">
@@ -301,18 +300,18 @@ textarea{min-height:80px;resize:vertical}
 
     <h3>Profile (mandatory)</h3>
 
-    <!-- ✅ REQUIRED identity phone (for host check-in verification) -->
+    <!-- ✅ REQUIRED identity phone + age -->
     <div class="two">
       <div>
         <label>Identity Phone (required, 10 digits)</label>
-        <input id="identityPhone" inputmode="numeric" placeholder="e.g., 2255551234">
+        <input id="identityPhone" inputmode="numeric" placeholder="e.g., 2255551234" autocomplete="tel">
         <div class="muted small" style="margin-top:6px">
           Used to verify you at the host stand. <b>Not shared publicly</b>.
         </div>
       </div>
       <div>
         <label>Age</label>
-        <input id="age" type="number" min="18" max="99" placeholder="18+">
+        <input id="age" type="number" min="18" max="99" placeholder="18+" inputmode="numeric">
         <div class="muted small" style="margin-top:6px">
           Must be 18 or older.
         </div>
@@ -650,22 +649,22 @@ textarea{min-height:80px;resize:vertical}
     <div class="two" style="margin-top:10px">
       <div>
         <label>Share Phone (optional, 10 digits)</label>
-        <input id="sharePhone" inputmode="numeric" placeholder="e.g., 2255551234">
+        <input id="sharePhone" inputmode="numeric" placeholder="e.g., 2255551234" autocomplete="tel">
       </div>
       <div>
         <label>Instagram (@name)</label>
-        <input id="contactInstagram" placeholder="@yourname">
+        <input id="contactInstagram" placeholder="@yourname" autocomplete="off">
       </div>
     </div>
 
     <div class="two" style="margin-top:10px">
       <div>
         <label>TikTok (@name)</label>
-        <input id="contactTiktok" placeholder="@yourname">
+        <input id="contactTiktok" placeholder="@yourname" autocomplete="off">
       </div>
       <div>
         <label>Facebook (profile link or name)</label>
-        <input id="contactFacebook" placeholder="facebook.com/yourname or Your Name">
+        <input id="contactFacebook" placeholder="facebook.com/yourname or Your Name" autocomplete="off">
       </div>
     </div>
 
@@ -852,7 +851,7 @@ function qs(){
   q.room = (q.room || q.roomId || q.barId || "").trim();
   q.session = (q.session || "").trim();
   q.mode = (q.mode || "").trim().toLowerCase();
-  q.bars = (q.bars || "").trim();                 // JSON (urlencoded)
+  q.bars = (q.bars || "").trim();                   // JSON (urlencoded)
   q.participating = (q.participating || "").trim(); // JSON (urlencoded)
   return q;
 }
@@ -866,7 +865,13 @@ function showToast(t,m){
   showToast._t=setTimeout(()=>{el.style.display="none"}, 2600);
 }
 function digitsOnly(s){ return String(s||"").replace(/\D/g,""); }
-function validPhone10(raw){ const d = digitsOnly(raw); return d.length === 10; }
+function clampDigitsInput(el, maxLen){
+  if(!el) return;
+  const d = digitsOnly(el.value).slice(0, maxLen);
+  if(el.value !== d) el.value = d;
+}
+function validPhone10(raw){ return digitsOnly(raw).length === 10; }
+
 function normalizeHandle(raw){
   let s = String(raw||"").trim();
   if(!s) return "";
@@ -882,7 +887,6 @@ function validHandleAt(raw){
 function validFacebook(raw){
   const s = String(raw||"").trim();
   if(!s) return true;
-  // allow URL or simple name/handle
   if(/^https?:\/\/|^www\./i.test(s)) return s.length <= 200;
   return /^[A-Za-z0-9 ._'()-]{2,60}$/.test(s);
 }
@@ -966,6 +970,7 @@ function enterApp(){
   $("formCard").classList.remove("hidden");
   connectWS();
   setVoteStats();
+  updateSubmitEnabled();
   showToast("Welcome", "Fill out your profile, submit, then vote.");
 }
 
@@ -1057,7 +1062,7 @@ function renderChips(containerId, items, set){
     c.onclick=()=>{
       if(set.has(label)) set.delete(label); else set.add(label);
       renderChips(containerId, items, set);
-      setWsStatus(WS_STATE);
+      updateSubmitEnabled();
     };
     wrap.appendChild(c);
   }
@@ -1075,7 +1080,9 @@ function hookReligionOther(){
     const isOther = sel.value==="Other";
     wrap.classList.toggle("hidden", !isOther);
     if(!isOther) input.value="";
+    updateSubmitEnabled();
   });
+  input.addEventListener("input", updateSubmitEnabled);
 }
 
 /* =========================
@@ -1099,11 +1106,7 @@ function setWsStatus(s){
   WS_STATE=s;
   const pill = $("wsPill");
   if(pill) pill.textContent=s;
-
-  const gateOk = isGateAccepted() || ($("gateCard")?.classList.contains("hidden"));
-  const canSubmit = (s==="CONNECTED" && !submitted && !sending && gateOk);
-  const btn = $("btnSubmit");
-  if(btn) btn.disabled = !canSubmit;
+  updateSubmitEnabled();
 }
 function safeSend(obj){
   try{
@@ -1150,6 +1153,7 @@ function connectWS(){
         const ids = Array.isArray(msg.participatingBarIds) ? msg.participatingBarIds : [];
         HOST_PARTICIPATING_IDS = ids;
         populateVenueSelect();
+        updateSubmitEnabled();
       }
       return;
     }
@@ -1211,70 +1215,100 @@ function lockVenuePostSubmit(){
 }
 
 /* =========================
-   VALIDATION
+   VALIDATION (quiet + loud)
 ========================= */
-function req(id,label,errs){
-  const el=$(id);
-  const v=(el?.value||"").trim();
-  if(!v) errs.push(label);
-}
+function valTrim(id){ return String($(id)?.value||"").trim(); }
+function hasVal(id){ return !!valTrim(id); }
+
 function validateMutualContact(errs){
-  const sharePhoneRaw = ($("sharePhone")?.value||"").trim();
-  const igRaw = ($("contactInstagram")?.value||"").trim();
-  const ttRaw = ($("contactTiktok")?.value||"").trim();
-  const fbRaw = ($("contactFacebook")?.value||"").trim();
+  const sharePhoneRaw = valTrim("sharePhone");
+  const igRaw = valTrim("contactInstagram");
+  const ttRaw = valTrim("contactTiktok");
+  const fbRaw = valTrim("contactFacebook");
 
   if(sharePhoneRaw && !validPhone10(sharePhoneRaw)) errs.push("Share Phone must be 10 digits");
   if(igRaw && !validHandleAt(igRaw)) errs.push("Instagram must start with @ (letters/numbers/._)");
   if(ttRaw && !validHandleAt(ttRaw)) errs.push("TikTok must start with @ (letters/numbers/._)");
   if(fbRaw && !validFacebook(fbRaw)) errs.push("Facebook must be a link or a simple name");
 }
-function validate(){
+
+function validateAllLoud(){
   const errs=[];
   if(!isGateAccepted()) errs.push("Accept 18+ and Terms to continue");
 
-  // required identity phone
-  const idPhoneRaw = ($("identityPhone")?.value||"").trim();
+  const idPhoneRaw = valTrim("identityPhone");
   if(!idPhoneRaw) errs.push("Identity Phone (required)");
   else if(!validPhone10(idPhoneRaw)) errs.push("Identity Phone must be 10 digits");
 
-  req("venueSelect","Expected location",errs);
-  if(HOST_MODE === "city") req("travelYes","Willing to travel",errs);
+  if(!hasVal("venueSelect")) errs.push("Expected location");
+  if(HOST_MODE === "city" && !hasVal("travelYes")) errs.push("Willing to travel");
 
-  const ageVal = Number($("age")?.value || 0);
+  const ageVal = Number(valTrim("age")||0);
   if(!ageVal || ageVal < 18) errs.push("Age must be 18 or older");
 
-  req("sex","Sex",errs); req("race","Race",errs); req("income","Income",errs);
-  req("height","Height",errs); req("build","Body build",errs); req("eye","Eye color",errs); req("hair","Hair color",errs);
-  req("skin","Skin tone",errs); req("smoke","Smoking",errs); req("marital","Marital status",errs); req("politics","Political view",errs);
-  req("intent","Intent",errs); req("family","Family status",errs); req("edu","Education",errs); req("love","Love language",errs);
-  req("pets","Pets",errs); req("religion","Religion",errs);
+  const reqIds = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"];
+  for(const id of reqIds) if(!hasVal(id)) errs.push(id[0].toUpperCase()+id.slice(1));
 
-  if($("religion")?.value==="Other") req("religionOther","Other religion",errs);
+  if(valTrim("religion")==="Other" && !hasVal("religionOther")) errs.push("Other religion");
 
   if(foodSet.size < 1) errs.push("At least 1 Favorite Food");
   if(actSet.size < 1) errs.push("At least 1 Favorite Activity");
 
-  req("firstLoc","First date location",errs); req("firstAvail","First date availability",errs);
-  req("pays","Who pays",errs); req("budget","Budget",errs);
-
-  req("bestPhysical","Best physical feature",errs);
-  req("bestTrait","Best personality trait",errs);
-  req("publicBlurb","Public blurb",errs);
-  req("starter","Conversation starter",errs);
+  const reqIds2 = ["firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter"];
+  for(const id of reqIds2) if(!hasVal(id)) errs.push(id);
 
   validateMutualContact(errs);
   return errs;
 }
 
 /* =========================
+   SUBMIT BUTTON ENABLE (live)
+========================= */
+function quietReadyToSubmit(){
+  if(submitted || sending) return false;
+  if(WS_STATE !== "CONNECTED") return false;
+  if(!isGateAccepted()) return false;
+
+  if(!validPhone10(valTrim("identityPhone"))) return false;
+
+  const ageVal = Number(valTrim("age")||0);
+  if(!ageVal || ageVal < 18) return false;
+
+  if(!hasVal("venueSelect")) return false;
+  if(HOST_MODE === "city" && !hasVal("travelYes")) return false;
+
+  const reqIds = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"];
+  for(const id of reqIds) if(!hasVal(id)) return false;
+
+  if(valTrim("religion")==="Other" && !hasVal("religionOther")) return false;
+
+  if(foodSet.size < 1) return false;
+  if(actSet.size < 1) return false;
+
+  const reqIds2 = ["firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter"];
+  for(const id of reqIds2) if(!hasVal(id)) return false;
+
+  // mutual contact is optional, but if present it must be valid
+  const tmp=[];
+  validateMutualContact(tmp);
+  if(tmp.length) return false;
+
+  return true;
+}
+function updateSubmitEnabled(){
+  const btn = $("btnSubmit");
+  if(!btn) return;
+  btn.disabled = !quietReadyToSubmit();
+}
+
+/* =========================
    MUTUAL CONTACT SAVE (optional)
 ========================= */
 function buildMutualContact(){
-  const sharePhoneRaw = ($("sharePhone")?.value||"").trim();
-  const igRaw = ($("contactInstagram")?.value||"").trim();
-  const ttRaw = ($("contactTiktok")?.value||"").trim();
-  const fbRaw = ($("contactFacebook")?.value||"").trim();
+  const sharePhoneRaw = valTrim("sharePhone");
+  const igRaw = valTrim("contactInstagram");
+  const ttRaw = valTrim("contactTiktok");
+  const fbRaw = valTrim("contactFacebook");
 
   const contact = {};
   if(sharePhoneRaw) contact.phone = digitsOnly(sharePhoneRaw);
@@ -1318,23 +1352,22 @@ function submit(){
   if(sending) return showToast("Please wait","Submitting in progress…");
 
   // hard age gate
-  const ageNum = Number($("age")?.value || 0);
+  const ageNum = Number(valTrim("age") || 0);
   if(!ageNum || ageNum < 18){
     showToast("Age Restriction","You must be 18 or older to use this service.");
     return;
   }
 
-  const errs = validate();
+  const errs = validateAllLoud();
   if(errs.length) return showToast("Missing fields", errs.join(" • "));
 
   const q=qs();
 
-  let religion = $("religion").value;
-  if(religion==="Other") religion = $("religionOther").value.trim();
+  let religion = valTrim("religion");
+  if(religion==="Other") religion = valTrim("religionOther");
 
-  const travelVal = (HOST_MODE==="city") ? ($("travelYes").value==="yes") : false;
-
-  const identityPhone = digitsOnly(($("identityPhone")?.value||"").trim());
+  const travelVal = (HOST_MODE==="city") ? (valTrim("travelYes")==="yes") : false;
+  const identityPhone = digitsOnly(valTrim("identityPhone"));
 
   const payload = {
     v: 10,
@@ -1344,52 +1377,52 @@ function submit(){
     barId: q.room,
     session: q.session,
 
-    venueId: $("venueSelect").value,
-    expectedVenueId: $("venueSelect").value,
+    venueId: valTrim("venueSelect"),
+    expectedVenueId: valTrim("venueSelect"),
     travelYes: travelVal,
 
     // ✅ required for host check-in verification
     identityPhone,
 
     attrs: {
-      age: Number($("age").value),
-      sex: $("sex").value,
-      race: $("race").value,
-      income: $("income").value,
-      height: $("height").value,
-      build: $("build").value,
-      eye: $("eye").value,
-      hair: $("hair").value,
-      skin: $("skin").value,
-      smoke: $("smoke").value,
-      marital: $("marital").value,
-      politics: $("politics").value,
-      intent: $("intent").value,
-      family: $("family").value,
-      edu: $("edu").value,
-      love: $("love").value,
-      pets: $("pets").value,
+      age: Number(valTrim("age")),
+      sex: valTrim("sex"),
+      race: valTrim("race"),
+      income: valTrim("income"),
+      height: valTrim("height"),
+      build: valTrim("build"),
+      eye: valTrim("eye"),
+      hair: valTrim("hair"),
+      skin: valTrim("skin"),
+      smoke: valTrim("smoke"),
+      marital: valTrim("marital"),
+      politics: valTrim("politics"),
+      intent: valTrim("intent"),
+      family: valTrim("family"),
+      edu: valTrim("edu"),
+      love: valTrim("love"),
+      pets: valTrim("pets"),
       religion
     },
     prefs: {
-      ageBand: $("pref_ageBand")?.value || "Any",
-      sex: $("pref_sex")?.value || "Any",
-      race: $("pref_race")?.value || "Any",
-      income: $("pref_income")?.value || "Any",
-      height: $("pref_height")?.value || "Any",
-      build: $("pref_build")?.value || "Any",
-      eye: $("pref_eye")?.value || "Any",
-      hair: $("pref_hair")?.value || "Any",
-      skin: $("pref_skin")?.value || "Any",
-      smoke: $("pref_smoke")?.value || "Any",
-      marital: $("pref_marital")?.value || "Any",
-      politics: $("pref_politics")?.value || "Any",
-      intent: $("pref_intent")?.value || "Any",
-      family: $("pref_family")?.value || "Any",
-      edu: $("pref_edu")?.value || "Any",
-      love: $("pref_love")?.value || "Any",
-      pets: $("pref_pets")?.value || "Any",
-      religion: $("pref_religion")?.value || "Any"
+      ageBand: valTrim("pref_ageBand") || "Any",
+      sex: valTrim("pref_sex") || "Any",
+      race: valTrim("pref_race") || "Any",
+      income: valTrim("pref_income") || "Any",
+      height: valTrim("pref_height") || "Any",
+      build: valTrim("pref_build") || "Any",
+      eye: valTrim("pref_eye") || "Any",
+      hair: valTrim("pref_hair") || "Any",
+      skin: valTrim("pref_skin") || "Any",
+      smoke: valTrim("pref_smoke") || "Any",
+      marital: valTrim("pref_marital") || "Any",
+      politics: valTrim("pref_politics") || "Any",
+      intent: valTrim("pref_intent") || "Any",
+      family: valTrim("pref_family") || "Any",
+      edu: valTrim("pref_edu") || "Any",
+      love: valTrim("pref_love") || "Any",
+      pets: valTrim("pref_pets") || "Any",
+      religion: valTrim("pref_religion") || "Any"
     },
     deal: {
       ageBand: !!$("deal_ageBand")?.checked,
@@ -1415,19 +1448,19 @@ function submit(){
     foodChips: Array.from(foodSet),
     activityChips: Array.from(actSet),
 
-    firstDateLoc: $("firstLoc").value,
-    firstDateAvail: $("firstAvail").value,
-    pays: $("pays").value,
-    budget: $("budget").value,
+    firstDateLoc: valTrim("firstLoc"),
+    firstDateAvail: valTrim("firstAvail"),
+    pays: valTrim("pays"),
+    budget: valTrim("budget"),
 
-    bestPhysical: $("bestPhysical").value.trim(),
-    bestTrait: $("bestTrait").value.trim(),
-    publicBlurb: $("publicBlurb").value.trim(),
-    starter: $("starter").value.trim()
+    bestPhysical: valTrim("bestPhysical"),
+    bestTrait: valTrim("bestTrait"),
+    publicBlurb: valTrim("publicBlurb"),
+    starter: valTrim("starter")
   };
 
   sending = true;
-  setWsStatus("CONNECTED");
+  updateSubmitEnabled();
 
   const ok = safeSend({ type:"submit_payload", payload });
   if(ok){
@@ -1435,13 +1468,13 @@ function submit(){
     setTimeout(()=>{
       if(!submitted){
         sending=false;
-        setWsStatus(WS_STATE);
+        updateSubmitEnabled();
         showToast("No response","If it didn’t submit, try again (or ask host to refresh).");
       }
     }, 8000);
   }else{
     sending=false;
-    setWsStatus(WS_STATE);
+    updateSubmitEnabled();
     showToast("Send failed","Try again in a moment.");
   }
 }
@@ -1525,6 +1558,31 @@ function renderVoting(){
 /* =========================
    INIT
 ========================= */
+function bindLiveValidation(){
+  const ids = [
+    "venueSelect","travelYes","identityPhone","age","sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion",
+    "religionOther",
+    "firstLoc","firstAvail","pays","budget",
+    "bestPhysical","bestTrait","publicBlurb","starter",
+    "sharePhone","contactInstagram","contactTiktok","contactFacebook",
+    "pref_ageBand","pref_sex","pref_race","pref_income","pref_height","pref_build","pref_eye","pref_hair","pref_skin","pref_smoke","pref_marital","pref_politics","pref_intent","pref_family","pref_edu","pref_love","pref_pets","pref_religion"
+  ];
+  for(const id of ids){
+    const el=$(id);
+    if(!el) continue;
+    el.addEventListener("input", ()=>{
+      if(id==="identityPhone") clampDigitsInput(el, 10);
+      if(id==="sharePhone") clampDigitsInput(el, 10);
+      updateSubmitEnabled();
+    });
+    el.addEventListener("change", ()=>{
+      if(id==="identityPhone") clampDigitsInput(el, 10);
+      if(id==="sharePhone") clampDigitsInput(el, 10);
+      updateSubmitEnabled();
+    });
+  }
+}
+
 function init(){
   parseBarsFromUrl();
   populateVenueSelect();
@@ -1533,6 +1591,7 @@ function init(){
   renderChips("actChips", ACTS, actSet);
   hookReligionOther();
   bindModals();
+  bindLiveValidation();
 
   $("chk18")?.addEventListener("change", updateGateButton);
   $("chkTerms")?.addEventListener("change", updateGateButton);
@@ -1555,11 +1614,14 @@ function init(){
   }
 
   setVoteStats();
+  updateSubmitEnabled();
 }
 init();
 </script>
 </body>
 </html>
+
+
 
 
 
