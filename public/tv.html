@@ -53,10 +53,14 @@
     <div class="pillRow" style="min-width:320px">
       <div class="pill"><b>Room</b> <span id="roomPill">—</span></div>
       <div class="pill"><b>Session</b> <span id="sessionPill">—</span></div>
+
+      <!-- Venue pill hides automatically when All Venues -->
       <div class="pill" id="venuePillWrap"><b>Venue</b> <span id="venuePill">—</span></div>
 
       <div class="pill" id="wsPillWrap"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
+      <div class="pill" id="syncPillWrap"><b>Host Sync</b> <span id="syncPill">—</span></div>
 
+      <!-- Option C hybrid pills -->
       <div class="pill warn"><b>Expected</b> <span id="expectedPill">0</span></div>
       <div class="pill good"><b>Checked In</b> <span id="checkedInPill">0</span></div>
       <div class="pill good"><b>Active Matches</b> <span id="activeMatchesPill">0</span></div>
@@ -68,39 +72,53 @@
 
   <div class="footer">
     <div class="big">See your alias pairing? Go to the host stand to connect.</div>
-    <div>Barfly Social • Private Bar Matchmaking</div>
+    <div>Barfly Social • Private Live Matchmaking</div>
   </div>
 </div>
 
 <script>
 /* ============================================================
-   TV — CHECK-IN MODEL SUPPORT (v11)
-   - Show matches ONLY when BOTH are checked-in
-   - Prefer host-provided counts/hotspot, fallback when missing
+   Barfly Social — TV (Aligned to Host Dashboard v11)
+
+   ✅ Rules:
+   - TV only shows matches where BOTH guests are checked-in.
+   - Counts use Option C Hybrid:
+       Expected = pending guests who selected a venue
+       Checked In = host verified
+       Active Matches = TV pairs involving checked-in guests
+       Tonight’s Hotspot = venue with most active matches
+   - Prefers host-provided counts/hotspot; falls back if missing.
+   - Never shows “waiting for host config” — instead:
+       - If no host sync yet: shows "Waiting for host broadcast…"
 ============================================================ */
 
 const WS_URL = "wss://bar-match-relay.onrender.com";
-const ROTATE_MS = 10 * 1000;
 
-const RESYNC_MS = 25 * 1000;
-const RECONNECT_MS = 2500;
+const ROTATE_MS   = 10 * 1000;
+const RESYNC_MS   = 25 * 1000;
+const RECONNECT_MS= 2500;
 
-const HEARTBEAT_MS = 15 * 1000;
-const STALE_MS = 45 * 1000;
+const HEARTBEAT_MS= 15 * 1000;
+const STALE_MS    = 45 * 1000;   // if no traffic, force reconnect
+const SYNC_STALE_MS = 40 * 1000; // if no tv_sync, show a clearer waiting message
 
 const $ = (id)=>document.getElementById(id);
 
 function qs(){
   const u=new URL(location.href);
   const q = Object.fromEntries(u.searchParams.entries());
-  q.room = (q.room || q.roomId || q.barId || "").trim();
+  q.room    = (q.room || q.roomId || q.barId || "").trim();
   q.session = (q.session || "").trim();
-  q.venue = (q.venue || "").trim();
+  q.venue   = (q.venue || "").trim();
   return q;
 }
 function esc(s){
   return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
+
+/* Venue normalization:
+   - missing / "ALL" / "*" => treated as no filter (All Venues / City mode)
+*/
 function normVenue(v){
   const s = String(v||"").trim();
   if(!s) return "";
@@ -143,20 +161,27 @@ function applyVenuePillUI(){
 ========================= */
 let WS=null;
 let WS_STATE="DISCONNECTED";
-let matches=[];
+let matches=[];                 // incoming from tv_sync (host)
 let page=0;
-let reconnectTimer=null;
 
+let reconnectTimer=null;
 let hbTimer=null;
 let staleTimer=null;
-let lastTrafficAt = Date.now();
 
-let lastCountsAt = 0;
+let lastTrafficAt = Date.now();
+let lastTvSyncAt  = 0;
+let lastCountsAt  = 0;
 
 function setWsStatus(s){
   WS_STATE=s;
   $("wsPill").textContent=s;
   $("wsPillWrap").className = "pill " + (s==="CONNECTED"?"good": s==="CONNECTING"?"warn": s==="ERROR"?"bad":"");
+}
+function setSyncPill(){
+  const age = lastTvSyncAt ? Math.max(0, Math.round((Date.now()-lastTvSyncAt)/1000)) : null;
+  $("syncPill").textContent = age==null ? "—" : `${age}s`;
+  const cls = (age==null) ? "" : (age <= 10 ? " good" : age <= 25 ? " warn" : " bad");
+  $("syncPillWrap").className = "pill" + cls;
 }
 function touchTraffic(){ lastTrafficAt = Date.now(); }
 
@@ -170,6 +195,7 @@ function safeSend(obj){
   return false;
 }
 
+/* TV requests */
 function requestSync(){
   const q=qs();
   if(!q.room || !q.session) return;
@@ -181,6 +207,7 @@ function requestConfig(){
   safeSend({ type:"request_config", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 }
 
+/* heartbeat */
 function heartbeatTick(){
   if(WS_STATE!=="CONNECTED") return;
   const q=qs();
@@ -207,6 +234,13 @@ function stopHeartbeat(){
 /* =========================
    CHECK-IN FILTER + COUNTS
 ========================= */
+
+/* A match is TV-eligible ONLY if both checked in.
+   Host v11 sends:
+     - aCheckedIn / bCheckedIn booleans
+     - aStatus / bStatus strings
+   Back-compat: if host doesn't send flags, we assume true (older host behavior).
+*/
 function isCheckedInFlag(m, side){
   const isA = side==="a";
   const v1 = isA ? m.aCheckedIn : m.bCheckedIn;
@@ -218,14 +252,18 @@ function isCheckedInFlag(m, side){
   if(typeof st === "string") return st.toLowerCase().includes("check");
   return true; // old host fallback
 }
+
 function filteredMatches(){
   const q=qs();
   const venue = normVenue(q.venue);
   const t = Date.now();
 
   let list = (matches || []).filter(m => !m.expiresAt || m.expiresAt > t);
+
+  // enforce check-in
   list = list.filter(m => isCheckedInFlag(m,"a") && isCheckedInFlag(m,"b"));
 
+  // optional venue filter (single-location TV)
   if(venue){
     list = list.filter(m => (m.aVenueId === venue) || (m.bVenueId === venue));
   }
@@ -235,6 +273,7 @@ function filteredMatches(){
 }
 
 function computeHotspotFromList(list){
+  // counts venue appearances across active matches
   const counts = new Map();
   for(const m of list){
     const av = String(m.aVenueId||"").trim();
@@ -274,6 +313,7 @@ function setCountsFromMsg(msg){
      (c.hotspot && typeof c.hotspot === "object" && c.hotspot.label ? String(c.hotspot.label) : null));
 
   let changed = false;
+
   if(expected!=null){ $("expectedPill").textContent = String(expected); changed=true; }
   if(checkedIn!=null){ $("checkedInPill").textContent = String(checkedIn); changed=true; }
   if(activeMatches!=null){ $("activeMatchesPill").textContent = String(activeMatches); changed=true; }
@@ -288,10 +328,11 @@ function setCountsFromMsg(msg){
 }
 
 function setCountsFallback(){
+  // fallback computes what it can from matches we already have
   const active = filteredMatches();
   $("activeMatchesPill").textContent = String(active.length);
 
-  // Expected/CheckedIn unknown without host counts; leave as-is.
+  // Expected/Checked In rely on host roster; leave as-is (defaults to 0)
   const hs = computeHotspotFromList(active);
   $("hotspotPill").textContent = hs.label;
 }
@@ -307,26 +348,48 @@ function formatAliasWithVenue(alias, venueId, showVenue){
   return `${a} @ ${labelVenue(v)}`;
 }
 
+function waitingCard(){
+  const q = qs();
+  const hasHostSync = !!lastTvSyncAt;
+  const staleSync = hasHostSync ? (Date.now()-lastTvSyncAt) > SYNC_STALE_MS : true;
+
+  // If we haven't received tv_sync yet (or it's stale), show a clearer message
+  const help = staleSync
+    ? `Host hasn’t broadcasted TV data yet (or it’s stale).`
+    : `No checked-in matches right now.`;
+
+  const venue = normVenue(q.venue);
+  const venueLine = venue ? `<div style="margin-top:6px">TV Venue Filter: <span class="mono">${esc(labelVenue(venue))}</span></div>` : ``;
+
+  return `
+    <div class="card">
+      <div class="pair">Waiting for checked-in matches…</div>
+      <div class="meta">
+        ${esc(help)}<br/>
+        <span class="k">Guests must be <b>Checked In</b> by the host to appear on TV.</span>
+        ${venueLine}
+      </div>
+      <div class="meta" style="margin-top:10px">
+        <span class="mono">Tip:</span> Host should click <b>Broadcast Config</b> (and/or <b>Compute Mutuals → TV</b>) if needed.
+      </div>
+    </div>
+  `;
+}
+
 function render(){
+  setSyncPill();
+
   const grid=$("grid");
   grid.innerHTML="";
   const list = filteredMatches();
 
-  // ✅ Only fallback if host hasn't given counts recently
+  // Only fallback if host hasn't given counts recently
   if(Date.now() - lastCountsAt > 5000){
     setCountsFallback();
   }
 
   if(!list.length){
-    grid.innerHTML = `
-      <div class="card">
-        <div class="pair">Waiting for checked-in matches…</div>
-        <div class="meta">
-          No active matches in queue.<br/>
-          <span class="k">Guests must be <b>Checked In</b> by the host to appear on TV.</span>
-        </div>
-      </div>
-    `;
+    grid.innerHTML = waitingCard();
     return;
   }
 
@@ -381,7 +444,7 @@ function connectWS(){
     $("grid").innerHTML = `
       <div class="card">
         <div class="pair">Missing room/session</div>
-        <div class="meta">TV link must include ?room=...&session=...</div>
+        <div class="meta">TV link must include <span class="mono">?room=...&session=...</span></div>
       </div>
     `;
     return;
@@ -400,6 +463,7 @@ function connectWS(){
 
     safeSend({ type:"join", role:"tv", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 
+    // ask host for config + tv
     requestConfig();
     requestSync();
   };
@@ -408,6 +472,7 @@ function connectWS(){
     touchTraffic();
     let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
 
+    // ping/pong compatibility
     if(msg.type === "ping"){
       const q=qs();
       safeSend({ type:"pong", roomId: q.room, room: q.room, barId: q.room, session: q.session, t: Date.now() });
@@ -415,6 +480,7 @@ function connectWS(){
     }
     if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack"){ return; }
 
+    // config for venue names
     if(msg.type==="config" || msg.type==="event_config"){
       const q=qs();
       const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
@@ -427,12 +493,16 @@ function connectWS(){
       return;
     }
 
+    // tv sync
     if(msg.type==="tv_sync"){
       const q=qs();
       const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
       if(msg.session && msg.session !== q.session) return;
       if(msgRoom && msgRoom !== q.room) return;
 
+      lastTvSyncAt = Date.now();
+
+      // accept flexible shapes
       matches = (msg.matches || []).map(m=>({
         score: m.score || 0,
         code: m.code || "",
@@ -445,16 +515,19 @@ function connectWS(){
         aVenueId: m.aVenueId || "",
         bVenueId: m.bVenueId || "",
 
+        // host v11 fields
         aCheckedIn: (typeof m.aCheckedIn === "boolean") ? m.aCheckedIn : (typeof m.checkedInA === "boolean" ? m.checkedInA : undefined),
         bCheckedIn: (typeof m.bCheckedIn === "boolean") ? m.bCheckedIn : (typeof m.checkedInB === "boolean" ? m.checkedInB : undefined),
         aStatus: m.aStatus || m.statusA || "",
         bStatus: m.bStatus || m.statusB || ""
       }));
 
+      // prefer host counts/hotspot; fallback will compute what it can
       setCountsFromMsg(msg);
 
       page = 0;
       render();
+      return;
     }
   };
 
@@ -473,12 +546,15 @@ function connectWS(){
 /* rotate + periodic resync */
 setInterval(()=>{ page++; render(); }, ROTATE_MS);
 setInterval(()=>{ if(WS_STATE==="CONNECTED") requestSync(); }, RESYNC_MS);
+setInterval(()=>{ setSyncPill(); }, 1000);
 
 connectWS();
 render();
 </script>
 </body>
 </html>
+
+
 
 
 
