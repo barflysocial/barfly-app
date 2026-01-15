@@ -139,6 +139,14 @@ textarea{min-height:80px;resize:vertical}
 }
 .heroInner{position:relative; padding:18px}
 .brandRow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.logo{
+  width:54px;height:54px;border-radius:14px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.logo img{width:100%;height:100%;object-fit:contain;display:block}
 .hTitle{font-size:28px;font-weight:1000;letter-spacing:.3px;margin:0}
 .hSub{margin-top:6px;color:var(--muted);font-weight:900}
 .checkRow{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
@@ -204,13 +212,17 @@ textarea{min-height:80px;resize:vertical}
     <div class="pill"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
   </div>
 
-  <!-- ✅ TITLE / 18+ / TERMS GATE (NO LOGO) -->
+  <!-- ✅ TITLE / 18+ / TERMS GATE -->
   <div class="card hero" id="gateCard">
     <div class="heroInner">
       <div class="brandRow">
+        <div class="logo" title="Barfly Social">
+          <!-- Put logo.png next to join.html (or in /public on Render). If missing, it just shows an empty tile. -->
+          <img src="logo.png" alt="Barfly Social logo" onerror="this.style.display='none'">
+        </div>
         <div style="min-width:240px;flex:1">
           <h1 class="hTitle">Barfly Social</h1>
-          <div class="hSub">Private, alias-only matchmaking for bar nights • Host-verified check-in</div>
+          <div class="hSub">Live event matchmaking &amp; professional networking • Host-verified check-in</div>
           <div class="noteBox">
             You can submit and vote from anywhere, but <b>TV only shows your matches after you check in with the host</b> at your chosen location.
           </div>
@@ -242,14 +254,17 @@ textarea{min-height:80px;resize:vertical}
       </div>
 
       <div class="muted small" style="margin-top:10px">
-        Tip: If your host moves you to a different venue, they can do it from the host dashboard (guests cannot change venues).
+        Tip: Guests cannot change venues. If needed, the host can move you from the host dashboard.
       </div>
     </div>
   </div>
 
-  <!-- ✅ FORM (NO LOGO) -->
+  <!-- ✅ FORM -->
   <div class="card hidden" id="formCard">
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div class="logo" style="width:44px;height:44px" title="Barfly Social">
+        <img src="logo.png" alt="Barfly Social logo" onerror="this.style.display='none'">
+      </div>
       <div style="min-width:220px;flex:1">
         <h2 style="margin:0">Barfly Social — Join</h2>
         <div class="muted">Alias-only matchmaking. Your identity stays private.</div>
@@ -285,17 +300,33 @@ textarea{min-height:80px;resize:vertical}
     <div class="hr"></div>
 
     <h3>Profile (mandatory)</h3>
+
+    <!-- ✅ REQUIRED identity phone (for host check-in verification) -->
     <div class="two">
-      <div><label>Age</label><input id="age" type="number" min="18" max="99" placeholder="18+"></div>
+      <div>
+        <label>Identity Phone (required, 10 digits)</label>
+        <input id="identityPhone" inputmode="numeric" placeholder="e.g., 2255551234">
+        <div class="muted small" style="margin-top:6px">
+          Used to verify you at the host stand. <b>Not shared publicly</b>.
+        </div>
+      </div>
+      <div>
+        <label>Age</label>
+        <input id="age" type="number" min="18" max="99" placeholder="18+">
+        <div class="muted small" style="margin-top:6px">
+          Must be 18 or older.
+        </div>
+      </div>
+    </div>
+
+    <div class="two">
       <div><label>Sex</label>
         <select id="sex">
           <option value="" disabled selected>Select</option>
           <option>Male</option><option>Female</option><option>Non-binary</option>
         </select>
       </div>
-    </div>
 
-    <div class="two">
       <div><label>Race</label>
         <select id="race">
           <option value="" disabled selected>Select</option>
@@ -304,81 +335,88 @@ textarea{min-height:80px;resize:vertical}
           <option>Prefer not to say</option>
         </select>
       </div>
+    </div>
+
+    <div class="two">
       <div><label>Income</label>
         <select id="income">
           <option value="" disabled selected>Select</option>
           <option>&lt;$35k</option><option>$35k–$60k</option><option>$60k–$100k</option><option>$100k+</option>
         </select>
       </div>
-    </div>
-
-    <div class="two">
       <div><label>Height (without shoes)</label>
         <select id="height">
           <option value="" disabled selected>Select</option>
           <option>&lt;5'5</option><option>5'6–5'8</option><option>5'9–5'11</option><option>6'0+</option>
         </select>
       </div>
+    </div>
+
+    <div class="two">
       <div><label>Body build</label>
         <select id="build">
           <option value="" disabled selected>Select</option>
           <option>Slim</option><option>Average</option><option>Muscular</option><option>More to love</option>
         </select>
       </div>
-    </div>
-
-    <div class="two">
       <div><label>Eye color</label>
         <select id="eye">
           <option value="" disabled selected>Select</option>
           <option>Brown</option><option>Blue</option><option>Green</option><option>Gray</option>
         </select>
       </div>
+    </div>
+
+    <div class="two">
       <div><label>Hair color</label>
         <select id="hair">
           <option value="" disabled selected>Select</option>
           <option>Black</option><option>Blonde</option><option>Brown</option><option>Red</option><option>Gray</option><option>No hair</option>
         </select>
       </div>
-    </div>
-
-    <div class="two">
       <div><label>Skin tone</label>
         <select id="skin">
           <option value="" disabled selected>Select</option>
           <option>Pale white</option><option>Olive</option><option>White</option><option>Light brown</option><option>Dark brown</option>
         </select>
       </div>
+    </div>
+
+    <div class="two">
       <div><label>Smoking</label>
         <select id="smoke">
           <option value="" disabled selected>Select</option>
           <option>No</option><option>Yes</option><option>420</option>
         </select>
       </div>
-    </div>
-
-    <div class="two">
       <div><label>Marital status</label>
         <select id="marital">
           <option value="" disabled selected>Select</option>
           <option>Single</option><option>Divorced</option><option>Legally separated</option><option>Widowed</option>
         </select>
       </div>
+    </div>
+
+    <div class="two">
       <div><label>Political view</label>
         <select id="politics">
           <option value="" disabled selected>Select</option>
           <option>Apolitical</option><option>Conservative</option><option>Moderate</option><option>Liberal</option><option>Prefer not to say</option>
         </select>
       </div>
+      <div><label>Intent</label>
+        <select id="intent">
+          <option value="" disabled selected>Select</option>
+          <option>Friends only</option>
+          <option>Live matchmaking</option>
+          <option>Committed relationship</option>
+          <option>Marriage</option>
+          <option>Professional networking</option>
+        </select>
+      </div>
     </div>
 
     <div class="two">
-      <div><label>Dating intentions</label>
-        <select id="intent">
-          <option value="" disabled selected>Select</option>
-          <option>Friends only</option><option>Casual encounter</option><option>Committed relationship</option><option>Marriage</option>
-        </select>
-      </div>
       <div><label>Family status</label>
         <select id="family">
           <option value="" disabled selected>Select</option>
@@ -386,30 +424,30 @@ textarea{min-height:80px;resize:vertical}
           <option>Have kids and want more</option><option>Have kids and doesn't want more</option>
         </select>
       </div>
-    </div>
-
-    <div class="two">
       <div><label>Education</label>
         <select id="edu">
           <option value="" disabled selected>Select</option>
           <option>High school</option><option>Some college</option><option>Associate</option><option>Bachelor</option><option>Master</option><option>Doctorate</option><option>Trade/Technical</option>
         </select>
       </div>
+    </div>
+
+    <div class="two">
       <div><label>Love language</label>
         <select id="love">
           <option value="" disabled selected>Select</option>
           <option>Words of affirmation</option><option>Quality time</option><option>Acts of service</option><option>Physical touch</option><option>Gifts</option>
         </select>
       </div>
-    </div>
-
-    <div class="two">
       <div><label>Pets</label>
         <select id="pets">
           <option value="" disabled selected>Select</option>
           <option>No pets</option><option>Dog(s)</option><option>Cat(s)</option><option>Other pets</option><option>Love pets but none</option><option>Pet allergy</option>
         </select>
       </div>
+    </div>
+
+    <div class="two">
       <div><label>Religion</label>
         <select id="religion">
           <option value="" disabled selected>Select</option>
@@ -417,6 +455,7 @@ textarea{min-height:80px;resize:vertical}
           <option>Jewish</option><option>Christian</option><option>Atheist</option><option>Agnostic</option><option>Other</option>
         </select>
       </div>
+      <div><div class="muted small" style="display:flex;align-items:flex-end;height:100%">Your real name is never requested.</div></div>
     </div>
 
     <div id="religionOtherWrap" class="two hidden">
@@ -504,8 +543,15 @@ textarea{min-height:80px;resize:vertical}
 
     <div class="two">
       <div>
-        <div class="prefRow"><label style="margin:0">Their dating intention</label><label class="dealLbl">Dealbreaker <input id="deal_intent" class="dealChk" type="checkbox"></label></div>
-        <select id="pref_intent"><option>Any</option><option>Friends only</option><option>Casual encounter</option><option>Committed relationship</option><option>Marriage</option></select>
+        <div class="prefRow"><label style="margin:0">Their intent</label><label class="dealLbl">Dealbreaker <input id="deal_intent" class="dealChk" type="checkbox"></label></div>
+        <select id="pref_intent">
+          <option>Any</option>
+          <option>Friends only</option>
+          <option>Live matchmaking</option>
+          <option>Committed relationship</option>
+          <option>Marriage</option>
+          <option>Professional networking</option>
+        </select>
       </div>
       <div>
         <div class="prefRow"><label style="margin:0">Family status</label><label class="dealLbl">Dealbreaker <input id="deal_family" class="dealChk" type="checkbox"></label></div>
@@ -552,7 +598,7 @@ textarea{min-height:80px;resize:vertical}
       <div><label>First date location</label>
         <select id="firstLoc">
           <option value="" disabled selected>Select</option>
-          <option>Wine bar</option><option>Dinner</option><option>Bookstore</option><option>Dancing</option><option>Church</option>
+          <option>Wine bar</option><option>Dinner</option><option>Bookstore</option><option>Dancing</option>
           <option>Bingo</option><option>Breakfast</option><option>Coffee shop</option><option>Cocktail bar</option><option>Restaurant</option>
           <option>Brunch</option><option>Movie night</option><option>Walk / park</option><option>Live music</option><option>Trivia night</option>
         </select>
@@ -596,13 +642,31 @@ textarea{min-height:80px;resize:vertical}
 
     <div class="hr"></div>
 
-    <h3>Contact (optional)</h3>
+    <h3>Mutual Contact Release (optional)</h3>
     <div class="muted small" style="margin-top:-6px">
-      Saved contact is <b>only released after a mutual like</b>. Phone must be <b>10 digits</b>. Instagram must start with <b>@</b>.
+      These are <b>ONLY shared after a mutual like</b>. Your <b>Identity Phone</b> is for host verification and is not shared unless you also fill “Share Phone”.
     </div>
+
     <div class="two" style="margin-top:10px">
-      <div><label>Phone (10 digits)</label><input id="contactPhone" inputmode="numeric" placeholder="e.g., 2255551234"></div>
-      <div><label>Instagram (@name)</label><input id="contactInstagram" placeholder="@yourname"></div>
+      <div>
+        <label>Share Phone (optional, 10 digits)</label>
+        <input id="sharePhone" inputmode="numeric" placeholder="e.g., 2255551234">
+      </div>
+      <div>
+        <label>Instagram (@name)</label>
+        <input id="contactInstagram" placeholder="@yourname">
+      </div>
+    </div>
+
+    <div class="two" style="margin-top:10px">
+      <div>
+        <label>TikTok (@name)</label>
+        <input id="contactTiktok" placeholder="@yourname">
+      </div>
+      <div>
+        <label>Facebook (profile link or name)</label>
+        <input id="contactFacebook" placeholder="facebook.com/yourname or Your Name">
+      </div>
     </div>
 
     <div class="hr"></div>
@@ -618,7 +682,7 @@ textarea{min-height:80px;resize:vertical}
     </div>
   </div>
 
-  <!-- ✅ VOTING (AFTER submit) (NO LOGO) -->
+  <!-- ✅ VOTING (AFTER submit) -->
   <div class="card hidden" id="voteCard" style="margin-top:12px">
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
       <div style="flex:1;min-width:240px">
@@ -642,7 +706,7 @@ textarea{min-height:80px;resize:vertical}
     <div class="hr"></div>
 
     <div class="two">
-      <button class="btn good" id="btnSaveContact" type="button">Save Contact Info</button>
+      <button class="btn good" id="btnSaveContact" type="button">Save Mutual Contact (Optional)</button>
       <button class="btn warn" id="btnRequestRoster" type="button">Load Top 12</button>
     </div>
     <div class="two" style="margin-top:10px">
@@ -685,7 +749,7 @@ textarea{min-height:80px;resize:vertical}
 
       <h3>3) Event Nature / Host Verification</h3>
       <ul>
-        <li>The Service is designed for in-person events and <b>host-verified check-in</b>.</li>
+        <li>The Service is designed for <b>live events</b> and <b>host-verified check-in</b>.</li>
         <li>You may submit and vote remotely, but match visibility and participation may require in-person check-in at a host stand.</li>
       </ul>
 
@@ -698,7 +762,7 @@ textarea{min-height:80px;resize:vertical}
       </ul>
 
       <h3>5) Privacy & Data</h3>
-      <p>The Service uses <b>aliases</b> and minimizes identity sharing. Contact info (phone/Instagram) is optional and is intended to be released only after mutual matching, as configured by the host.</p>
+      <p>The Service uses <b>aliases</b> and minimizes identity sharing. Identity Phone is used for host verification. Optional mutual contact details (share phone/social) are intended to be released only after mutual matching, as configured by the host.</p>
 
       <h3>6) No Guarantee of Matches</h3>
       <p>Matches, compatibility scores, and venue “hotspots” are informational only. We do not guarantee any match quality, outcomes, or attendee attendance.</p>
@@ -736,18 +800,19 @@ textarea{min-height:80px;resize:vertical}
 
       <h3>1) What We Collect</h3>
       <ul>
-        <li><b>Profile + preferences</b> you submit (age, attributes, preferences, dealbreakers, favorites).</li>
+        <li><b>Profile + preferences</b> you submit.</li>
         <li><b>Expected venue</b> selection (where you plan to arrive).</li>
-        <li><b>Optional contact</b> (phone and/or Instagram), if you choose to provide it.</li>
+        <li><b>Identity Phone</b> (required) for host verification.</li>
+        <li><b>Optional mutual contact</b> (share phone/social), if you choose to provide it.</li>
         <li><b>Votes</b> (like/pass) used to compute mutual matches.</li>
       </ul>
 
       <h3>2) How We Use It</h3>
       <ul>
         <li>Compute compatibility scores and mutual matches.</li>
+        <li>Verify identity at the host stand via Identity Phone.</li>
         <li>Show matches on TV <b>after host check-in</b> (per event rules).</li>
-        <li>Release optional contact info only after a mutual match (as configured).</li>
-        <li>Operate the event (e.g., host dashboards, roster management).</li>
+        <li>Release optional mutual contact only after a mutual match (as configured).</li>
       </ul>
 
       <h3>3) Aliases & Identity</h3>
@@ -756,7 +821,7 @@ textarea{min-height:80px;resize:vertical}
       <h3>4) Sharing</h3>
       <ul>
         <li>Your <b>alias</b> and limited match details may be displayed on venue TV screens after check-in.</li>
-        <li>Your <b>optional contact</b> is intended to be shared only with a mutual match.</li>
+        <li>Your <b>optional mutual contact</b> is intended to be shared only with a mutual match.</li>
         <li>Event staff/hosts can view rosters for operations and safety.</li>
       </ul>
 
@@ -764,7 +829,7 @@ textarea{min-height:80px;resize:vertical}
       <p>Event data may be stored locally in the browser and/or handled by the host relay for real-time syncing. Hosts may export CSV for event administration.</p>
 
       <h3>6) Your Choices</h3>
-      <p>You can leave contact fields blank. You can also ask the host to remove you from the pool.</p>
+      <p>You may leave optional mutual contact fields blank. You can also ask the host to remove you from the pool.</p>
     </div>
   </div>
 </div>
@@ -787,7 +852,7 @@ function qs(){
   q.room = (q.room || q.roomId || q.barId || "").trim();
   q.session = (q.session || "").trim();
   q.mode = (q.mode || "").trim().toLowerCase();
-  q.bars = (q.bars || "").trim();           // JSON (urlencoded)
+  q.bars = (q.bars || "").trim();                 // JSON (urlencoded)
   q.participating = (q.participating || "").trim(); // JSON (urlencoded)
   return q;
 }
@@ -802,12 +867,24 @@ function showToast(t,m){
 }
 function digitsOnly(s){ return String(s||"").replace(/\D/g,""); }
 function validPhone10(raw){ const d = digitsOnly(raw); return d.length === 10; }
-function validInstagramHandle(raw){
+function normalizeHandle(raw){
+  let s = String(raw||"").trim();
+  if(!s) return "";
+  if(!s.startsWith("@")) s = "@"+s;
+  return s;
+}
+function validHandleAt(raw){
   const s = String(raw||"").trim();
   if(!s) return true;
-  if(!s.startsWith("@")) return false;
-  if(s.length < 2) return false;
-  return /^@[A-Za-z0-9._]{1,30}$/.test(s);
+  const h = s.startsWith("@") ? s : "@"+s;
+  return /^@[A-Za-z0-9._]{1,30}$/.test(h);
+}
+function validFacebook(raw){
+  const s = String(raw||"").trim();
+  if(!s) return true;
+  // allow URL or simple name/handle
+  if(/^https?:\/\/|^www\./i.test(s)) return s.length <= 200;
+  return /^[A-Za-z0-9 ._'()-]{2,60}$/.test(s);
 }
 
 /* =========================
@@ -1085,14 +1162,14 @@ function connectWS(){
       $("formCard").classList.add("hidden");
       $("voteCard").classList.remove("hidden");
       showToast("Submitted","Now you can vote. Check in with host when you arrive.");
-      saveContact(true);
+      saveMutualContact(true);
       requestRoster();
       lockVenuePostSubmit();
       return;
     }
 
     if(msg.type==="contact_saved_ack"){
-      showToast("Saved","Contact info saved.");
+      showToast("Saved","Mutual contact info saved.");
       return;
     }
 
@@ -1141,26 +1218,36 @@ function req(id,label,errs){
   const v=(el?.value||"").trim();
   if(!v) errs.push(label);
 }
-function validateContact(errs){
-  const phoneRaw = ($("contactPhone")?.value||"").trim();
+function validateMutualContact(errs){
+  const sharePhoneRaw = ($("sharePhone")?.value||"").trim();
   const igRaw = ($("contactInstagram")?.value||"").trim();
-  if(phoneRaw && !validPhone10(phoneRaw)) errs.push("Phone must be 10 digits");
-  if(igRaw && !validInstagramHandle(igRaw)) errs.push("Instagram must start with @ (letters/numbers/._)");
+  const ttRaw = ($("contactTiktok")?.value||"").trim();
+  const fbRaw = ($("contactFacebook")?.value||"").trim();
+
+  if(sharePhoneRaw && !validPhone10(sharePhoneRaw)) errs.push("Share Phone must be 10 digits");
+  if(igRaw && !validHandleAt(igRaw)) errs.push("Instagram must start with @ (letters/numbers/._)");
+  if(ttRaw && !validHandleAt(ttRaw)) errs.push("TikTok must start with @ (letters/numbers/._)");
+  if(fbRaw && !validFacebook(fbRaw)) errs.push("Facebook must be a link or a simple name");
 }
 function validate(){
   const errs=[];
   if(!isGateAccepted()) errs.push("Accept 18+ and Terms to continue");
 
+  // required identity phone
+  const idPhoneRaw = ($("identityPhone")?.value||"").trim();
+  if(!idPhoneRaw) errs.push("Identity Phone (required)");
+  else if(!validPhone10(idPhoneRaw)) errs.push("Identity Phone must be 10 digits");
+
   req("venueSelect","Expected location",errs);
   if(HOST_MODE === "city") req("travelYes","Willing to travel",errs);
 
   const ageVal = Number($("age")?.value || 0);
-if(!ageVal || ageVal < 18) errs.push("Age must be 18 or older"); 
-  
+  if(!ageVal || ageVal < 18) errs.push("Age must be 18 or older");
+
   req("sex","Sex",errs); req("race","Race",errs); req("income","Income",errs);
   req("height","Height",errs); req("build","Body build",errs); req("eye","Eye color",errs); req("hair","Hair color",errs);
   req("skin","Skin tone",errs); req("smoke","Smoking",errs); req("marital","Marital status",errs); req("politics","Political view",errs);
-  req("intent","Dating intentions",errs); req("family","Family status",errs); req("edu","Education",errs); req("love","Love language",errs);
+  req("intent","Intent",errs); req("family","Family status",errs); req("edu","Education",errs); req("love","Love language",errs);
   req("pets","Pets",errs); req("religion","Religion",errs);
 
   if($("religion")?.value==="Other") req("religionOther","Other religion",errs);
@@ -1176,44 +1263,48 @@ if(!ageVal || ageVal < 18) errs.push("Age must be 18 or older");
   req("publicBlurb","Public blurb",errs);
   req("starter","Conversation starter",errs);
 
-  validateContact(errs);
+  validateMutualContact(errs);
   return errs;
 }
 
 /* =========================
-   CONTACT SAVE
+   MUTUAL CONTACT SAVE (optional)
 ========================= */
-function buildContact(){
-  const phoneRaw = ($("contactPhone")?.value||"").trim();
+function buildMutualContact(){
+  const sharePhoneRaw = ($("sharePhone")?.value||"").trim();
   const igRaw = ($("contactInstagram")?.value||"").trim();
-  const phone = phoneRaw ? digitsOnly(phoneRaw) : "";
-  let instagram = igRaw ? igRaw.trim() : "";
-  if(instagram && !instagram.startsWith("@")) instagram = "@"+instagram;
+  const ttRaw = ($("contactTiktok")?.value||"").trim();
+  const fbRaw = ($("contactFacebook")?.value||"").trim();
 
   const contact = {};
-  if(phone) contact.phone = phone;
-  if(instagram) contact.instagram = instagram;
+  if(sharePhoneRaw) contact.phone = digitsOnly(sharePhoneRaw);
+  if(igRaw) contact.instagram = normalizeHandle(igRaw);
+  if(ttRaw) contact.tiktok = normalizeHandle(ttRaw);
+  if(fbRaw) contact.facebook = fbRaw.trim();
   return contact;
 }
-function saveContact(isAuto=false){
+function saveMutualContact(isAuto=false){
   const errs=[];
-  validateContact(errs);
+  validateMutualContact(errs);
   if(errs.length){
     if(!isAuto) showToast("Contact error", errs.join(" • "));
     return false;
   }
-  const contact = buildContact();
-  if(!contact.phone && !contact.instagram){
-    if(!isAuto) showToast("Nothing to save", "Enter a phone and/or Instagram handle.");
+  const contact = buildMutualContact();
+  const hasAny = Object.keys(contact).length > 0;
+
+  if(!hasAny){
+    if(!isAuto) showToast("Nothing to save", "Add optional share phone/social fields to save.");
     return false;
   }
+
   const q=qs();
   const ok = safeSend({ type:"contact_save", roomId:q.room, room:q.room, barId:q.room, session:q.session, voterNonce: clientNonce, contact });
   if(!ok){
     if(!isAuto) showToast("Not sent", "Connection issue — try again.");
     return false;
   }
-  if(!isAuto) showToast("Saved", "Contact info sent to host.");
+  if(!isAuto) showToast("Saved", "Mutual contact sent to host.");
   return true;
 }
 
@@ -1226,12 +1317,14 @@ function submit(){
   if(submitted) return showToast("Already submitted","You already submitted.");
   if(sending) return showToast("Please wait","Submitting in progress…");
 
-  const errs = validate();
+  // hard age gate
   const ageNum = Number($("age")?.value || 0);
-if(ageNum < 18){
-  showToast("Age Restriction","You must be 18 or older to use this service.");
-  return;
-}
+  if(!ageNum || ageNum < 18){
+    showToast("Age Restriction","You must be 18 or older to use this service.");
+    return;
+  }
+
+  const errs = validate();
   if(errs.length) return showToast("Missing fields", errs.join(" • "));
 
   const q=qs();
@@ -1241,8 +1334,10 @@ if(ageNum < 18){
 
   const travelVal = (HOST_MODE==="city") ? ($("travelYes").value==="yes") : false;
 
+  const identityPhone = digitsOnly(($("identityPhone")?.value||"").trim());
+
   const payload = {
-    v: 9,
+    v: 10,
     clientNonce,
     roomId: q.room,
     room: q.room,
@@ -1252,6 +1347,9 @@ if(ageNum < 18){
     venueId: $("venueSelect").value,
     expectedVenueId: $("venueSelect").value,
     travelYes: travelVal,
+
+    // ✅ required for host check-in verification
+    identityPhone,
 
     attrs: {
       age: Number($("age").value),
@@ -1441,7 +1539,7 @@ function init(){
   $("btnEnter")?.addEventListener("click", enterApp);
 
   $("btnSubmit").onclick = submit;
-  $("btnSaveContact")?.addEventListener("click", ()=>saveContact(false));
+  $("btnSaveContact")?.addEventListener("click", ()=>saveMutualContact(false));
   $("btnRequestRoster")?.addEventListener("click", ()=>{ requestRoster(); showToast("Requested","Asking host for top 12…"); });
   $("btnRefreshRoster")?.addEventListener("click", ()=>{ requestRoster(); renderVoting(); });
   $("btnClearVotes")?.addEventListener("click", ()=>{ votes={}; seenCount=0; likedCount=0; renderVoting(); showToast("Cleared","Local vote history cleared (host votes remain)."); });
@@ -1462,6 +1560,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
