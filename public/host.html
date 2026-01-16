@@ -104,7 +104,6 @@
   <div class="topbar">
     <div class="left">
       <div class="brand">
-        <!-- If /logo.png exists in your deploy, it will show. If not, it just looks like a neat placeholder. -->
         <img class="logo" id="brandLogo" alt="Barfly logo" src="/logo.png" onerror="this.style.display='none'">
         <div class="brandText">
           <div class="t">Barfly Social</div>
@@ -184,6 +183,19 @@
           <div class="row">
             <input id="eventName" placeholder="e.g., Baton Rouge Barfly Night">
             <button class="btn primary" id="btnCreateEvent" type="button">Create/Update</button>
+          </div>
+
+          <!-- ✅ NEW: EVENT TYPE -->
+          <div class="row" style="margin-top:10px">
+            <div style="flex:1;min-width:220px">
+              <label>Event Type</label>
+              <select id="eventType">
+                <option value="dating">Dating</option>
+                <option value="networking">Professional Networking</option>
+                <option value="mixed">Mixed Social</option>
+              </select>
+              <div class="mini" style="margin-top:6px">Broadcasts to Join + TV so the event shows the right vibe.</div>
+            </div>
           </div>
 
           <div class="mini" style="margin-top:8px">Participating locations (only these appear in guest dropdown):</div>
@@ -348,7 +360,6 @@
   </div>
 </div>
 
-<!-- QR modal -->
 <div class="modalBack" id="qrBack" role="dialog" aria-modal="true">
   <div class="modal">
     <div class="modalTop">
@@ -396,7 +407,7 @@ const STORAGE = {
 };
 
 const $ = (id)=>document.getElementById(id);
-function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;"," >":"&gt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
 function now(){ return Date.now(); }
 function showToast(t,m){
   $("toastT").textContent=t; $("toastM").textContent=m;
@@ -503,9 +514,20 @@ let host = loadJSON(STORAGE.HOST, { mode:"single", activeBarId:null, session: ge
 let people = loadJSON(STORAGE.PEOPLE, []);
 let likes  = loadJSON(STORAGE.LIKES, {});
 let contacts = loadJSON(STORAGE.CONTACTS, {});
-let event  = loadJSON(STORAGE.EVENT, { eventId:"", name:"", participatingBarIds:[] });
+/* ✅ event now includes type */
+let event  = loadJSON(STORAGE.EVENT, { eventId:"", name:"", type:"dating", participatingBarIds:[] });
 let tv     = loadJSON(STORAGE.TV, { matches:[] });
 let dedupe = loadJSON(STORAGE.DEDUPE, {});
+
+/* normalize event.type if old storage exists */
+function normalizeEventType(t){
+  const s = String(t||"").toLowerCase().trim();
+  if(s==="dating") return "dating";
+  if(s==="professional networking" || s==="professional" || s==="networking") return "networking";
+  if(s==="mixed" || s==="mixed social" || s==="social") return "mixed";
+  return "dating";
+}
+event.type = normalizeEventType(event.type);
 
 /* =========================
    BARS
@@ -592,7 +614,7 @@ function broadcastConfig(){
     roomId, room: roomId, barId: roomId,
     session: host.session,
     mode: host.mode,
-    event: { eventId: event.eventId, name: event.name || "" },
+    event: { eventId: event.eventId, name: event.name || "", type: event.type || "dating" },
     bars: bars.map(b => ({ id:b.id, name:b.name })),
     participatingBarIds: participatingIds,
     rules: {
@@ -1119,7 +1141,6 @@ function handleVoteMessage(msg){
 
 /* =========================
    CONTACT SAVE
-   Supports: phone, instagram, tiktok, facebook (optional fields)
 ========================= */
 function handleContactSave(msg){
   const roomId = currentRoomId();
@@ -1572,6 +1593,8 @@ function updateLinks(){
   join.searchParams.set("room", roomId);
   join.searchParams.set("session", host.session);
   join.searchParams.set("mode", host.mode);
+  join.searchParams.set("eventType", event.type || "dating"); /* ✅ NEW */
+  join.searchParams.set("eventName", event.name || "");       /* optional */
   join.searchParams.set("bars", JSON.stringify(bars.map(b=>({id:b.id,name:b.name}))));
   join.searchParams.set("participating", JSON.stringify(event.participatingBarIds || []));
 
@@ -1596,6 +1619,10 @@ function renderAll(){
   $("modeSelect").value = host.mode;
   $("sessionCode").value = host.session;
   $("eventName").value = event.name || "";
+
+  /* ✅ NEW */
+  $("eventType").value = normalizeEventType(event.type);
+
   renderEventBars();
 
   renderArrivals();
@@ -1675,6 +1702,9 @@ function createOrUpdateEvent(){
   if(!requireUnlock()) return;
   if(!event.eventId) event.eventId = "CITY-"+uid().slice(0,6).toUpperCase();
   event.name = $("eventName").value.trim() || event.name || "City Event";
+  /* ✅ keep event.type saved too */
+  event.type = normalizeEventType($("eventType").value);
+
   saveJSON(STORAGE.EVENT,event);
   renderAll();
   broadcastConfig();
@@ -1774,7 +1804,6 @@ function openQR(title, url){
   $("qrTitle").textContent = title;
   $("qrLinkTxt").textContent = url;
 
-  // simple hosted QR image (works great on phones)
   const qr = $("qrImg");
   const api = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(url);
   qr.src = api;
@@ -1883,6 +1912,16 @@ function init(){
 
   $("btnCreateEvent").addEventListener("click", createOrUpdateEvent);
 
+  /* ✅ NEW: save eventType immediately when changed */
+  $("eventType").addEventListener("change", ()=>{
+    if(!requireUnlock()) { $("eventType").value = normalizeEventType(event.type); return; }
+    event.type = normalizeEventType($("eventType").value);
+    saveJSON(STORAGE.EVENT, event);
+    renderAll();
+    broadcastConfig();
+    showToast("Event type", "Broadcasted event type.");
+  });
+
   $("barSelect").addEventListener("dblclick", ()=>{
     if(host.mode!=="city") return;
     toggleParticipating(host.activeBarId);
@@ -1956,7 +1995,6 @@ function init(){
   $("btnCopyTV").addEventListener("click", copyTV);
   $("btnCopyTV2").addEventListener("click", copyTV);
 
-  // QR buttons
   $("btnShowJoinQR").addEventListener("click", ()=>{
     updateLinks();
     openQR("Join QR", $("joinLink").textContent);
@@ -1976,6 +2014,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
