@@ -185,16 +185,17 @@
             <button class="btn primary" id="btnCreateEvent" type="button">Create/Update</button>
           </div>
 
-          <!-- ✅ NEW: EVENT TYPE -->
+          <!-- EVENT TYPE (Host chooses) -->
           <div class="row" style="margin-top:10px">
             <div style="flex:1;min-width:220px">
               <label>Event Type</label>
               <select id="eventType">
                 <option value="dating">Dating</option>
                 <option value="networking">Professional Networking</option>
-                <option value="mixed">Mixed Social</option>
               </select>
-              <div class="mini" style="margin-top:6px">Broadcasts to Join + TV so the event shows the right vibe.</div>
+              <div class="mini" style="margin-top:6px">
+                Dating hides Networking questions. Networking uses a professional-only form and networking-style aliases.
+              </div>
             </div>
           </div>
 
@@ -394,16 +395,16 @@ const RECONNECT_BASE_MS = 800;
 const RECONNECT_MAX_MS  = 10 * 1000;
 
 const STORAGE = {
-  BARS: "bm_bars_v12",
-  HOST: "bm_host_v12",
-  PEOPLE: "bm_people_v12",
-  LIKES: "bm_likes_v12",
-  EVENT: "bm_event_v12",
-  TV: "bm_tv_v12",
-  DEDUPE: "bm_dedupe_v12",
-  CONTACTS: "bm_contacts_v12",
-  UI: "bm_ui_v12",
-  HOSTPIN: "bm_host_pin_v12"
+  BARS: "bm_bars_v13",
+  HOST: "bm_host_v13",
+  PEOPLE: "bm_people_v13",
+  LIKES: "bm_likes_v13",
+  EVENT: "bm_event_v13",
+  TV: "bm_tv_v13",
+  DEDUPE: "bm_dedupe_v13",
+  CONTACTS: "bm_contacts_v13",
+  UI: "bm_ui_v13",
+  HOSTPIN: "bm_host_pin_v13"
 };
 
 const $ = (id)=>document.getElementById(id);
@@ -514,17 +515,15 @@ let host = loadJSON(STORAGE.HOST, { mode:"single", activeBarId:null, session: ge
 let people = loadJSON(STORAGE.PEOPLE, []);
 let likes  = loadJSON(STORAGE.LIKES, {});
 let contacts = loadJSON(STORAGE.CONTACTS, {});
-/* ✅ event now includes type */
+/* event includes type */
 let event  = loadJSON(STORAGE.EVENT, { eventId:"", name:"", type:"dating", participatingBarIds:[] });
 let tv     = loadJSON(STORAGE.TV, { matches:[] });
 let dedupe = loadJSON(STORAGE.DEDUPE, {});
 
-/* normalize event.type if old storage exists */
+/* Only allow dating | networking */
 function normalizeEventType(t){
   const s = String(t||"").toLowerCase().trim();
-  if(s==="dating") return "dating";
-  if(s==="professional networking" || s==="professional" || s==="networking") return "networking";
-  if(s==="mixed" || s==="mixed social" || s==="social") return "mixed";
+  if(s==="networking" || s==="professional networking" || s==="professional") return "networking";
   return "dating";
 }
 event.type = normalizeEventType(event.type);
@@ -721,13 +720,36 @@ function payloadRoomSessionOk(payload){
   return true;
 }
 function payloadFingerprint(payload){
+  const net = payload?.net || {};
+  const contact = payload?.contact || {};
   const obj = {
     room: payload?.roomId ?? payload?.room ?? payload?.barId ?? "",
     session: payload?.session ?? "",
     clientNonce: payload?.clientNonce ?? "",
     venueId: payload?.venueId ?? payload?.expectedVenueId ?? "",
     travelYes: !!payload?.travelYes,
-    identityPhone: digitsOnly(payload?.identityPhone || payload?.contactPhone || payload?.contact?.phone || payload?.attrs?.identityPhone || ""),
+    eventType: String(payload?.eventType || payload?.event?.type || "").toLowerCase().trim(),
+    identityPhone: digitsOnly(payload?.identityPhone || payload?.contactPhone || contact.phone || payload?.attrs?.identityPhone || ""),
+    net: {
+      industry: net.industry || "",
+      roleLevel: net.roleLevel || "",
+      yearsExperience: net.yearsExperience || "",
+      education: net.education || "",
+      certifications: net.certifications || "",
+      licenses: net.licenses || "",
+      intentions: net.intentions || "",
+      lookingFor: (net.lookingFor || []).slice().sort(),
+      ice1: net.ice1 || "",
+      ice2: net.ice2 || "",
+      ice3: net.ice3 || ""
+    },
+    socials: {
+      linkedin: String(contact.linkedin || payload?.linkedin || "").trim(),
+      website: String(contact.website || payload?.website || "").trim(),
+      instagram: String(contact.instagram || "").trim(),
+      tiktok: String(contact.tiktok || "").trim(),
+      facebook: String(contact.facebook || "").trim()
+    },
     attrs: payload?.attrs ?? {},
     food: (payload?.foodChips ?? []).slice().sort(),
     act: (payload?.activityChips ?? []).slice().sort(),
@@ -757,7 +779,7 @@ function ackSubmit(clientNonce=null){
 }
 
 /* =========================
-   MATCH / SCORE
+   MATCH / SCORE (Dating logic stays as-is)
 ========================= */
 const CODE_WORDS = ["LIME","WAVE","NOVA","GOLD","MOON","JAZZ","ROSE","BAYOU","SPARK","VIBE","MINT","ONYX","SUGAR","VELVET","NEON"];
 function makeMatchCode(){
@@ -848,16 +870,27 @@ function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
 function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
 
 /* =========================
-   IMPORT GUEST
+   ALIAS (switches by event.type)
 ========================= */
-const ALIAS_A = ["Neon","Velvet","Midnight","Lucky","Smooth","Wild","Golden","Sugar","Cosmic","Electric","Bayou","Rouge","Moon","Star","Cajun","Whisper","Spicy","Satin","Honey","Silver"];
-const ALIAS_B = ["Muse","Wink","Charm","Heartbeat","Vibe","Spark","Sway","Crush","Flirt","Serenade","Rendezvous","Rose","Phoenix","Echo","Breeze","Glow","Nova","Julep","Daiquiri","Shot"];
+const DATE_A = ["Neon","Velvet","Midnight","Lucky","Smooth","Wild","Golden","Sugar","Cosmic","Electric","Bayou","Rouge","Moon","Star","Cajun","Whisper","Spicy","Satin","Honey","Silver"];
+const DATE_B = ["Muse","Wink","Charm","Heartbeat","Vibe","Spark","Sway","Crush","Flirt","Serenade","Rendezvous","Rose","Phoenix","Echo","Breeze","Glow","Nova","Julep","Daiquiri","Shot"];
+
+const NET_A = ["Growth","Product","Data","Ops","Brand","Vision","Strategy","Pipeline","Market","Client","Sales","Tech","Health","Finance","Creative","Legal","People","Talent","Founder","Builder"];
+const NET_B = ["Architect","Navigator","Analyst","Leader","Connector","Operator","Partner","Advisor","Planner","Engineer","Designer","Manager","Strategist","Specialist","Mentor","Catalyst","Director","Owner","Scout","Maker"];
+
 function makeAlias(){
-  const a = ALIAS_A[Math.floor(Math.random()*ALIAS_A.length)];
-  const b = ALIAS_B[Math.floor(Math.random()*ALIAS_B.length)];
+  const isNet = normalizeEventType(event.type) === "networking";
+  const A = isNet ? NET_A : DATE_A;
+  const B = isNet ? NET_B : DATE_B;
+  const a = A[Math.floor(Math.random()*A.length)];
+  const b = B[Math.floor(Math.random()*B.length)];
   const n = Math.floor(Math.random()*90)+10;
   return `${a}${b}${n}`;
 }
+
+/* =========================
+   IMPORT GUEST
+========================= */
 function upsertGuestById(id, patch){
   const idx = people.findIndex(p=>p.id===id);
   if(idx>=0) people[idx] = { ...people[idx], ...patch };
@@ -890,7 +923,9 @@ function importGuest(payload){
   const expectedVenue = payload.expectedVenueId || payload.venueId || "";
 
   const identityPhone = extractIdentityPhone(payload, stableId);
+  const eventTypeFromPayload = normalizeEventType(payload?.eventType || payload?.event?.type || event.type || "dating");
 
+  const net = payload?.net && typeof payload.net==="object" ? payload.net : {};
   const p = {
     id: stableId,
     clientNonce: payload.clientNonce || (existing?.clientNonce || null),
@@ -905,6 +940,9 @@ function importGuest(payload){
 
     identityPhone: identityPhone || (existing?.identityPhone || ""),
 
+    eventType: eventTypeFromPayload,
+
+    /* dating fields (existing support) */
     attrs: payload.attrs || {},
     prefs: payload.prefs || {},
     deal: payload.deal || {},
@@ -916,6 +954,22 @@ function importGuest(payload){
     starter: payload.starter || "",
     pays: payload.pays || "",
     budget: payload.budget || "",
+
+    /* networking fields */
+    net: {
+      industry: net.industry || "",
+      roleLevel: net.roleLevel || "",
+      yearsExperience: net.yearsExperience || "",
+      education: net.education || "",
+      certifications: net.certifications || "",
+      licenses: net.licenses || "",
+      intentions: net.intentions || "",
+      lookingFor: Array.isArray(net.lookingFor) ? net.lookingFor : [],
+      ice1: net.ice1 || "",
+      ice2: net.ice2 || "",
+      ice3: net.ice3 || ""
+    },
+
     updatedAt: now()
   };
 
@@ -1140,7 +1194,7 @@ function handleVoteMessage(msg){
 }
 
 /* =========================
-   CONTACT SAVE
+   CONTACT SAVE (supports linkedin/website + dating socials)
 ========================= */
 function handleContactSave(msg){
   const roomId = currentRoomId();
@@ -1157,9 +1211,13 @@ function handleContactSave(msg){
   const instagram = String(contact.instagram || "").trim();
   const tiktok = String(contact.tiktok || "").trim();
   const facebook = String(contact.facebook || "").trim();
+  const linkedin = String(contact.linkedin || "").trim();
+  const website  = String(contact.website || "").trim();
 
   if(!contacts[voterId]) contacts[voterId] = {};
   if(phone.length===10) contacts[voterId].phone = phone;
+  if(linkedin) contacts[voterId].linkedin = linkedin;
+  if(website) contacts[voterId].website = website;
   if(instagram) contacts[voterId].instagram = instagram;
   if(tiktok) contacts[voterId].tiktok = tiktok;
   if(facebook) contacts[voterId].facebook = facebook;
@@ -1395,6 +1453,7 @@ function renderArrivals(){
       <div style="min-width:0">
         <strong>${esc(p.alias)} ${invalid ? `<span class="badge bad" style="margin-left:8px">INVALID VENUE</span>` : ``}</strong>
         <div class="sub">
+          Type: <span class="mono">${esc(p.eventType || event.type || "dating")}</span><br/>
           Expected: <span class="mono">${esc(barName(expected))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
           Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • ID: <span class="mono">${esc(p.id)}</span>
         </div>
@@ -1452,6 +1511,7 @@ function renderCheckedIn(){
       <div style="min-width:0">
         <strong>${esc(p.alias)}</strong>
         <div class="sub">
+          Type: <span class="mono">${esc(p.eventType || event.type || "dating")}</span><br/>
           Checked In: <span class="mono">${esc(barName(v))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
           Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • ID: <span class="mono">${esc(p.id)}</span>
         </div>
@@ -1593,8 +1653,8 @@ function updateLinks(){
   join.searchParams.set("room", roomId);
   join.searchParams.set("session", host.session);
   join.searchParams.set("mode", host.mode);
-  join.searchParams.set("eventType", event.type || "dating"); /* ✅ NEW */
-  join.searchParams.set("eventName", event.name || "");       /* optional */
+  join.searchParams.set("eventType", event.type || "dating");
+  join.searchParams.set("eventName", event.name || "");
   join.searchParams.set("bars", JSON.stringify(bars.map(b=>({id:b.id,name:b.name}))));
   join.searchParams.set("participating", JSON.stringify(event.participatingBarIds || []));
 
@@ -1619,8 +1679,6 @@ function renderAll(){
   $("modeSelect").value = host.mode;
   $("sessionCode").value = host.session;
   $("eventName").value = event.name || "";
-
-  /* ✅ NEW */
   $("eventType").value = normalizeEventType(event.type);
 
   renderEventBars();
@@ -1702,9 +1760,7 @@ function createOrUpdateEvent(){
   if(!requireUnlock()) return;
   if(!event.eventId) event.eventId = "CITY-"+uid().slice(0,6).toUpperCase();
   event.name = $("eventName").value.trim() || event.name || "City Event";
-  /* ✅ keep event.type saved too */
   event.type = normalizeEventType($("eventType").value);
-
   saveJSON(STORAGE.EVENT,event);
   renderAll();
   broadcastConfig();
@@ -1723,18 +1779,38 @@ function toggleParticipating(barId){
 
 function exportCSV(){
   const pool=activePool();
-  const headers=["alias","id","status","identityPhone","expectedVenue","checkedInVenue","travelYes","foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter","instagram","tiktok","facebook"];
+  const headers=[
+    "alias","id","eventType","status","identityPhone","expectedVenue","checkedInVenue","travelYes",
+    "industry","roleLevel","yearsExperience","education","certifications","licenses","intentions","lookingFor","ice1","ice2","ice3",
+    "foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter",
+    "linkedin","website","instagram","tiktok","facebook"
+  ];
   let csv=headers.join(",")+"\n";
   for(const p of pool){
     const c = contacts[p.id] || {};
+    const net = p.net || {};
     const row=[
       p.alias,
       p.id,
+      p.eventType || "",
       p.status || "pending",
       (p.identityPhone ? digitsOnly(p.identityPhone) : ""),
       barName(p.expectedVenueId || p.venueId),
       barName(p.checkedInVenueId || ""),
       p.travelYes?"Yes":"No",
+
+      net.industry || "",
+      net.roleLevel || "",
+      net.yearsExperience || "",
+      net.education || "",
+      net.certifications || "",
+      net.licenses || "",
+      net.intentions || "",
+      (Array.isArray(net.lookingFor)? net.lookingFor.join("|") : ""),
+      net.ice1 || "",
+      net.ice2 || "",
+      net.ice3 || "",
+
       (p.foodChips||[]).join("|"),
       (p.activityChips||[]).join("|"),
       p.firstDateLoc||"",
@@ -1743,6 +1819,9 @@ function exportCSV(){
       p.budget||"",
       p.publicBlurb||"",
       p.starter||"",
+
+      c.linkedin||"",
+      c.website||"",
       c.instagram||"",
       c.tiktok||"",
       c.facebook||""
@@ -1824,6 +1903,7 @@ function init(){
   ensureDefaultBar();
   saveJSON(STORAGE.BARS,bars);
   saveJSON(STORAGE.HOST,host);
+  event.type = normalizeEventType(event.type);
   saveJSON(STORAGE.EVENT,event);
 
   $("btnHostPin").addEventListener("click", handlePinButton);
@@ -1912,14 +1992,13 @@ function init(){
 
   $("btnCreateEvent").addEventListener("click", createOrUpdateEvent);
 
-  /* ✅ NEW: save eventType immediately when changed */
   $("eventType").addEventListener("change", ()=>{
     if(!requireUnlock()) { $("eventType").value = normalizeEventType(event.type); return; }
     event.type = normalizeEventType($("eventType").value);
     saveJSON(STORAGE.EVENT, event);
     renderAll();
     broadcastConfig();
-    showToast("Event type", "Broadcasted event type.");
+    showToast("Event type", `Set to ${event.type.toUpperCase()}.`);
   });
 
   $("barSelect").addEventListener("dblclick", ()=>{
@@ -2014,6 +2093,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
