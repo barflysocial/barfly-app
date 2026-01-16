@@ -9,6 +9,7 @@
       --bg:#070a12; --txt:#e9f0ff; --muted:#a7b3d1; --line:rgba(255,255,255,.12);
       --good:#2dd4bf; --brand:#60a5fa; --warn:#fbbf24; --bad:#fb7185;
       --shadow:0 10px 30px rgba(0,0,0,.35); --r:18px;
+      --net:#60a5fa; --date:#2dd4bf;
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:
@@ -25,6 +26,8 @@
     .pill.good{border-color:rgba(45,212,191,.35);background:rgba(45,212,191,.08)}
     .pill.warn{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08)}
     .pill.bad{border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.08)}
+    .pill.net{border-color:rgba(96,165,250,.38);background:rgba(96,165,250,.10);color:#bcd8ff}
+    .pill.date{border-color:rgba(45,212,191,.40);background:rgba(45,212,191,.10);color:#c9fff2}
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
     @media(max-width:1200px){.grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:720px){.grid{grid-template-columns:1fr}}
@@ -32,6 +35,7 @@
     .pair{font-weight:1000;font-size:22px;line-height:1.15}
     .meta{margin-top:8px;color:var(--muted);font-weight:900;line-height:1.35}
     .code{display:inline-block;margin-top:10px;padding:8px 10px;border-radius:999px;border:1px solid rgba(45,212,191,.35);background:rgba(45,212,191,.10);color:var(--good);font-weight:1000}
+    .code.net{border-color:rgba(96,165,250,.38);background:rgba(96,165,250,.10);color:#bcd8ff}
     .footer{margin-top:14px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.03);padding:14px;color:var(--muted);font-weight:900;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
     .big{font-size:18px;color:var(--txt)}
     .hidden{display:none !important;}
@@ -43,14 +47,16 @@
 <div class="wrap">
   <div class="top">
     <div style="min-width:280px">
-      <div class="title">Now Matching 💚</div>
-      <div class="sub">
+      <div class="title" id="titleText">Now Matching 💚</div>
+      <div class="sub" id="subText">
         Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s<br/>
         <span class="k">Only <b>Checked-In</b> guests appear here</span>
       </div>
     </div>
 
     <div class="pillRow" style="min-width:320px">
+      <div class="pill" id="eventPillWrap"><b>Event</b> <span id="eventPill">—</span></div>
+
       <div class="pill"><b>Room</b> <span id="roomPill">—</span></div>
       <div class="pill"><b>Session</b> <span id="sessionPill">—</span></div>
 
@@ -63,7 +69,7 @@
       <!-- Option C hybrid pills -->
       <div class="pill warn"><b>Expected</b> <span id="expectedPill">0</span></div>
       <div class="pill good"><b>Checked In</b> <span id="checkedInPill">0</span></div>
-      <div class="pill good"><b>Active Matches</b> <span id="activeMatchesPill">0</span></div>
+      <div class="pill good"><b>Active</b> <span id="activeMatchesPill">0</span></div>
       <div class="pill" id="hotspotWrap"><b>Tonight’s Hotspot</b> <span id="hotspotPill">—</span></div>
     </div>
   </div>
@@ -71,36 +77,38 @@
   <div class="grid" id="grid"></div>
 
   <div class="footer">
-    <div class="big">See your alias pairing? Go to the host stand to connect.</div>
-    <div>Barfly Social • Private Live Matchmaking</div>
+    <div class="big" id="footerLead">See your alias pairing? Go to the host stand to connect.</div>
+    <div id="footerTag">Barfly Social • Private Live Matchmaking</div>
   </div>
 </div>
 
 <script>
 /* ============================================================
-   Barfly Social — TV (Aligned to Host Dashboard v11)
+   Barfly Social — TV (Event-Type Aware)
 
    ✅ Rules:
    - TV only shows matches where BOTH guests are checked-in.
    - Counts use Option C Hybrid:
        Expected = pending guests who selected a venue
        Checked In = host verified
-       Active Matches = TV pairs involving checked-in guests
+       Active = TV pairs involving checked-in guests
        Tonight’s Hotspot = venue with most active matches
    - Prefers host-provided counts/hotspot; falls back if missing.
-   - Never shows “waiting for host config” — instead:
-       - If no host sync yet: shows "Waiting for host broadcast…"
+   - Event Type (Dating vs Networking) comes from:
+       1) URL: ?event=dating | networking
+       2) Host config: eventType / event / type / mode fields (best-effort)
+   - Backward compatible if host hasn't added eventType yet.
 ============================================================ */
 
 const WS_URL = "wss://bar-match-relay.onrender.com";
 
-const ROTATE_MS   = 10 * 1000;
-const RESYNC_MS   = 25 * 1000;
-const RECONNECT_MS= 2500;
+const ROTATE_MS     = 10 * 1000;
+const RESYNC_MS     = 25 * 1000;
+const RECONNECT_MS  = 2500;
 
-const HEARTBEAT_MS= 15 * 1000;
-const STALE_MS    = 45 * 1000;   // if no traffic, force reconnect
-const SYNC_STALE_MS = 40 * 1000; // if no tv_sync, show a clearer waiting message
+const HEARTBEAT_MS  = 15 * 1000;
+const STALE_MS      = 45 * 1000;   // if no traffic, force reconnect
+const SYNC_STALE_MS = 40 * 1000;   // if no tv_sync, show clearer waiting message
 
 const $ = (id)=>document.getElementById(id);
 
@@ -110,6 +118,7 @@ function qs(){
   q.room    = (q.room || q.roomId || q.barId || "").trim();
   q.session = (q.session || "").trim();
   q.venue   = (q.venue || "").trim();
+  q.event   = (q.event || q.eventType || q.type || "").trim().toLowerCase(); // dating | networking
   return q;
 }
 function esc(s){
@@ -124,6 +133,88 @@ function normVenue(v){
   if(!s) return "";
   if(/^all$/i.test(s) || /^allvenues$/i.test(s) || s === "*") return "";
   return s;
+}
+
+/* =========================
+   EVENT TYPE
+========================= */
+let EVENT_TYPE = ""; // "dating" | "networking" | ""
+
+function normalizeEventType(raw){
+  const s = String(raw||"").trim().toLowerCase();
+  if(!s) return "";
+  if(s.includes("network")) return "networking";
+  if(s.includes("dating")) return "dating";
+  // allow short forms
+  if(s === "net") return "networking";
+  if(s === "date") return "dating";
+  return "";
+}
+
+function inferEventTypeFromConfig(cfg){
+  // best-effort mapping across possible host field names
+  const candidates = [
+    cfg?.eventType,
+    cfg?.event,
+    cfg?.type,
+    cfg?.mode,                 // if host uses "mode" for event type
+    cfg?.event?.type,
+    cfg?.settings?.eventType,
+    cfg?.settings?.type
+  ];
+  for(const c of candidates){
+    const n = normalizeEventType(c);
+    if(n) return n;
+  }
+  return "";
+}
+
+function applyEventUI(){
+  const pillWrap = $("eventPillWrap");
+  const pill = $("eventPill");
+
+  const title = $("titleText");
+  const sub = $("subText");
+  const footerLead = $("footerLead");
+  const footerTag = $("footerTag");
+
+  const t = EVENT_TYPE || "";
+
+  // default (unknown)
+  let eventLabel = "Live Event";
+  let pillClass = "pill";
+  let titleText = "Now Matching 💚";
+  let subHtml = `Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s<br/>
+    <span class="k">Only <b>Checked-In</b> guests appear here</span>`;
+  let footerLeadText = "See your alias pairing? Go to the host stand to connect.";
+  let footerTagText = "Barfly Social • Private Live Matchmaking";
+
+  if(t === "networking"){
+    eventLabel = "💼 Professional Networking";
+    pillClass = "pill net";
+    titleText = "Now Networking 💼";
+    subHtml = `Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s<br/>
+      <span class="k">Only <b>Checked-In</b> guests appear here</span>`;
+    footerLeadText = "See your networking pairing? Go to the host stand to connect.";
+    footerTagText = "Barfly Social • Professional Networking";
+  }else if(t === "dating"){
+    eventLabel = "💚 Dating Night";
+    pillClass = "pill date";
+    titleText = "Now Matching 💚";
+    subHtml = `Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s<br/>
+      <span class="k">Only <b>Checked-In</b> guests appear here</span>`;
+    footerLeadText = "See your alias pairing? Go to the host stand to connect.";
+    footerTagText = "Barfly Social • Private Live Matchmaking";
+  }
+
+  pillWrap.className = pillClass;
+  pill.textContent = eventLabel;
+
+  title.textContent = titleText;
+  sub.innerHTML = subHtml;
+
+  footerLead.textContent = footerLeadText;
+  footerTag.textContent = footerTagText;
 }
 
 /* =========================
@@ -236,7 +327,7 @@ function stopHeartbeat(){
 ========================= */
 
 /* A match is TV-eligible ONLY if both checked in.
-   Host v11 sends:
+   Host v11 may send:
      - aCheckedIn / bCheckedIn booleans
      - aStatus / bStatus strings
    Back-compat: if host doesn't send flags, we assume true (older host behavior).
@@ -273,7 +364,6 @@ function filteredMatches(){
 }
 
 function computeHotspotFromList(list){
-  // counts venue appearances across active matches
   const counts = new Map();
   for(const m of list){
     const av = String(m.aVenueId||"").trim();
@@ -328,11 +418,8 @@ function setCountsFromMsg(msg){
 }
 
 function setCountsFallback(){
-  // fallback computes what it can from matches we already have
   const active = filteredMatches();
   $("activeMatchesPill").textContent = String(active.length);
-
-  // Expected/Checked In rely on host roster; leave as-is (defaults to 0)
   const hs = computeHotspotFromList(active);
   $("hotspotPill").textContent = hs.label;
 }
@@ -353,24 +440,28 @@ function waitingCard(){
   const hasHostSync = !!lastTvSyncAt;
   const staleSync = hasHostSync ? (Date.now()-lastTvSyncAt) > SYNC_STALE_MS : true;
 
-  // If we haven't received tv_sync yet (or it's stale), show a clearer message
   const help = staleSync
     ? `Host hasn’t broadcasted TV data yet (or it’s stale).`
-    : `No checked-in matches right now.`;
+    : `No checked-in pairs right now.`;
 
   const venue = normVenue(q.venue);
   const venueLine = venue ? `<div style="margin-top:6px">TV Venue Filter: <span class="mono">${esc(labelVenue(venue))}</span></div>` : ``;
 
+  const t = EVENT_TYPE || "";
+  const extra = (t==="networking")
+    ? `Guests must be <b>Checked In</b> by the host to appear on the networking TV.`
+    : `Guests must be <b>Checked In</b> by the host to appear on TV.`;
+
   return `
     <div class="card">
-      <div class="pair">Waiting for checked-in matches…</div>
+      <div class="pair">Waiting for checked-in pairs…</div>
       <div class="meta">
         ${esc(help)}<br/>
-        <span class="k">Guests must be <b>Checked In</b> by the host to appear on TV.</span>
+        <span class="k">${extra}</span>
         ${venueLine}
       </div>
       <div class="meta" style="margin-top:10px">
-        <span class="mono">Tip:</span> Host should click <b>Broadcast Config</b> (and/or <b>Compute Mutuals → TV</b>) if needed.
+        <span class="mono">Tip:</span> Host should click <b>Broadcast Config</b> and then <b>Compute → TV</b> (or similar) if needed.
       </div>
     </div>
   `;
@@ -383,7 +474,6 @@ function render(){
   grid.innerHTML="";
   const list = filteredMatches();
 
-  // Only fallback if host hasn't given counts recently
   if(Date.now() - lastCountsAt > 5000){
     setCountsFallback();
   }
@@ -399,6 +489,13 @@ function render(){
   const perPage = 9;
   const pages = Math.max(1, Math.ceil(list.length / perPage));
   page = page % pages;
+
+  const labelCode = (EVENT_TYPE === "networking") ? "Connect Code" : "Match Code";
+  const codeClass = (EVENT_TYPE === "networking") ? "code net" : "code";
+
+  const defaultPlan = (EVENT_TYPE === "networking")
+    ? "See host to connect professionally."
+    : "See host to connect.";
 
   const slice = list.slice(page*perPage, page*perPage + perPage);
   for(const m of slice){
@@ -416,10 +513,10 @@ function render(){
     el.innerHTML=`
       <div class="pair">${esc(left)} + ${esc(right)} — ${Math.round((m.score||0)*100)}%</div>
       <div class="meta">
-        ${esc(m.plan || "See host to connect.")}
+        ${esc(m.plan || defaultPlan)}
         ${venuesLine ? `<div style="margin-top:6px">${venuesLine}</div>` : ``}
       </div>
-      <div class="code">Match Code: <span class="mono">${esc(m.code||"—")}</span></div>
+      <div class="${codeClass}">${labelCode}: <span class="mono">${esc(m.code||"—")}</span></div>
     `;
     grid.appendChild(el);
   }
@@ -437,6 +534,11 @@ function connectWS(){
   const q=qs();
   $("roomPill").textContent=q.room || "—";
   $("sessionPill").textContent=q.session || "—";
+
+  // initial event type from URL, if provided
+  const urlEvent = normalizeEventType(q.event);
+  if(urlEvent){ EVENT_TYPE = urlEvent; applyEventUI(); }
+
   applyVenuePillUI();
 
   if(!q.room || !q.session){
@@ -463,7 +565,6 @@ function connectWS(){
 
     safeSend({ type:"join", role:"tv", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 
-    // ask host for config + tv
     requestConfig();
     requestSync();
   };
@@ -472,7 +573,6 @@ function connectWS(){
     touchTraffic();
     let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
 
-    // ping/pong compatibility
     if(msg.type === "ping"){
       const q=qs();
       safeSend({ type:"pong", roomId: q.room, room: q.room, barId: q.room, session: q.session, t: Date.now() });
@@ -480,7 +580,7 @@ function connectWS(){
     }
     if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack"){ return; }
 
-    // config for venue names
+    // config
     if(msg.type==="config" || msg.type==="event_config"){
       const q=qs();
       const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
@@ -488,6 +588,20 @@ function connectWS(){
       if(msgRoom && msgRoom !== q.room) return;
 
       HOST_CONFIG = msg;
+
+      // event type from host config (only override if host provides a recognized type)
+      const fromHost = inferEventTypeFromConfig(msg);
+      if(fromHost){
+        EVENT_TYPE = fromHost;
+        applyEventUI();
+      }else{
+        // if not set anywhere, keep whatever we already have (URL or default)
+        if(!EVENT_TYPE){
+          EVENT_TYPE = "";
+          applyEventUI();
+        }
+      }
+
       applyVenuePillUI();
       render();
       return;
@@ -502,7 +616,13 @@ function connectWS(){
 
       lastTvSyncAt = Date.now();
 
-      // accept flexible shapes
+      // event type can also arrive on tv_sync (best-effort)
+      const fromSync = normalizeEventType(msg.eventType || msg.event || msg.type);
+      if(fromSync && fromSync !== EVENT_TYPE){
+        EVENT_TYPE = fromSync;
+        applyEventUI();
+      }
+
       matches = (msg.matches || []).map(m=>({
         score: m.score || 0,
         code: m.code || "",
@@ -515,14 +635,12 @@ function connectWS(){
         aVenueId: m.aVenueId || "",
         bVenueId: m.bVenueId || "",
 
-        // host v11 fields
         aCheckedIn: (typeof m.aCheckedIn === "boolean") ? m.aCheckedIn : (typeof m.checkedInA === "boolean" ? m.checkedInA : undefined),
         bCheckedIn: (typeof m.bCheckedIn === "boolean") ? m.bCheckedIn : (typeof m.checkedInB === "boolean" ? m.checkedInB : undefined),
         aStatus: m.aStatus || m.statusA || "",
         bStatus: m.bStatus || m.statusB || ""
       }));
 
-      // prefer host counts/hotspot; fallback will compute what it can
       setCountsFromMsg(msg);
 
       page = 0;
@@ -548,11 +666,21 @@ setInterval(()=>{ page++; render(); }, ROTATE_MS);
 setInterval(()=>{ if(WS_STATE==="CONNECTED") requestSync(); }, RESYNC_MS);
 setInterval(()=>{ setSyncPill(); }, 1000);
 
-connectWS();
-render();
+/* boot */
+(function boot(){
+  // Apply default event UI immediately (or URL-driven)
+  const q=qs();
+  EVENT_TYPE = normalizeEventType(q.event) || "";
+  applyEventUI();
+
+  connectWS();
+  render();
+})();
 </script>
 </body>
 </html>
+
+
 
 
 
