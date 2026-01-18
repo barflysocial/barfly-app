@@ -1015,10 +1015,10 @@ textarea{min-height:86px;resize:vertical}
 <script>
 /* ============================================================
    JOIN — HOST-SELECTED EVENT TYPE (Dating OR Networking)
-   - Host decides event type; users cannot switch it.
-   - Phone required (identityPhone) for host verification.
-   - Age must be 18+ (hard gate).
-   - If config is slow, we retry + show status (fixes "waiting for host config" feel).
+   Improvements in this version:
+   ✅ WS connects immediately (even before "Enter") so gate screen can truly sync config.
+   ✅ "Enter" requires: 18+ + Terms + (Config READY or valid FALLBACK).
+   ✅ Missing-field errors are human-readable (no raw element IDs).
 ============================================================ */
 
 const WS_URL = "wss://bar-match-relay.onrender.com";
@@ -1027,15 +1027,7 @@ const TOP_N = 12;
 const FOOD = ["American","Asian","Latin","BBQ","Italian","Indian","Mediterranean","Seafood","Steak","Sushi"];
 const ACTS = ["Trivia","Karaoke","Music Bingo","Bingo","Line Dancing","Latin Dancing","Crafting Cocktails","Wine Tasting","Movies","Video Games","Yoga","Daiquiris","Golf Range","Pickleball","Painting","Musical Instruments","Volunteering","Hunting","Fishing","Reading","Writing","Trampoline Park","Volleyball","Working Out","Football","Softball","Baseball","Basketball","Sports Bar","Shopping","Comedy Show","Photography","VR Sports","Cigar/Hookah","Bowling"];
 
-const NET_INTENTS = [
-  "Mentor",
-  "Employment",
-  "Business partners",
-  "Collaborators",
-  "Investors",
-  "Customers/clients",
-  "Internships"
-];
+const NET_INTENTS = ["Mentor","Employment","Business partners","Collaborators","Investors","Customers/clients","Internships"];
 
 const $ = (id)=>document.getElementById(id);
 
@@ -1088,7 +1080,6 @@ function validFacebook(raw){
 function validUrlish(raw){
   const s = String(raw||"").trim();
   if(!s) return true;
-  // accept "domain.com" or http(s)://...
   if(/^https?:\/\//i.test(s)) return s.length <= 200;
   return /^[A-Za-z0-9.-]+\.[A-Za-z]{2,}([\/?#].*)?$/.test(s) && s.length <= 200;
 }
@@ -1152,14 +1143,19 @@ function isGateAccepted(){
 function setGateAccepted(){
   try{ localStorage.setItem(gateKey(), "1"); }catch{}
 }
-function updateGateButton(){
-  const ok = !!$("chk18")?.checked && !!$("chkTerms")?.checked;
-  $("btnEnter").disabled = !ok;
-}
 function showGate(){
   $("gateCard").classList.remove("hidden");
   $("formCard").classList.add("hidden");
   $("voteCard").classList.add("hidden");
+}
+function canEnterNow(){
+  const okBoxes = !!$("chk18")?.checked && !!$("chkTerms")?.checked;
+  const cfgOk = (CFG_STATE==="READY") || (CFG_STATE==="FALLBACK" && hasUrlFallbackEnough());
+  const linkOk = !!qs().room && !!qs().session;
+  return okBoxes && cfgOk && linkOk;
+}
+function updateGateButton(){
+  $("btnEnter").disabled = !canEnterNow();
 }
 function enterApp(){
   const q=qs();
@@ -1167,11 +1163,13 @@ function enterApp(){
     showToast("Bad link", "Missing ?room=...&session=... in the URL.");
     return;
   }
+  if(!(CFG_STATE==="READY" || (CFG_STATE==="FALLBACK" && hasUrlFallbackEnough()))){
+    showToast("Still syncing", "Wait for host config (or use a link that includes fallback bars + eventType).");
+    return;
+  }
   setGateAccepted();
   $("gateCard").classList.add("hidden");
   $("formCard").classList.remove("hidden");
-  // Start WS + config sync now that they entered
-  connectWS();
   setVoteStats();
   updateSubmitEnabled();
   showToast("Welcome", "Fill out your profile, submit, then vote.");
@@ -1197,6 +1195,8 @@ function setCfgPill(state){
   if(!wrap || !pill) return;
   pill.textContent = state;
   wrap.className = "pill " + (state==="READY" ? "good" : state==="FALLBACK" ? "warn" : "warn");
+  updateGateConfigMessage();
+  updateGateButton();
 }
 
 function setEventPill(type){
@@ -1223,7 +1223,6 @@ function parseBarsFromUrl(){
     }
   }catch{ HOST_PARTICIPATING_IDS = []; }
 
-  // optional fallback for eventType (ONLY used if host doesn't supply it)
   const et = String(q.eventType||"").toLowerCase();
   if(et==="dating" || et==="networking") HOST_EVENT_TYPE = et;
 }
@@ -1244,7 +1243,6 @@ function extractEventTypeFromConfig(cfg){
 function applyHostConfig(cfg){
   HOST_CONFIG = cfg || HOST_CONFIG;
 
-  // bars/mode/participating
   const bars = Array.isArray(cfg?.bars) ? cfg.bars : [];
   if(bars.length){
     HOST_BARS = bars.map(x=>({id:x.id, name:x.name}));
@@ -1258,14 +1256,12 @@ function applyHostConfig(cfg){
            : [];
   if(ids.length) HOST_PARTICIPATING_IDS = ids;
 
-  // event type (host wins)
   const et = extractEventTypeFromConfig(cfg);
   if(et) HOST_EVENT_TYPE = et;
 
   if(HOST_BARS.length && HOST_EVENT_TYPE){
     setCfgPill("READY");
   }else{
-    // config arrived but incomplete; keep waiting and allow fallback if URL has enough
     setCfgPill(CFG_STATE==="FALLBACK" ? "FALLBACK" : "WAITING");
   }
 
@@ -1273,13 +1269,9 @@ function applyHostConfig(cfg){
   populateVenueSelect();
   applyEventTypeUI();
   updateSubmitEnabled();
-
-  // Gate screen messaging
-  updateGateConfigMessage();
 }
 
 function hasUrlFallbackEnough(){
-  // to proceed without host config, we require at least bars + eventType
   return Array.isArray(HOST_BARS) && HOST_BARS.length > 0 && (HOST_EVENT_TYPE==="dating" || HOST_EVENT_TYPE==="networking");
 }
 
@@ -1301,6 +1293,37 @@ function updateGateConfigMessage(){
 
   const triesLeft = Math.max(0, 10 - cfgRetryCount);
   msg.innerHTML = `Please wait. Retrying sync… (<b>${triesLeft}</b> more tries). If this takes too long, ask the host to refresh/broadcast the event.`;
+}
+
+function startConfigRetries(){
+  stopConfigRetries();
+  cfgRetryCount = 0;
+  updateGateConfigMessage();
+
+  cfgRetryTimer = setInterval(()=>{
+    if(CFG_STATE==="READY") { stopConfigRetries(); return; }
+    cfgRetryCount++;
+    requestConfig();
+    setCfgPill(CFG_STATE==="FALLBACK" ? "FALLBACK" : "WAITING");
+
+    if(cfgRetryCount >= 3 && hasUrlFallbackEnough() && CFG_STATE!=="READY"){
+      setCfgPill("FALLBACK");
+      setEventPill(HOST_EVENT_TYPE);
+      applyEventTypeUI();
+      populateVenueSelect();
+      updateSubmitEnabled();
+    }
+
+    if(cfgRetryCount >= 10){
+      stopConfigRetries();
+      updateGateConfigMessage();
+    }
+  }, 3000);
+}
+
+function stopConfigRetries(){
+  clearInterval(cfgRetryTimer);
+  cfgRetryTimer=null;
 }
 
 /* =========================
@@ -1385,11 +1408,11 @@ function applyEventTypeUI(){
     dating.classList.add("hidden");
     $("eventSubtitle").textContent = "Professional Networking. Alias-only matching. Your identity stays private.";
   }else{
-    // unknown
     dating.classList.add("hidden");
     net.classList.add("hidden");
     $("eventSubtitle").textContent = "Syncing event type…";
   }
+  updateGateButton();
 }
 
 /* =========================
@@ -1452,41 +1475,6 @@ function requestConfig(){
   safeSend({ type:"request_config", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 }
 
-function startConfigRetries(){
-  stopConfigRetries();
-  cfgRetryCount = 0;
-  updateGateConfigMessage();
-
-  cfgRetryTimer = setInterval(()=>{
-    if(CFG_STATE==="READY") { stopConfigRetries(); return; }
-    cfgRetryCount++;
-    requestConfig();
-    setCfgPill(CFG_STATE==="FALLBACK" ? "FALLBACK" : "WAITING");
-    updateGateConfigMessage();
-
-    // after a few tries, if URL has enough, enable fallback so users can continue
-    if(cfgRetryCount >= 3 && hasUrlFallbackEnough() && CFG_STATE!=="READY"){
-      setCfgPill("FALLBACK");
-      setEventPill(HOST_EVENT_TYPE);
-      applyEventTypeUI();
-      populateVenueSelect();
-      updateSubmitEnabled();
-      updateGateConfigMessage();
-    }
-
-    // stop retry after 10 tries (about ~30s)
-    if(cfgRetryCount >= 10){
-      stopConfigRetries();
-      updateGateConfigMessage();
-    }
-  }, 3000);
-}
-
-function stopConfigRetries(){
-  clearInterval(cfgRetryTimer);
-  cfgRetryTimer=null;
-}
-
 function connectWS(){
   const q=qs();
   const room=q.room;
@@ -1516,7 +1504,6 @@ function connectWS(){
     let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
 
     if(msg.type==="config" || msg.type==="event_config"){
-      // accept config for our room/session only
       const q=qs();
       const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
       if(msg.session && msg.session !== q.session) return;
@@ -1584,6 +1571,30 @@ function lockVenuePostSubmit(){
 }
 
 /* =========================
+   FRIENDLY LABELS (for errors)
+========================= */
+const LABEL = {
+  // common
+  venueSelect: "Expected location",
+  travelYes: "Willing to travel",
+  identityPhone: "Identity Phone",
+  age: "Age (18+)",
+  // dating required
+  sex:"Sex", race:"Race", income:"Income", height:"Height", build:"Body build", eye:"Eye color", hair:"Hair color",
+  skin:"Skin tone", smoke:"Smoking", marital:"Marital status", politics:"Political view", family:"Family status",
+  edu:"Education", love:"Love language", pets:"Pets", religion:"Religion", religionOther:"Other religion",
+  datingIntent:"Dating intention", marriedBy:"Married by", familyBy:"Family by",
+  // first date + public
+  firstLoc:"First date location", firstAvail:"First date availability", pays:"Who pays for the first date", budget:"First date budget",
+  bestPhysical:"Best physical feature", bestTrait:"Best personality trait", publicBlurb:"Public blurb", starter:"Conversation starter",
+  // networking required
+  net_industry:"Industry / Field", net_roleLevel:"Role level", net_years:"Years of experience", net_edu:"Education",
+  net_certs:"Certifications", net_licenses:"Licenses", net_ice1:"Icebreaker #1", net_ice2:"Icebreaker #2", net_ice3:"Icebreaker #3",
+  net_skill:"Strongest skill", net_knownFor:"What I'm known for", net_publicBlurb:"Public blurb"
+};
+function niceLabel(x){ return LABEL[x] || x; }
+
+/* =========================
    VALIDATION
 ========================= */
 function valTrim(id){ return String($(id)?.value||"").trim(); }
@@ -1615,11 +1626,11 @@ function validateCommon(errs){
   if(!isGateAccepted()) errs.push("Accept 18+ and Terms to continue");
 
   const idPhoneRaw = valTrim("identityPhone");
-  if(!idPhoneRaw) errs.push("Identity Phone (required)");
+  if(!idPhoneRaw) errs.push(niceLabel("identityPhone")+" (required)");
   else if(!validPhone10(idPhoneRaw)) errs.push("Identity Phone must be 10 digits");
 
-  if(!hasVal("venueSelect")) errs.push("Expected location");
-  if(HOST_MODE === "city" && !hasVal("travelYes")) errs.push("Willing to travel");
+  if(!hasVal("venueSelect")) errs.push(niceLabel("venueSelect"));
+  if(HOST_MODE === "city" && !hasVal("travelYes")) errs.push(niceLabel("travelYes"));
 
   const ageVal = Number(valTrim("age")||0);
   if(!ageVal || ageVal < 18) errs.push("Age must be 18 or older");
@@ -1627,22 +1638,22 @@ function validateCommon(errs){
 
 function validateDating(errs){
   const reqIds = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","datingIntent","marriedBy","familyBy"];
-  for(const id of reqIds) if(!hasVal(id)) errs.push(id);
+  for(const id of reqIds) if(!hasVal(id)) errs.push(niceLabel(id));
 
-  if(valTrim("religion")==="Other" && !hasVal("religionOther")) errs.push("Other religion");
+  if(valTrim("religion")==="Other" && !hasVal("religionOther")) errs.push(niceLabel("religionOther"));
 
-  if(foodSet.size < 1) errs.push("At least 1 Favorite Food");
-  if(actSet.size < 1) errs.push("At least 1 Favorite Activity");
+  if(foodSet.size < 1) errs.push("Pick at least 1 Favorite Food");
+  if(actSet.size < 1) errs.push("Pick at least 1 Favorite Activity");
 
   const reqIds2 = ["firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter"];
-  for(const id of reqIds2) if(!hasVal(id)) errs.push(id);
+  for(const id of reqIds2) if(!hasVal(id)) errs.push(niceLabel(id));
 
   validateMutualContactDating(errs);
 }
 
 function validateNetworking(errs){
   const reqIds = ["net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses","net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb"];
-  for(const id of reqIds) if(!hasVal(id)) errs.push(id);
+  for(const id of reqIds) if(!hasVal(id)) errs.push(niceLabel(id));
 
   if(netIntentSet.size < 1) errs.push("Pick at least 1 networking intention");
 
@@ -1672,7 +1683,6 @@ function quietReadyToSubmit(){
   if(WS_STATE !== "CONNECTED") return false;
   if(!isGateAccepted()) return false;
 
-  // If config not ready, we still allow submit ONLY if fallback has enough
   if(CFG_STATE!=="READY" && CFG_STATE!=="FALLBACK") return false;
   if(CFG_STATE==="FALLBACK" && !hasUrlFallbackEnough()) return false;
 
@@ -1802,12 +1812,11 @@ function submit(){
     barId: q.room,
     session: q.session,
 
-    eventType: HOST_EVENT_TYPE, // ✅ host-selected type, included for clarity
+    eventType: HOST_EVENT_TYPE,
     venueId,
     expectedVenueId: venueId,
     travelYes: travelVal,
 
-    // ✅ required for host check-in verification
     identityPhone,
   };
 
@@ -2023,13 +2032,11 @@ function renderVoting(){
 function bindLiveValidation(){
   const ids = [
     "venueSelect","travelYes","identityPhone","age",
-    // dating
     "sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","religionOther",
     "datingIntent","marriedBy","familyBy",
     "pref_ageBand","pref_sex","pref_race","pref_income","pref_height","pref_build","pref_eye","pref_hair","pref_skin","pref_smoke","pref_marital","pref_politics","pref_datingIntent","pref_family","pref_edu","pref_love","pref_pets","pref_religion",
     "firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter",
     "sharePhone","contactInstagram","contactTiktok","contactFacebook",
-    // networking
     "net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses",
     "net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb",
     "net_sharePhone","net_linkedin","net_website"
@@ -2057,7 +2064,8 @@ function initNetworkingChips(){
 }
 
 function init(){
-  // URL fallback (pre-fill) while we wait for host config
+  const q = qs();
+
   parseBarsFromUrl();
   if(hasUrlFallbackEnough()){
     setCfgPill("FALLBACK");
@@ -2066,14 +2074,13 @@ function init(){
     setCfgPill("WAITING");
     setEventPill(HOST_EVENT_TYPE);
   }
+
   populateVenueSelect();
   applyEventTypeUI();
   updateGateConfigMessage();
 
-  // dating chips
   renderChips("foodChips", FOOD, foodSet);
   renderChips("actChips", ACTS, actSet);
-  // networking chips
   initNetworkingChips();
 
   hookReligionOther();
@@ -2090,15 +2097,16 @@ function init(){
   $("btnRefreshRoster")?.addEventListener("click", ()=>{ requestRoster(); renderVoting(); });
   $("btnClearVotes")?.addEventListener("click", ()=>{ votes={}; seenCount=0; likedCount=0; renderVoting(); showToast("Cleared","Local vote history cleared (host votes remain)."); });
 
-  // If gate already accepted, enter immediately
+  // ✅ Connect WS immediately so gate can actually sync config
+  if(q.room && q.session) connectWS(); else setWsStatus("ERROR");
+
+  // Gate vs already accepted
   if(isGateAccepted()){
     $("gateCard").classList.add("hidden");
     $("formCard").classList.remove("hidden");
-    connectWS();
   }else{
     showGate();
     updateGateButton();
-    setWsStatus("DISCONNECTED");
   }
 
   setVoteStats();
@@ -2108,6 +2116,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
