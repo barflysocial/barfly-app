@@ -350,7 +350,8 @@
       <div class="muted" style="font-weight:900;line-height:1.35">
         If guests say “Waiting for host config,” confirm:<br>
         1) Host is open and <b>WS shows CONNECTED</b><br>
-        2) The guest link uses the <b>same room + session</b> shown in the pills above
+        2) The guest link uses the <b>same room + session</b> shown in the pills above<br>
+        3) Press <b>Broadcast Config</b> once
       </div>
     </div>
   </div>
@@ -389,8 +390,10 @@ const MIN_MATCH_SCORE = 0.75;
 const TV_EXPIRE_MS = 3 * 60 * 60 * 1000;
 const TV_ROTATE_MS = 10 * 1000;
 
-const HEARTBEAT_MS = 15 * 1000;
-const PONG_TIMEOUT_MS = 45 * 1000;
+/* NOTE: Browser websockets can't send true TCP pings.
+   We do a lightweight app "ping" but we do NOT require a "pong" from relay,
+   because many relays don’t implement it. We only reconnect on actual close/error. */
+const HEARTBEAT_MS = 20 * 1000;
 const RECONNECT_BASE_MS = 800;
 const RECONNECT_MAX_MS  = 10 * 1000;
 
@@ -523,7 +526,7 @@ let dedupe = loadJSON(STORAGE.DEDUPE, {});
 /* Only allow dating | networking */
 function normalizeEventType(t){
   const s = String(t||"").toLowerCase().trim();
-  if(s==="networking" || s==="professional networking" || s==="professional") return "networking";
+  if(s.includes("network")) return "networking";
   return "dating";
 }
 event.type = normalizeEventType(event.type);
@@ -576,10 +579,9 @@ function populateCheckinVenueSelect(){
 let WS=null;
 let WS_STATE="DISCONNECTED";
 let lastTrafficAt = 0;
-let lastPongAt = 0;
 let reconnectAttempts = 0;
 
-const timers = { tvPurge:null, rebroadcastConfig:null, rosterSync:null, heartbeat:null, health:null };
+const timers = { tvPurge:null, rebroadcastConfig:null, rosterSync:null, heartbeat:null };
 
 function wsSetStatus(s){
   WS_STATE=s;
@@ -593,6 +595,7 @@ function safeSend(obj){
   try{
     if(WS && WS.readyState===WebSocket.OPEN){
       WS.send(JSON.stringify(obj));
+      lastTrafficAt = now();
       return true;
     }
   }catch{}
@@ -600,6 +603,35 @@ function safeSend(obj){
 }
 function currentRoomId(){
   return (host.mode === "city") ? event.eventId : host.activeBarId;
+}
+
+function stopHeartbeat(){
+  if(timers.heartbeat){ clearInterval(timers.heartbeat); timers.heartbeat=null; }
+}
+function startHeartbeat(){
+  stopHeartbeat();
+  timers.heartbeat = setInterval(()=>{
+    if(WS_STATE!=="CONNECTED") return;
+    const roomId = currentRoomId();
+    // Lightweight keepalive; relay may ignore. This is fine.
+    safeSend({ type:"ping", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
+  }, HEARTBEAT_MS);
+}
+function cleanupWs(){
+  stopHeartbeat();
+  try{
+    WS && (WS.onopen = WS.onmessage = WS.onerror = WS.onclose = null);
+    if(WS && (WS.readyState===WebSocket.OPEN || WS.readyState===WebSocket.CONNECTING)) WS.close();
+  }catch{}
+  WS=null;
+}
+function scheduleReconnect(){
+  cleanupWs();
+  const jitter = Math.floor(Math.random()*250);
+  const backoff = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts));
+  const wait = backoff + jitter;
+  reconnectAttempts = Math.min(10, reconnectAttempts+1);
+  setTimeout(()=>wsConnect(true), wait);
 }
 
 /* =========================
@@ -655,50 +687,6 @@ function broadcastRosterSync(requesterNonce=null){
   });
 }
 
-function stopHeartbeat(){
-  if(timers.heartbeat){ clearInterval(timers.heartbeat); timers.heartbeat=null; }
-  if(timers.health){ clearInterval(timers.health); timers.health=null; }
-}
-function startHeartbeat(){
-  stopHeartbeat();
-  lastTrafficAt = now();
-  lastPongAt = now();
-
-  timers.heartbeat = setInterval(()=>{
-    if(WS_STATE!=="CONNECTED") return;
-    const roomId = currentRoomId();
-    safeSend({ type:"ping", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
-  }, HEARTBEAT_MS);
-
-  timers.health = setInterval(()=>{
-    if(WS_STATE!=="CONNECTED") return;
-    const silentFor = now() - Math.max(lastPongAt||0, lastTrafficAt||0);
-    if(silentFor > PONG_TIMEOUT_MS){
-      wsSetStatus("ERROR");
-      try{ WS?.close(); }catch{}
-      scheduleReconnect();
-    }else{
-      wsSetStatus("CONNECTED");
-    }
-  }, 1000);
-}
-function cleanupWs(){
-  stopHeartbeat();
-  try{
-    WS && (WS.onopen = WS.onmessage = WS.onerror = WS.onclose = null);
-    if(WS && (WS.readyState===WebSocket.OPEN || WS.readyState===WebSocket.CONNECTING)) WS.close();
-  }catch{}
-  WS=null;
-}
-function scheduleReconnect(){
-  cleanupWs();
-  const jitter = Math.floor(Math.random()*250);
-  const backoff = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts));
-  const wait = backoff + jitter;
-  reconnectAttempts = Math.min(10, reconnectAttempts+1);
-  setTimeout(()=>wsConnect(true), wait);
-}
-
 /* =========================
    SUBMISSION + DEDUPE
 ========================= */
@@ -726,6 +714,8 @@ function payloadFingerprint(payload){
     room: payload?.roomId ?? payload?.room ?? payload?.barId ?? "",
     session: payload?.session ?? "",
     clientNonce: payload?.clientNonce ?? "",
+    id: payload?.id ?? payload?.personId ?? "",
+    alias: payload?.alias ?? "",
     venueId: payload?.venueId ?? payload?.expectedVenueId ?? "",
     travelYes: !!payload?.travelYes,
     eventType: String(payload?.eventType || payload?.event?.type || "").toLowerCase().trim(),
@@ -772,10 +762,6 @@ function dedupeSeen(fp){
   dedupe[fp] = now();
   saveJSON(STORAGE.DEDUPE, dedupe);
   return false;
-}
-function ackSubmit(clientNonce=null){
-  const roomId = currentRoomId();
-  safeSend({ type: "submit_ack", roomId, room: roomId, barId: roomId, session: host.session, clientNonce: clientNonce || undefined });
 }
 
 /* =========================
@@ -870,26 +856,8 @@ function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
 function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
 
 /* =========================
-   ALIAS (switches by event.type)
-========================= */
-const DATE_A = ["Neon","Velvet","Midnight","Lucky","Smooth","Wild","Golden","Sugar","Cosmic","Electric","Bayou","Rouge","Moon","Star","Cajun","Whisper","Spicy","Satin","Honey","Silver"];
-const DATE_B = ["Muse","Wink","Charm","Heartbeat","Vibe","Spark","Sway","Crush","Flirt","Serenade","Rendezvous","Rose","Phoenix","Echo","Breeze","Glow","Nova","Julep","Daiquiri","Shot"];
-
-const NET_A = ["Growth","Product","Data","Ops","Brand","Vision","Strategy","Pipeline","Market","Client","Sales","Tech","Health","Finance","Creative","Legal","People","Talent","Founder","Builder"];
-const NET_B = ["Architect","Navigator","Analyst","Leader","Connector","Operator","Partner","Advisor","Planner","Engineer","Designer","Manager","Strategist","Specialist","Mentor","Catalyst","Director","Owner","Scout","Maker"];
-
-function makeAlias(){
-  const isNet = normalizeEventType(event.type) === "networking";
-  const A = isNet ? NET_A : DATE_A;
-  const B = isNet ? NET_B : DATE_B;
-  const a = A[Math.floor(Math.random()*A.length)];
-  const b = B[Math.floor(Math.random()*B.length)];
-  const n = Math.floor(Math.random()*90)+10;
-  return `${a}${b}${n}`;
-}
-
-/* =========================
-   IMPORT GUEST
+   IMPORT GUEST (Relay-authoritative alias + id)
+   ✅ NO host-side alias generation
 ========================= */
 function upsertGuestById(id, patch){
   const idx = people.findIndex(p=>p.id===id);
@@ -897,6 +865,7 @@ function upsertGuestById(id, patch){
   else people.push(patch);
   saveJSON(STORAGE.PEOPLE, people);
 }
+
 function extractIdentityPhone(payload, stableId){
   const direct = digitsOnly(payload?.identityPhone || "");
   if(direct.length===10) return direct;
@@ -918,18 +887,30 @@ function extractIdentityPhone(payload, stableId){
 
 function importGuest(payload){
   const incomingRoom = payload.roomId ?? payload.room ?? payload.barId ?? payload.roomID ?? "";
-  const stableId = (payload.clientNonce && String(payload.clientNonce).trim()) ? String(payload.clientNonce).trim() : uid();
+  const relayId = String(payload.id || payload.personId || "").trim();
+  const nonceId = String(payload.clientNonce || "").trim();
+  const stableId = relayId || nonceId || uid();
+
   const existing = people.find(p=>p.id===stableId);
   const expectedVenue = payload.expectedVenueId || payload.venueId || "";
 
   const identityPhone = extractIdentityPhone(payload, stableId);
+
+  // If relay included eventType, respect it; otherwise fall back to host event.type
   const eventTypeFromPayload = normalizeEventType(payload?.eventType || payload?.event?.type || event.type || "dating");
 
   const net = payload?.net && typeof payload.net==="object" ? payload.net : {};
+
+  const aliasFromRelay = String(payload.alias || "").trim();
+  const alias = existing?.alias || aliasFromRelay || "Guest";
+
   const p = {
     id: stableId,
-    clientNonce: payload.clientNonce || (existing?.clientNonce || null),
-    alias: existing?.alias || makeAlias(),
+    clientNonce: nonceId || (existing?.clientNonce || null),
+
+    // ✅ RELAY ALIAS SOURCE OF TRUTH
+    alias,
+
     roomId: incomingRoom || currentRoomId(),
     session: payload.session,
 
@@ -1317,12 +1298,15 @@ function wsConnect(isReconnect=false){
   WS.onopen = ()=>{
     wsSetStatus("CONNECTED");
     reconnectAttempts = 0;
+    lastTrafficAt = now();
 
     const roomId = currentRoomId();
     $("roomPill").textContent = roomId || "—";
     safeSend({ type:"join", role:"host", roomId, room: roomId, barId: roomId, session: host.session });
 
     startHeartbeat();
+
+    // Immediate broadcast so guests never hang on config
     broadcastConfig();
     broadcastTVSync();
     broadcastRosterSync(null);
@@ -1334,9 +1318,8 @@ function wsConnect(isReconnect=false){
     lastTrafficAt = now();
     let msg; try{ msg = JSON.parse(ev.data); }catch{ return; }
 
-    if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack"){ lastPongAt = now(); return; }
+    // Relay might send ping; reply politely (harmless)
     if(msg.type==="ping"){
-      lastPongAt = now();
       const roomId = currentRoomId();
       safeSend({ type:"pong", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
       return;
@@ -1359,16 +1342,17 @@ function wsConnect(isReconnect=false){
 
       const fp = payloadFingerprint(payload);
       if(dedupeSeen(fp)){
-        ackSubmit(payload.clientNonce || null);
+        // ✅ Do NOT send submit_ack from host (relay already does this).
         return;
       }
 
+      // ✅ Import relies on payload.id + payload.alias from relay
       importGuest(payload);
-      ackSubmit(payload.clientNonce || null);
 
       showToast("Guest", "New guest received (Pending).");
+      // keep guests/tv updated
       broadcastConfig();
-      broadcastRosterSync(payload.clientNonce || null);
+      broadcastRosterSync(payload.clientNonce || payload.id || null);
       broadcastTVSync();
       return;
     }
@@ -2093,6 +2077,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
