@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <title>Barfly Social — Join</title>
 <style>
-/* (UNCHANGED STYLES — kept exactly from your file) */
 :root{
   --bg:#0b0f1a; --txt:#e9f0ff; --muted:#a7b3d1; --line:rgba(255,255,255,.12);
   --good:#2dd4bf; --bad:#fb7185; --warn:#fbbf24; --brand:#60a5fa;
@@ -297,12 +296,556 @@ textarea{min-height:86px;resize:vertical}
 
     <div class="hr"></div>
 
-    <!-- (UNCHANGED FORM CONTENT — your full form remains exactly the same) -->
-    <!-- To keep this response readable, I did not remove anything from your form.
-         The only functional change is in the JS: submit_ack now sets myAlias from relay. -->
+    <div class="two">
+      <div>
+        <label id="venueLabel">Expected location (you will check in with host)</label>
+        <select id="venueSelect">
+          <option value="" disabled selected>Loading locations…</option>
+        </select>
+        <div class="muted small" id="venueHelp" style="margin-top:6px">
+          Pick where you plan to arrive. You’ll only appear on TV once you check in with the host.
+        </div>
+      </div>
 
-    <!-- IMPORTANT: Paste your existing form blocks here unchanged if you keep files split.
-         Since you asked for full replacement, keep using the original form HTML you already have. -->
+      <div id="travelWrap">
+        <label>Willing to travel?</label>
+        <select id="travelYes">
+          <option value="" disabled selected>Select</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+        <div class="muted small" style="margin-top:6px">
+          Cross-location match allowed if at least one says Yes. If Yes+No → Yes travels to No.
+        </div>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <h3>Identity (mandatory)</h3>
+
+    <!-- ✅ REQUIRED identity phone + age -->
+    <div class="two">
+      <div>
+        <label>Identity Phone (required, 10 digits)</label>
+        <input id="identityPhone" inputmode="numeric" placeholder="e.g., 2255551234" autocomplete="tel">
+        <div class="muted small" style="margin-top:6px">
+          Used to verify you at the host stand. <b>Not shared publicly</b>.
+        </div>
+      </div>
+      <div>
+        <label>Age (18+)</label>
+        <input id="age" type="number" min="18" max="99" placeholder="18+" inputmode="numeric">
+        <div class="muted small" style="margin-top:6px">
+          Must be 18 or older.
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         DATING MODE
+    ========================================================== -->
+    <div id="datingBlock" class="hidden">
+      <div class="hr"></div>
+      <h3>Dating Profile (mandatory)</h3>
+
+      <div class="two">
+        <div><label>Sex</label>
+          <select id="sex">
+            <option value="" disabled selected>Select</option>
+            <option>Male</option><option>Female</option><option>Non-binary</option>
+          </select>
+        </div>
+
+        <div><label>Race</label>
+          <select id="race">
+            <option value="" disabled selected>Select</option>
+            <option>Black / African American</option><option>White</option><option>Hispanic / Latino</option><option>Asian</option>
+            <option>Native American</option><option>Middle Eastern / North African</option><option>Pacific Islander</option><option>Multiracial</option>
+            <option>Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div><label>Income</label>
+          <select id="income">
+            <option value="" disabled selected>Select</option>
+            <option>&lt;$35k</option><option>$35k–$60k</option><option>$60k–$100k</option><option>$100k+</option>
+          </select>
+        </div>
+        <div><label>Height (without shoes)</label>
+          <select id="height">
+            <option value="" disabled selected>Select</option>
+            <option>&lt;5'5</option><option>5'6–5'8</option><option>5'9–5'11</option><option>6'0+</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div><label>Body build</label>
+          <select id="build">
+            <option value="" disabled selected>Select</option>
+            <option>Slim</option><option>Average</option><option>Muscular</option><option>More to love</option>
+          </select>
+        </div>
+        <div><label>Eye color</label>
+          <select id="eye">
+            <option value="" disabled selected>Select</option>
+            <option>Brown</option><option>Blue</option><option>Green</option><option>Gray</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div><label>Hair color</label>
+          <select id="hair">
+            <option value="" disabled selected>Select</option>
+            <option>Black</option><option>Blonde</option><option>Brown</option><option>Red</option><option>Gray</option><option>No hair</option>
+          </select>
+        </div>
+        <div><label>Skin tone</label>
+          <select id="skin">
+            <option value="" disabled selected>Select</option>
+            <option>Pale white</option><option>Olive</option><option>White</option><option>Light brown</option><option>Dark brown</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div><label>Smoking</label>
+          <select id="smoke">
+            <option value="" disabled selected>Select</option>
+            <option>No</option><option>Yes</option><option>420</option>
+          </select>
+        </div>
+        <div><label>Marital status</label>
+          <select id="marital">
+            <option value="" disabled selected>Select</option>
+            <option>Single</option><option>Divorced</option><option>Legally separated</option><option>Widowed</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div><label>Political view</label>
+          <select id="politics">
+            <option value="" disabled selected>Select</option>
+            <option>Apolitical</option><option>Conservative</option><option>Moderate</option><option>Liberal</option><option>Prefer not to say</option>
+          </select>
+        </div>
+        <div><label>Family status</label>
+          <select id="family">
+            <option value="" disabled selected>Select</option>
+            <option>No kids but wants kids</option><option>No kids and doesn't want kids</option>
+            <option>Have kids and want more</option><option>Have kids and doesn't want more</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div><label>Education</label>
+          <select id="edu">
+            <option value="" disabled selected>Select</option>
+            <option>High school</option><option>Some college</option><option>Associate</option><option>Bachelor</option><option>Master</option><option>Doctorate</option><option>Trade/Technical</option>
+          </select>
+        </div>
+        <div><label>Love language</label>
+          <select id="love">
+            <option value="" disabled selected>Select</option>
+            <option>Words of affirmation</option><option>Quality time</option><option>Acts of service</option><option>Physical touch</option><option>Gifts</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div><label>Pets</label>
+          <select id="pets">
+            <option value="" disabled selected>Select</option>
+            <option>No pets</option><option>Dog(s)</option><option>Cat(s)</option><option>Other pets</option><option>Love pets but none</option><option>Pet allergy</option>
+          </select>
+        </div>
+        <div><label>Religion</label>
+          <select id="religion">
+            <option value="" disabled selected>Select</option>
+            <option>Catholic</option><option>Baptist</option><option>Presbyterian</option><option>Muslim</option><option>Jehovah's Witness</option>
+            <option>Jewish</option><option>Christian</option><option>Atheist</option><option>Agnostic</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="religionOtherWrap" class="two hidden">
+        <div>
+          <label>Other religion (required)</label>
+          <input id="religionOther" placeholder="Type your religion">
+        </div>
+        <div class="muted small" style="display:flex;align-items:flex-end">
+          If you picked <b>Other</b>, type it exactly how you want it shown.
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>Dating Intentions (mandatory)</h3>
+      <div class="three">
+        <div>
+          <label>Dating intention</label>
+          <select id="datingIntent">
+            <option value="" disabled selected>Select</option>
+            <option>Marriage</option>
+            <option>Polyamorous dating only</option>
+            <option>Monogamous relationship that leads to marriage</option>
+          </select>
+        </div>
+        <div>
+          <label>When would you like to be married by?</label>
+          <select id="marriedBy">
+            <option value="" disabled selected>Select</option>
+            <option>&lt; 1 year</option>
+            <option>&lt; 2 years</option>
+            <option>&lt; 3 years</option>
+            <option>&gt; 3 years</option>
+          </select>
+        </div>
+        <div>
+          <label>How soon would you like to have a family?</label>
+          <select id="familyBy">
+            <option value="" disabled selected>Select</option>
+            <option>&lt; 1 year</option>
+            <option>&lt; 2 years</option>
+            <option>&lt; 3 years</option>
+            <option>&gt; 3 years</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>Who You’re Looking For (Preferences)</h3>
+      <div class="muted small" style="margin-top:-6px">Choose what you prefer in a match. Turn on <b>Dealbreaker</b> to require it.</div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Age range</label><label class="dealLbl">Dealbreaker <input id="deal_ageBand" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_ageBand">
+            <option>Any</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45–54</option><option>55+</option>
+          </select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Sex</label><label class="dealLbl">Dealbreaker <input id="deal_sex" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_sex"><option>Any</option><option>Male</option><option>Female</option><option>Non-binary</option></select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Race</label><label class="dealLbl">Dealbreaker <input id="deal_race" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_race"><option>Any</option><option>Black / African American</option><option>White</option><option>Hispanic / Latino</option><option>Asian</option><option>Native American</option><option>Middle Eastern / North African</option><option>Pacific Islander</option><option>Multiracial</option><option>Prefer not to say</option></select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Income</label><label class="dealLbl">Dealbreaker <input id="deal_income" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_income"><option>Any</option><option>&lt;$35k</option><option>$35k–$60k</option><option>$60k–$100k</option><option>$100k+</option></select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Height</label><label class="dealLbl">Dealbreaker <input id="deal_height" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_height"><option>Any</option><option>&lt;5'5</option><option>5'6–5'8</option><option>5'9–5'11</option><option>6'0+</option></select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Body build</label><label class="dealLbl">Dealbreaker <input id="deal_build" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_build"><option>Any</option><option>Slim</option><option>Average</option><option>Muscular</option><option>More to love</option></select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Eye color</label><label class="dealLbl">Dealbreaker <input id="deal_eye" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_eye"><option>Any</option><option>Brown</option><option>Blue</option><option>Green</option><option>Gray</option></select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Hair color</label><label class="dealLbl">Dealbreaker <input id="deal_hair" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_hair"><option>Any</option><option>Black</option><option>Blonde</option><option>Brown</option><option>Red</option><option>Gray</option><option>No hair</option></select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Skin tone</label><label class="dealLbl">Dealbreaker <input id="deal_skin" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_skin"><option>Any</option><option>Pale white</option><option>Olive</option><option>White</option><option>Light brown</option><option>Dark brown</option></select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Smoking</label><label class="dealLbl">Dealbreaker <input id="deal_smoke" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_smoke"><option>Any</option><option>No</option><option>Yes</option><option>420</option></select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Marital status</label><label class="dealLbl">Dealbreaker <input id="deal_marital" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_marital"><option>Any</option><option>Single</option><option>Divorced</option><option>Legally separated</option><option>Widowed</option></select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Political view</label><label class="dealLbl">Dealbreaker <input id="deal_politics" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_politics"><option>Any</option><option>Apolitical</option><option>Conservative</option><option>Moderate</option><option>Liberal</option><option>Prefer not to say</option></select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Their dating intention</label><label class="dealLbl">Dealbreaker <input id="deal_datingIntent" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_datingIntent">
+            <option>Any</option>
+            <option>Marriage</option>
+            <option>Polyamorous dating only</option>
+            <option>Monogamous relationship that leads to marriage</option>
+          </select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Family status</label><label class="dealLbl">Dealbreaker <input id="deal_family" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_family"><option>Any</option><option>No kids but wants kids</option><option>No kids and doesn't want kids</option><option>Have kids and want more</option><option>Have kids and doesn't want more</option></select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Education</label><label class="dealLbl">Dealbreaker <input id="deal_edu" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_edu"><option>Any</option><option>High school</option><option>Some college</option><option>Associate</option><option>Bachelor</option><option>Master</option><option>Doctorate</option><option>Trade/Technical</option></select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Love language</label><label class="dealLbl">Dealbreaker <input id="deal_love" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_love"><option>Any</option><option>Words of affirmation</option><option>Quality time</option><option>Acts of service</option><option>Physical touch</option><option>Gifts</option></select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <div class="prefRow"><label style="margin:0">Pets</label><label class="dealLbl">Dealbreaker <input id="deal_pets" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_pets"><option>Any</option><option>No pets</option><option>Dog(s)</option><option>Cat(s)</option><option>Other pets</option><option>Love pets but none</option><option>Pet allergy</option></select>
+        </div>
+        <div>
+          <div class="prefRow"><label style="margin:0">Religion</label><label class="dealLbl">Dealbreaker <input id="deal_religion" class="dealChk" type="checkbox"></label></div>
+          <select id="pref_religion"><option>Any</option><option>Catholic</option><option>Baptist</option><option>Presbyterian</option><option>Muslim</option><option>Jehovah's Witness</option><option>Jewish</option><option>Christian</option><option>Atheist</option><option>Agnostic</option><option>Other</option></select>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>Favorites (mandatory)</h3>
+      <label>Favorite Foods (pick at least 1)</label>
+      <div class="tagbox" id="foodChips"></div>
+
+      <div class="hr"></div>
+      <label>Favorite Activities (pick at least 1)</label>
+      <div class="tagbox" id="actChips"></div>
+
+      <div class="hr"></div>
+
+      <h3>First Date (mandatory)</h3>
+      <div class="two">
+        <div><label>First date location</label>
+          <select id="firstLoc">
+            <option value="" disabled selected>Select</option>
+            <option>Wine bar</option><option>Dinner</option><option>Bookstore</option><option>Dancing</option>
+            <option>Bingo</option><option>Breakfast</option><option>Coffee shop</option><option>Cocktail bar</option><option>Restaurant</option>
+            <option>Brunch</option><option>Movie night</option><option>Walk / park</option><option>Live music</option><option>Trivia night</option>
+          </select>
+        </div>
+        <div><label>First date availability</label>
+          <select id="firstAvail">
+            <option value="" disabled selected>Select</option>
+            <option>Weeknights</option><option>Friday night</option><option>Saturday day</option><option>Saturday night</option>
+            <option>Sunday day</option><option>Sunday night</option><option>Flexible</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div><label>Who pays for the first date?</label>
+          <select id="pays">
+            <option value="" disabled selected>Select</option>
+            <option>Myself</option>
+            <option>50/50</option>
+          </select>
+        </div>
+        <div><label>First date budget</label>
+          <select id="budget">
+            <option value="" disabled selected>Select</option>
+            <option>Free</option><option>&lt;$50</option><option>&lt;$99</option><option>&gt;$100</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>Public Match Info (mandatory)</h3>
+      <div class="two">
+        <div><label>Best physical feature</label><input id="bestPhysical" placeholder="e.g., Smile, Eyes, Style"></div>
+        <div><label>Best personality trait</label><input id="bestTrait" placeholder="e.g., Funny, Loyal, Chill"></div>
+      </div>
+      <label style="margin-top:10px">Public blurb</label>
+      <input id="publicBlurb" placeholder="Short safe blurb shown to matches">
+      <label style="margin-top:10px">Conversation starter</label>
+      <input id="starter" placeholder="Ask me about…">
+
+      <div class="hr"></div>
+
+      <h3>Mutual Contact Release (optional)</h3>
+      <div class="muted small" style="margin-top:-6px">
+        These are <b>ONLY shared after a mutual like</b>. Your <b>Identity Phone</b> is for host verification and is not shared unless you also fill “Share Phone”.
+      </div>
+
+      <div class="two" style="margin-top:10px">
+        <div>
+          <label>Share Phone (optional, 10 digits)</label>
+          <input id="sharePhone" inputmode="numeric" placeholder="e.g., 2255551234" autocomplete="tel">
+        </div>
+        <div>
+          <label>Instagram (@name)</label>
+          <input id="contactInstagram" placeholder="@yourname" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="two" style="margin-top:10px">
+        <div>
+          <label>TikTok (@name)</label>
+          <input id="contactTiktok" placeholder="@yourname" autocomplete="off">
+        </div>
+        <div>
+          <label>Facebook (profile link or name)</label>
+          <input id="contactFacebook" placeholder="facebook.com/yourname or Your Name" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         NETWORKING MODE
+    ========================================================== -->
+    <div id="networkingBlock" class="hidden">
+      <div class="hr"></div>
+      <h3>Networking Profile (mandatory)</h3>
+      <div class="muted small" style="margin-top:-6px">
+        Networking is <b>not available</b> during Dating events. This event is host-selected as <b>Professional Networking</b>.
+      </div>
+
+      <div class="two" style="margin-top:10px">
+        <div>
+          <label>Industry / Field</label>
+          <input id="net_industry" placeholder="e.g., Healthcare, Tech, Construction, Education">
+        </div>
+        <div>
+          <label>Role Level</label>
+          <select id="net_roleLevel">
+            <option value="" disabled selected>Select</option>
+            <option>Student</option>
+            <option>Entry level</option>
+            <option>Mid level</option>
+            <option>Senior</option>
+            <option>Manager</option>
+            <option>Director</option>
+            <option>Executive / Owner</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <label>Years of experience</label>
+          <select id="net_years">
+            <option value="" disabled selected>Select</option>
+            <option>0–1</option>
+            <option>2–4</option>
+            <option>5–7</option>
+            <option>8–10</option>
+            <option>10+</option>
+          </select>
+        </div>
+        <div>
+          <label>Education</label>
+          <select id="net_edu">
+            <option value="" disabled selected>Select</option>
+            <option>High school</option>
+            <option>Some college</option>
+            <option>Associate</option>
+            <option>Bachelor</option>
+            <option>Master</option>
+            <option>Doctorate</option>
+            <option>Trade/Technical</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two">
+        <div>
+          <label>Certifications</label>
+          <input id="net_certs" placeholder="e.g., PMP, CompTIA, CPR, None">
+          <div class="muted small" style="margin-top:6px">Comma-separated is fine.</div>
+        </div>
+        <div>
+          <label>Licenses</label>
+          <input id="net_licenses" placeholder="e.g., RN, CPA, CDL, None">
+          <div class="muted small" style="margin-top:6px">Comma-separated is fine.</div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>What are you looking for? (mandatory)</h3>
+      <div class="muted small" style="margin-top:-6px">
+        Pick at least 1. Matching is strongest when your intentions overlap.
+      </div>
+      <div class="tagbox" id="netIntentChips" style="margin-top:10px"></div>
+
+      <div class="hr"></div>
+
+      <h3>Icebreakers (mandatory)</h3>
+      <label>Ask me about the funniest thing that has happened to me in my career?</label>
+      <textarea id="net_ice1" placeholder="Type your answer…"></textarea>
+
+      <label style="margin-top:10px">What is the one thing I have learned in my profession?</label>
+      <textarea id="net_ice2" placeholder="Type your answer…"></textarea>
+
+      <label style="margin-top:10px">If I could change anything about my profession it would be?</label>
+      <textarea id="net_ice3" placeholder="Type your answer…"></textarea>
+
+      <div class="hr"></div>
+
+      <h3>Public Match Info (mandatory)</h3>
+      <div class="two">
+        <div><label>My strongest skill</label><input id="net_skill" placeholder="e.g., Sales, Data, Operations, Design"></div>
+        <div><label>What I’m known for</label><input id="net_knownFor" placeholder="e.g., Reliable, Strategic, Fast learner"></div>
+      </div>
+      <label style="margin-top:10px">Public blurb</label>
+      <input id="net_publicBlurb" placeholder="Short safe blurb shown to matches">
+
+      <div class="hr"></div>
+
+      <h3>Mutual Contact Release (optional)</h3>
+      <div class="muted small" style="margin-top:-6px">
+        These are <b>ONLY shared after a mutual like</b>. Your <b>Identity Phone</b> is for host verification only.
+      </div>
+
+      <div class="two" style="margin-top:10px">
+        <div>
+          <label>Share Phone (optional, 10 digits)</label>
+          <input id="net_sharePhone" inputmode="numeric" placeholder="e.g., 2255551234" autocomplete="tel">
+        </div>
+        <div>
+          <label>LinkedIn (optional)</label>
+          <input id="net_linkedin" placeholder="linkedin.com/in/yourname" autocomplete="off">
+        </div>
+      </div>
+      <div class="two" style="margin-top:10px">
+        <div>
+          <label>Website (optional)</label>
+          <input id="net_website" placeholder="yourwebsite.com" autocomplete="off">
+        </div>
+        <div class="muted small" style="display:flex;align-items:flex-end">
+          Tip: Keep it professional. Don’t share private info in free-text.
+        </div>
+      </div>
+    </div>
 
     <div class="hr"></div>
 
@@ -317,7 +860,7 @@ textarea{min-height:86px;resize:vertical}
     </div>
   </div>
 
-  <!-- ✅ VOTING -->
+  <!-- ✅ VOTING (AFTER submit) -->
   <div class="card hidden" id="voteCard" style="margin-top:12px">
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
       <div style="flex:1;min-width:240px">
@@ -366,32 +909,501 @@ textarea{min-height:86px;resize:vertical}
   </div>
 </div>
 
-<!-- TERMS + PRIVACY MODALS (keep your existing modal HTML here unchanged) -->
-<!-- (Omitted here for brevity — you can keep your exact modal blocks as-is.) -->
+<!-- ✅ TERMS MODAL -->
+<div class="modalBack" id="termsBack" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Terms of Use">
+    <div class="modalTop">
+      <div class="mt">Terms of Use (Template)</div>
+      <button class="btn small modalClose" id="btnCloseTerms" type="button">Close</button>
+    </div>
+    <div class="modalBody">
+      <p><b>Important:</b> This is general “legal-style” wording for your event experience. It is not legal advice. If you want real protection, have counsel review for your state and your venue contracts.</p>
+
+      <h3>1) Acceptance of Terms</h3>
+      <p>By accessing or using Barfly Social (“Service”), you agree to be bound by these Terms of Use (“Terms”) and the Privacy Notice. If you do not agree, do not use the Service.</p>
+
+      <h3>2) Eligibility (18+ Only)</h3>
+      <p>You must be at least eighteen (18) years of age to use the Service. You represent and warrant that you meet this requirement.</p>
+
+      <h3>3) Event Nature / Host Verification</h3>
+      <ul>
+        <li>The Service is designed for <b>live events</b> and <b>host-verified check-in</b>.</li>
+        <li>You may submit and vote remotely, but match visibility and participation may require in-person check-in at a host stand.</li>
+      </ul>
+
+      <h3>4) Conduct Rules</h3>
+      <ul>
+        <li>No harassment, intimidation, stalking, threats, hate speech, or unwanted contact.</li>
+        <li>No impersonation, fraud, “catfishing,” or sharing another person’s private info without consent.</li>
+        <li>No illegal activity, solicitation for illegal services, or content that violates applicable law.</li>
+        <li>You are responsible for your own behavior and personal safety. Meet in public, trust your instincts, and involve event staff if needed.</li>
+      </ul>
+
+      <h3>5) Privacy & Data</h3>
+      <p>The Service uses <b>aliases</b> and minimizes identity sharing. Identity Phone is used for host verification. Optional mutual contact details (share phone/social/LinkedIn/website) are intended to be released only after mutual matching, as configured by the host.</p>
+
+      <h3>6) No Guarantee of Matches</h3>
+      <p>Matches, compatibility scores, and venue “hotspots” are informational only. We do not guarantee any match quality, outcomes, or attendee attendance.</p>
+
+      <h3>7) Disclaimers</h3>
+      <p>The Service is provided “AS IS” and “AS AVAILABLE,” without warranties of any kind (express or implied), including merchantability, fitness for a particular purpose, and non-infringement. We do not warrant uninterrupted or error-free operation.</p>
+
+      <h3>8) Limitation of Liability</h3>
+      <p>To the maximum extent permitted by law, Barfly Social, Bar Fly Entertainment, event hosts, and venues will not be liable for indirect, incidental, special, consequential, or punitive damages, or any loss of profits, data, goodwill, or other intangible losses, arising from or related to your use of the Service or event participation.</p>
+
+      <h3>9) Assumption of Risk</h3>
+      <p>You understand that in-person social events carry inherent risks. You assume all risks related to meeting others, venue conditions, and voluntary participation.</p>
+
+      <h3>10) Termination / Removal</h3>
+      <p>The host may remove participants from the event pool at any time for safety, house rules, suspected misconduct, or operational needs. The host may also correct venue assignments and check-in status.</p>
+
+      <h3>11) Changes</h3>
+      <p>We may update these Terms from time to time. Continued use after changes means you accept the updated Terms.</p>
+
+      <h3>12) Contact</h3>
+      <p>Questions or issues should be directed to event staff or the host team for the event.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ PRIVACY MODAL -->
+<div class="modalBack" id="privacyBack" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Privacy Notice">
+    <div class="modalTop">
+      <div class="mt">Privacy Notice (Template)</div>
+      <button class="btn small modalClose" id="btnClosePrivacy" type="button">Close</button>
+    </div>
+    <div class="modalBody">
+      <p><b>Important:</b> This is a practical privacy notice for your event flow (aliases, host check-in, optional contact release). It is not legal advice.</p>
+
+      <h3>1) What We Collect</h3>
+      <ul>
+        <li><b>Profile</b> you submit (Dating or Networking, depending on host-selected event type).</li>
+        <li><b>Expected venue</b> selection (where you plan to arrive).</li>
+        <li><b>Identity Phone</b> (required) for host verification.</li>
+        <li><b>Optional mutual contact</b> (share phone/social/LinkedIn/website), if you choose to provide it.</li>
+        <li><b>Votes</b> (like/pass) used to compute mutual matches.</li>
+      </ul>
+
+      <h3>2) How We Use It</h3>
+      <ul>
+        <li>Compute compatibility scores and mutual matches.</li>
+        <li>Verify identity at the host stand via Identity Phone.</li>
+        <li>Show matches on TV <b>after host check-in</b> (per event rules).</li>
+        <li>Release optional mutual contact only after a mutual match (as configured).</li>
+      </ul>
+
+      <h3>3) Aliases & Identity</h3>
+      <p>The system uses random aliases and does not require your real name. Do not enter sensitive personal info into free-text fields.</p>
+
+      <h3>4) Sharing</h3>
+      <ul>
+        <li>Your <b>alias</b> and limited match details may be displayed on venue TV screens after check-in.</li>
+        <li>Your <b>optional mutual contact</b> is intended to be shared only with a mutual match.</li>
+        <li>Event staff/hosts can view rosters for operations and safety.</li>
+      </ul>
+
+      <h3>5) Data Retention</h3>
+      <p>Event data may be stored locally in the browser and/or handled by the host relay for real-time syncing. Hosts may export CSV for event administration.</p>
+
+      <h3>6) Your Choices</h3>
+      <p>You may leave optional mutual contact fields blank. You can also ask the host to remove you from the pool.</p>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ============================================================
-   JOIN — Minimal JS change: on submit_ack, store alias from relay
+   JOIN — HOST-SELECTED EVENT TYPE (Dating OR Networking)
+
+   ✅ FIX INCLUDED:
+   - WS + config now connect/sync in the BACKGROUND even on the gate screen,
+     so “Waiting for host config…” doesn’t feel stuck.
+   - Enter no longer needs to start WS; it just reveals the app.
+
 ============================================================ */
 
 const WS_URL = "wss://bar-match-relay.onrender.com";
 const TOP_N = 12;
 
-const $ = (id)=>document.getElementById(id);
+const FOOD = ["American","Asian","Latin","BBQ","Italian","Indian","Mediterranean","Seafood","Steak","Sushi"];
+const ACTS = ["Trivia","Karaoke","Music Bingo","Bingo","Line Dancing","Latin Dancing","Crafting Cocktails","Wine Tasting","Movies","Video Games","Yoga","Daiquiris","Golf Range","Pickleball","Painting","Musical Instruments","Volunteering","Hunting","Fishing","Reading","Writing","Trampoline Park","Volleyball","Working Out","Football","Softball","Baseball","Basketball","Sports Bar","Shopping","Comedy Show","Photography","VR Sports","Cigar/Hookah","Bowling"];
 
-function showToast(t,m){
-  $("toastT").textContent=t; $("toastM").textContent=m;
-  const el=$("toast"); el.style.display="block";
-  clearTimeout(showToast._t);
-  showToast._t=setTimeout(()=>{el.style.display="none"}, 2600);
-}
+const NET_INTENTS = [
+  "Mentor",
+  "Employment",
+  "Business partners",
+  "Collaborators",
+  "Investors",
+  "Customers/clients",
+  "Internships"
+];
+
+const $ = (id)=>document.getElementById(id);
 
 function qs(){
   const u=new URL(location.href);
   const q = Object.fromEntries(u.searchParams.entries());
   q.room = (q.room || q.roomId || q.barId || "").trim();
   q.session = (q.session || "").trim();
+  q.mode = (q.mode || "").trim().toLowerCase();
+  q.bars = (q.bars || "").trim();                   // JSON (urlencoded)
+  q.participating = (q.participating || "").trim(); // JSON (urlencoded)
+  q.eventType = (q.eventType || q.event || "").trim().toLowerCase(); // optional fallback only
   return q;
+}
+function esc(s){
+  return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+function showToast(t,m){
+  $("toastT").textContent=t; $("toastM").textContent=m;
+  const el=$("toast"); el.style.display="block";
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>{el.style.display="none"}, 2600);
+}
+function digitsOnly(s){ return String(s||"").replace(/\D/g,""); }
+function clampDigitsInput(el, maxLen){
+  if(!el) return;
+  const d = digitsOnly(el.value).slice(0, maxLen);
+  if(el.value !== d) el.value = d;
+}
+function validPhone10(raw){ return digitsOnly(raw).length === 10; }
+
+function normalizeHandle(raw){
+  let s = String(raw||"").trim();
+  if(!s) return "";
+  if(!s.startsWith("@")) s = "@"+s;
+  return s;
+}
+function validHandleAt(raw){
+  const s = String(raw||"").trim();
+  if(!s) return true;
+  const h = s.startsWith("@") ? s : "@"+s;
+  return /^@[A-Za-z0-9._]{1,30}$/.test(h);
+}
+function validFacebook(raw){
+  const s = String(raw||"").trim();
+  if(!s) return true;
+  if(/^https?:\/\/|^www\./i.test(s)) return s.length <= 200;
+  return /^[A-Za-z0-9 ._'()-]{2,60}$/.test(s);
+}
+function validUrlish(raw){
+  const s = String(raw||"").trim();
+  if(!s) return true;
+  if(/^https?:\/\//i.test(s)) return s.length <= 200;
+  return /^[A-Za-z0-9.-]+\.[A-Za-z]{2,}([\/?#].*)?$/.test(s) && s.length <= 200;
+}
+
+/* =========================
+   MODALS
+========================= */
+function openModal(backId){
+  const b=$(backId);
+  if(!b) return;
+  b.style.display="block";
+  b.setAttribute("aria-hidden","false");
+}
+function closeModal(backId){
+  const b=$(backId);
+  if(!b) return;
+  b.style.display="none";
+  b.setAttribute("aria-hidden","true");
+}
+function bindModals(){
+  const openTerms = ()=>openModal("termsBack");
+  const openPrivacy = ()=>openModal("privacyBack");
+
+  $("btnViewTerms")?.addEventListener("click", openTerms);
+  $("btnViewTerms2")?.addEventListener("click", openTerms);
+  $("btnViewTerms3")?.addEventListener("click", openTerms);
+
+  $("btnViewPrivacy")?.addEventListener("click", openPrivacy);
+  $("btnViewPrivacy2")?.addEventListener("click", openPrivacy);
+  $("btnViewPrivacy3")?.addEventListener("click", openPrivacy);
+
+  $("btnCloseTerms")?.addEventListener("click", ()=>closeModal("termsBack"));
+  $("btnClosePrivacy")?.addEventListener("click", ()=>closeModal("privacyBack"));
+
+  ["termsBack","privacyBack"].forEach(id=>{
+    $(id)?.addEventListener("click", (e)=>{
+      if(e.target && e.target.id===id) closeModal(id);
+    });
+  });
+
+  window.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape"){
+      closeModal("termsBack");
+      closeModal("privacyBack");
+    }
+  });
+}
+
+/* =========================
+   18+ / TERMS GATE
+========================= */
+function gateKey(){
+  const q=qs();
+  const room=q.room||"";
+  const session=q.session||"";
+  return `bm_gate_v2_${room}_${session}`;
+}
+function isGateAccepted(){
+  try{ return localStorage.getItem(gateKey()) === "1"; }catch{ return false; }
+}
+function setGateAccepted(){
+  try{ localStorage.setItem(gateKey(), "1"); }catch{}
+}
+function updateGateButton(){
+  const ok = !!$("chk18")?.checked && !!$("chkTerms")?.checked;
+  $("btnEnter").disabled = !ok;
+}
+function showGate(){
+  $("gateCard").classList.remove("hidden");
+  $("formCard").classList.add("hidden");
+  $("voteCard").classList.add("hidden");
+}
+function enterApp(){
+  const q=qs();
+  if(!q.room || !q.session){
+    showToast("Bad link", "Missing ?room=...&session=... in the URL.");
+    return;
+  }
+
+  // Ensure WS is connected (we try in background, but this is a safe fallback)
+  if(WS_STATE !== "CONNECTED" && WS_STATE !== "CONNECTING"){
+    connectWS();
+  }
+
+  setGateAccepted();
+  $("gateCard").classList.add("hidden");
+  $("formCard").classList.remove("hidden");
+  setVoteStats();
+  updateSubmitEnabled();
+  showToast("Welcome", "Fill out your profile, submit, then vote.");
+}
+
+/* =========================
+   HOST CONFIG + URL FALLBACK
+========================= */
+let HOST_CONFIG=null;
+
+let HOST_BARS = [];                 // [{id,name}]
+let HOST_MODE = "single";           // "single" | "city"
+let HOST_PARTICIPATING_IDS = [];    // [id,id...]
+let HOST_EVENT_TYPE = "";           // "dating" | "networking"
+let CFG_STATE = "WAITING";          // WAITING | READY | FALLBACK
+let cfgRetryTimer=null;
+let cfgRetryCount=0;
+
+function setCfgPill(state){
+  CFG_STATE=state;
+  const wrap=$("cfgPillWrap");
+  const pill=$("cfgPill");
+  if(!wrap || !pill) return;
+  pill.textContent = state;
+  wrap.className = "pill " + (state==="READY" ? "good" : state==="FALLBACK" ? "warn" : "warn");
+}
+
+function setEventPill(type){
+  const t = (type||"").toLowerCase();
+  const label = t==="networking" ? "Professional Networking" : t==="dating" ? "Dating" : "Syncing…";
+  $("eventPill").textContent = label;
+}
+
+function parseBarsFromUrl(){
+  const q = qs();
+  HOST_MODE = (q.mode === "city") ? "city" : "single";
+
+  try{
+    if(q.bars){
+      HOST_BARS = JSON.parse(decodeURIComponent(q.bars));
+      if(!Array.isArray(HOST_BARS)) HOST_BARS = [];
+    }
+  }catch{ HOST_BARS = []; }
+
+  try{
+    if(q.participating){
+      const ids = JSON.parse(decodeURIComponent(q.participating));
+      HOST_PARTICIPATING_IDS = Array.isArray(ids) ? ids : [];
+    }
+  }catch{ HOST_PARTICIPATING_IDS = []; }
+
+  const et = String(q.eventType||"").toLowerCase();
+  if(et==="dating" || et==="networking") HOST_EVENT_TYPE = et;
+}
+
+function extractEventTypeFromConfig(cfg){
+  const raw =
+    (cfg?.eventType) ||
+    (cfg?.event?.type) ||
+    (cfg?.type) ||
+    (cfg?.event_mode) ||
+    "";
+  const t = String(raw||"").toLowerCase();
+  if(t.includes("network")) return "networking";
+  if(t.includes("dating")) return "dating";
+  return "";
+}
+
+function applyHostConfig(cfg){
+  HOST_CONFIG = cfg || HOST_CONFIG;
+
+  const bars = Array.isArray(cfg?.bars) ? cfg.bars : [];
+  if(bars.length){
+    HOST_BARS = bars.map(x=>({id:x.id, name:x.name}));
+  }
+  const mode = String(cfg?.mode || cfg?.eventMode || "").toLowerCase();
+  if(mode==="city") HOST_MODE="city";
+  if(mode==="single") HOST_MODE="single";
+
+  const ids = Array.isArray(cfg?.participatingBarIds) ? cfg.participatingBarIds
+           : Array.isArray(cfg?.participating) ? cfg.participating
+           : [];
+  if(ids.length) HOST_PARTICIPATING_IDS = ids;
+
+  const et = extractEventTypeFromConfig(cfg);
+  if(et) HOST_EVENT_TYPE = et;
+
+  if(HOST_BARS.length && HOST_EVENT_TYPE){
+    setCfgPill("READY");
+  }else{
+    setCfgPill(CFG_STATE==="FALLBACK" ? "FALLBACK" : "WAITING");
+  }
+
+  setEventPill(HOST_EVENT_TYPE);
+  populateVenueSelect();
+  applyEventTypeUI();
+  updateSubmitEnabled();
+  updateGateConfigMessage();
+}
+
+function hasUrlFallbackEnough(){
+  return Array.isArray(HOST_BARS) && HOST_BARS.length > 0 && (HOST_EVENT_TYPE==="dating" || HOST_EVENT_TYPE==="networking");
+}
+
+function updateGateConfigMessage(){
+  const warn = $("cfgGateWarn");
+  const msg = $("cfgGateMsg");
+  if(!warn || !msg) return;
+
+  if(CFG_STATE==="READY"){
+    warn.classList.add("hidden");
+    return;
+  }
+  warn.classList.remove("hidden");
+
+  if(CFG_STATE==="FALLBACK"){
+    msg.innerHTML = `Using link fallback. Event: <b>${esc($("eventPill").textContent)}</b>.`;
+    return;
+  }
+
+  const triesLeft = Math.max(0, 10 - cfgRetryCount);
+  msg.innerHTML = `Please wait. Retrying sync… (<b>${triesLeft}</b> more tries). If this takes too long, ask the host to refresh/broadcast the event.`;
+}
+
+/* =========================
+   VENUES
+========================= */
+function barName(id){
+  const b = HOST_BARS.find(x=>x.id===id);
+  return b?.name || id || "Venue";
+}
+function populateVenueSelect(){
+  const sel = $("venueSelect");
+  if(!sel) return;
+
+  let list = HOST_BARS.slice();
+
+  if(HOST_MODE === "city" && HOST_PARTICIPATING_IDS.length){
+    const set = new Set(HOST_PARTICIPATING_IDS);
+    list = list.filter(b => set.has(b.id));
+    $("venueLabel").textContent = "Expected location (participating only)";
+    $("venueHelp").textContent = "Pick where you plan to arrive. You’ll only appear on TV once you check in with the host.";
+    $("travelWrap").classList.remove("hidden");
+  }else if(HOST_MODE === "city"){
+    $("venueLabel").textContent = "Expected location (city-wide)";
+    $("travelWrap").classList.remove("hidden");
+  }else{
+    $("venueLabel").textContent = "Expected location (single-location night)";
+    $("travelWrap").classList.add("hidden");
+    const tsel=$("travelYes");
+    if(tsel){
+      tsel.innerHTML = `<option value="no" selected>No</option>`;
+      tsel.value = "no";
+    }
+  }
+
+  sel.innerHTML = `<option value="" disabled selected>Select</option>`;
+  if(!list.length){
+    sel.innerHTML = `<option value="" disabled selected>${CFG_STATE==="READY" ? "No venues configured" : "Waiting for host config…"}</option>`;
+    return;
+  }
+  for(const b of list){
+    const opt=document.createElement("option");
+    opt.value=b.id; opt.textContent=b.name || b.id;
+    sel.appendChild(opt);
+  }
+}
+
+/* =========================
+   EVENT TYPE UI (host decides)
+========================= */
+let foodSet = new Set();
+let actSet = new Set();
+let netIntentSet = new Set();
+
+function renderChips(containerId, items, set){
+  const wrap=$(containerId);
+  if(!wrap) return;
+  wrap.innerHTML="";
+  for(const label of items){
+    const c=document.createElement("div");
+    c.className="chip"+(set.has(label)?" on":"");
+    c.textContent=label;
+    c.onclick=()=>{
+      if(set.has(label)) set.delete(label); else set.add(label);
+      renderChips(containerId, items, set);
+      updateSubmitEnabled();
+    };
+    wrap.appendChild(c);
+  }
+}
+
+function applyEventTypeUI(){
+  const t = HOST_EVENT_TYPE;
+  const dating = $("datingBlock");
+  const net = $("networkingBlock");
+
+  if(t==="dating"){
+    dating.classList.remove("hidden");
+    net.classList.add("hidden");
+    $("eventSubtitle").textContent = "Dating night. Alias-only matchmaking. Your identity stays private.";
+  }else if(t==="networking"){
+    net.classList.remove("hidden");
+    dating.classList.add("hidden");
+    $("eventSubtitle").textContent = "Professional Networking. Alias-only matching. Your identity stays private.";
+  }else{
+    dating.classList.add("hidden");
+    net.classList.add("hidden");
+    $("eventSubtitle").textContent = "Syncing event type…";
+  }
+}
+
+/* =========================
+   RELIGION "OTHER" (dating only)
+========================= */
+function hookReligionOther(){
+  const sel=$("religion");
+  const wrap=$("religionOtherWrap");
+  const input=$("religionOther");
+  if(!sel || !wrap || !input) return;
+  sel.addEventListener("change", ()=>{
+    const isOther = sel.value==="Other";
+    wrap.classList.toggle("hidden", !isOther);
+    if(!isOther) input.value="";
+    updateSubmitEnabled();
+  });
+  input.addEventListener("input", updateSubmitEnabled);
 }
 
 /* =========================
@@ -410,12 +1422,6 @@ let votes = {};
 let seenCount = 0;
 let likedCount = 0;
 
-function setVoteStats(){
-  $("seenCount").textContent = String(seenCount);
-  $("likedCount").textContent = String(likedCount);
-  $("myAliasPill").textContent = myAlias ? myAlias : "Anonymous";
-}
-
 function setWsStatus(s){
   WS_STATE=s;
   const pill = $("wsPill");
@@ -424,6 +1430,7 @@ function setWsStatus(s){
   if(wrap){
     wrap.className = "pill " + (s==="CONNECTED" ? "good" : s==="ERROR" ? "bad" : s==="CONNECTING" ? "warn" : "");
   }
+  updateSubmitEnabled();
 }
 
 function safeSend(obj){
@@ -436,16 +1443,58 @@ function safeSend(obj){
   return false;
 }
 
+function requestConfig(){
+  const q=qs();
+  if(!q.room || !q.session) return;
+  safeSend({ type:"request_config", roomId: q.room, room: q.room, barId: q.room, session: q.session });
+}
+
+function startConfigRetries(){
+  stopConfigRetries();
+  cfgRetryCount = 0;
+  updateGateConfigMessage();
+
+  cfgRetryTimer = setInterval(()=>{
+    if(CFG_STATE==="READY") { stopConfigRetries(); return; }
+    cfgRetryCount++;
+    requestConfig();
+    setCfgPill(CFG_STATE==="FALLBACK" ? "FALLBACK" : "WAITING");
+    updateGateConfigMessage();
+
+    if(cfgRetryCount >= 3 && hasUrlFallbackEnough() && CFG_STATE!=="READY"){
+      setCfgPill("FALLBACK");
+      setEventPill(HOST_EVENT_TYPE);
+      applyEventTypeUI();
+      populateVenueSelect();
+      updateSubmitEnabled();
+      updateGateConfigMessage();
+    }
+
+    if(cfgRetryCount >= 10){
+      stopConfigRetries();
+      updateGateConfigMessage();
+    }
+  }, 3000);
+}
+
+function stopConfigRetries(){
+  clearInterval(cfgRetryTimer);
+  cfgRetryTimer=null;
+}
+
 function connectWS(){
   const q=qs();
-  if(!q.room || !q.session){
+  const room=q.room;
+  const session=q.session;
+
+  $("roomPill").textContent = room || "—";
+  $("sessionPill").textContent = session || "—";
+
+  if(!room || !session){
     setWsStatus("ERROR");
     showToast("Bad link", "Missing ?room=...&session=... in the URL.");
     return;
   }
-
-  $("roomPill").textContent = q.room;
-  $("sessionPill").textContent = q.session;
 
   try{ WS?.close(); }catch{}
   WS = new WebSocket(WS_URL);
@@ -453,41 +1502,60 @@ function connectWS(){
 
   WS.onopen=()=>{
     setWsStatus("CONNECTED");
-    safeSend({ type:"join", role:"guest", roomId:q.room, room:q.room, barId:q.room, session:q.session, clientNonce });
+    safeSend({ type:"join", role:"guest", roomId: room, room: room, barId: room, session });
+    requestConfig();
+    startConfigRetries();
   };
 
   WS.onmessage=(ev)=>{
     let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
 
-    // ✅ Relay authoritative alias arrives here
+    if(msg.type==="config" || msg.type==="event_config"){
+      const q=qs();
+      const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+      if(msg.session && msg.session !== q.session) return;
+      if(msgRoom && msgRoom !== q.room) return;
+
+      applyHostConfig(msg);
+      if(CFG_STATE==="READY") stopConfigRetries();
+      return;
+    }
+
     if(msg.type==="submit_ack"){
       if(msg.clientNonce && msg.clientNonce !== clientNonce) return;
-
-      if(msg.alias){
-        myAlias = msg.alias;           // ✅ store relay alias
-        setVoteStats();
-      }
-
       submitted = true;
       sending = false;
+      setWsStatus("CONNECTED");
+      $("formCard").classList.add("hidden");
+      $("voteCard").classList.remove("hidden");
+      showToast("Submitted","Now you can vote. Check in with host when you arrive.");
+      saveMutualContact(true);
+      requestRoster();
+      lockVenuePostSubmit();
+      return;
+    }
 
-      $("formCard")?.classList.add("hidden");
-      $("voteCard")?.classList.remove("hidden");
+    if(msg.type==="contact_saved_ack"){
+      showToast("Saved","Mutual contact info saved.");
+      return;
+    }
 
-      showToast("Submitted", `Your alias is ${myAlias || "Anonymous"}. Now you can vote.`);
+    if(msg.type==="contact_release"){
+      showToast("Match contact", "A mutual match released contact info.");
       return;
     }
 
     if(msg.type==="roster_sync" || msg.type==="people_sync"){
+      const q=qs();
+      const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+      if(msg.session && msg.session !== q.session) return;
+      if(msgRoom && msgRoom !== q.room) return;
+
       const list = msg.people || msg.roster || [];
       roster = Array.isArray(list) ? list.slice() : [];
-
-      // keep compatibility with host “you” object if present
-      if(msg.you && typeof msg.you === "object" && msg.you.alias){
+      if(msg.you && typeof msg.you === "object"){
         myAlias = msg.you.alias || myAlias;
-        setVoteStats();
       }
-
       renderVoting();
       return;
     }
@@ -498,43 +1566,544 @@ function connectWS(){
 }
 
 /* =========================
-   Voting (basic stub)
-   NOTE: keep your existing full voting logic here
+   POST-SUBMIT LOCK
 ========================= */
+function lockVenuePostSubmit(){
+  const sel = $("venueSelect");
+  if(sel){
+    sel.disabled = true;
+    $("venueLabel").textContent = "Expected location (locked — host can change)";
+    $("venueHelp").textContent = "Your location is locked after submit. Only the host can move you.";
+  }
+}
+
+/* =========================
+   VALIDATION
+========================= */
+function valTrim(id){ return String($(id)?.value||"").trim(); }
+function hasVal(id){ return !!valTrim(id); }
+
+function validateMutualContactDating(errs){
+  const sharePhoneRaw = valTrim("sharePhone");
+  const igRaw = valTrim("contactInstagram");
+  const ttRaw = valTrim("contactTiktok");
+  const fbRaw = valTrim("contactFacebook");
+
+  if(sharePhoneRaw && !validPhone10(sharePhoneRaw)) errs.push("Share Phone must be 10 digits");
+  if(igRaw && !validHandleAt(igRaw)) errs.push("Instagram must start with @ (letters/numbers/._)");
+  if(ttRaw && !validHandleAt(ttRaw)) errs.push("TikTok must start with @ (letters/numbers/._)");
+  if(fbRaw && !validFacebook(fbRaw)) errs.push("Facebook must be a link or a simple name");
+}
+
+function validateMutualContactNetworking(errs){
+  const sharePhoneRaw = valTrim("net_sharePhone");
+  const li = valTrim("net_linkedin");
+  const web = valTrim("net_website");
+
+  if(sharePhoneRaw && !validPhone10(sharePhoneRaw)) errs.push("Share Phone must be 10 digits");
+  if(li && !validUrlish(li)) errs.push("LinkedIn must be a valid link/URL");
+  if(web && !validUrlish(web)) errs.push("Website must be a valid domain or URL");
+}
+
+function validateCommon(errs){
+  if(!isGateAccepted()) errs.push("Accept 18+ and Terms to continue");
+
+  const idPhoneRaw = valTrim("identityPhone");
+  if(!idPhoneRaw) errs.push("Identity Phone (required)");
+  else if(!validPhone10(idPhoneRaw)) errs.push("Identity Phone must be 10 digits");
+
+  if(!hasVal("venueSelect")) errs.push("Expected location");
+  if(HOST_MODE === "city" && !hasVal("travelYes")) errs.push("Willing to travel");
+
+  const ageVal = Number(valTrim("age")||0);
+  if(!ageVal || ageVal < 18) errs.push("Age must be 18 or older");
+}
+
+function validateDating(errs){
+  const reqIds = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","datingIntent","marriedBy","familyBy"];
+  for(const id of reqIds) if(!hasVal(id)) errs.push(id);
+
+  if(valTrim("religion")==="Other" && !hasVal("religionOther")) errs.push("Other religion");
+
+  if(foodSet.size < 1) errs.push("At least 1 Favorite Food");
+  if(actSet.size < 1) errs.push("At least 1 Favorite Activity");
+
+  const reqIds2 = ["firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter"];
+  for(const id of reqIds2) if(!hasVal(id)) errs.push(id);
+
+  validateMutualContactDating(errs);
+}
+
+function validateNetworking(errs){
+  const reqIds = ["net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses","net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb"];
+  for(const id of reqIds) if(!hasVal(id)) errs.push(id);
+
+  if(netIntentSet.size < 1) errs.push("Pick at least 1 networking intention");
+
+  validateMutualContactNetworking(errs);
+}
+
+function validateAllLoud(){
+  const errs=[];
+  validateCommon(errs);
+
+  if(!(HOST_EVENT_TYPE==="dating" || HOST_EVENT_TYPE==="networking")){
+    errs.push("Event type not available yet — wait for host config");
+    return errs;
+  }
+
+  if(HOST_EVENT_TYPE==="dating") validateDating(errs);
+  if(HOST_EVENT_TYPE==="networking") validateNetworking(errs);
+
+  return errs;
+}
+
+/* =========================
+   SUBMIT BUTTON ENABLE (quiet)
+========================= */
+function quietReadyToSubmit(){
+  if(submitted || sending) return false;
+  if(WS_STATE !== "CONNECTED") return false;
+  if(!isGateAccepted()) return false;
+
+  if(CFG_STATE!=="READY" && CFG_STATE!=="FALLBACK") return false;
+  if(CFG_STATE==="FALLBACK" && !hasUrlFallbackEnough()) return false;
+
+  if(!validPhone10(valTrim("identityPhone"))) return false;
+
+  const ageVal = Number(valTrim("age")||0);
+  if(!ageVal || ageVal < 18) return false;
+
+  if(!hasVal("venueSelect")) return false;
+  if(HOST_MODE === "city" && !hasVal("travelYes")) return false;
+
+  if(!(HOST_EVENT_TYPE==="dating" || HOST_EVENT_TYPE==="networking")) return false;
+
+  if(HOST_EVENT_TYPE==="dating"){
+    const reqIds = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","datingIntent","marriedBy","familyBy"];
+    for(const id of reqIds) if(!hasVal(id)) return false;
+    if(valTrim("religion")==="Other" && !hasVal("religionOther")) return false;
+    if(foodSet.size < 1) return false;
+    if(actSet.size < 1) return false;
+    const reqIds2 = ["firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter"];
+    for(const id of reqIds2) if(!hasVal(id)) return false;
+    const tmp=[]; validateMutualContactDating(tmp); if(tmp.length) return false;
+  }
+
+  if(HOST_EVENT_TYPE==="networking"){
+    const reqIds = ["net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses","net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb"];
+    for(const id of reqIds) if(!hasVal(id)) return false;
+    if(netIntentSet.size < 1) return false;
+    const tmp=[]; validateMutualContactNetworking(tmp); if(tmp.length) return false;
+  }
+
+  return true;
+}
+
+function updateSubmitEnabled(){
+  const btn = $("btnSubmit");
+  if(!btn) return;
+  btn.disabled = !quietReadyToSubmit();
+}
+
+/* =========================
+   MUTUAL CONTACT SAVE (optional)
+========================= */
+function buildMutualContact(){
+  const contact = {};
+
+  if(HOST_EVENT_TYPE==="dating"){
+    const sharePhoneRaw = valTrim("sharePhone");
+    const igRaw = valTrim("contactInstagram");
+    const ttRaw = valTrim("contactTiktok");
+    const fbRaw = valTrim("contactFacebook");
+    if(sharePhoneRaw) contact.phone = digitsOnly(sharePhoneRaw);
+    if(igRaw) contact.instagram = normalizeHandle(igRaw);
+    if(ttRaw) contact.tiktok = normalizeHandle(ttRaw);
+    if(fbRaw) contact.facebook = fbRaw.trim();
+  }
+
+  if(HOST_EVENT_TYPE==="networking"){
+    const sharePhoneRaw = valTrim("net_sharePhone");
+    const li = valTrim("net_linkedin");
+    const web = valTrim("net_website");
+    if(sharePhoneRaw) contact.phone = digitsOnly(sharePhoneRaw);
+    if(li) contact.linkedin = li.trim();
+    if(web) contact.website = web.trim();
+  }
+
+  return contact;
+}
+
+function saveMutualContact(isAuto=false){
+  const errs=[];
+  if(HOST_EVENT_TYPE==="dating") validateMutualContactDating(errs);
+  if(HOST_EVENT_TYPE==="networking") validateMutualContactNetworking(errs);
+
+  if(errs.length){
+    if(!isAuto) showToast("Contact error", errs.join(" • "));
+    return false;
+  }
+
+  const contact = buildMutualContact();
+  const hasAny = Object.keys(contact).length > 0;
+
+  if(!hasAny){
+    if(!isAuto) showToast("Nothing to save", "Add optional contact fields to save.");
+    return false;
+  }
+
+  const q=qs();
+  const ok = safeSend({ type:"contact_save", roomId:q.room, room:q.room, barId:q.room, session:q.session, voterNonce: clientNonce, contact });
+  if(!ok){
+    if(!isAuto) showToast("Not sent", "Connection issue — try again.");
+    return false;
+  }
+  if(!isAuto) showToast("Saved", "Mutual contact sent to host.");
+  return true;
+}
+
+/* =========================
+   SUBMIT
+========================= */
+function submit(){
+  if(!isGateAccepted()) return showToast("Hold up","Confirm 18+ and agree to Terms first.");
+  if(WS_STATE!=="CONNECTED") return showToast("Not connected","Wait for WS to connect.");
+  if(submitted) return showToast("Already submitted","You already submitted.");
+  if(sending) return showToast("Please wait","Submitting in progress…");
+
+  const ageNum = Number(valTrim("age") || 0);
+  if(!ageNum || ageNum < 18){
+    showToast("Age Restriction","You must be 18 or older to use this service.");
+    return;
+  }
+
+  const errs = validateAllLoud();
+  if(errs.length) return showToast("Missing fields", errs.join(" • "));
+
+  const q=qs();
+
+  const travelVal = (HOST_MODE==="city") ? (valTrim("travelYes")==="yes") : false;
+  const identityPhone = digitsOnly(valTrim("identityPhone"));
+  const venueId = valTrim("venueSelect");
+
+  const basePayload = {
+    v: 11,
+    clientNonce,
+    roomId: q.room,
+    room: q.room,
+    barId: q.room,
+    session: q.session,
+
+    eventType: HOST_EVENT_TYPE,
+    venueId,
+    expectedVenueId: venueId,
+    travelYes: travelVal,
+    identityPhone,
+  };
+
+  let payload = { ...basePayload };
+
+  if(HOST_EVENT_TYPE==="dating"){
+    let religion = valTrim("religion");
+    if(religion==="Other") religion = valTrim("religionOther");
+
+    payload = {
+      ...basePayload,
+      attrs: {
+        age: Number(valTrim("age")),
+        sex: valTrim("sex"),
+        race: valTrim("race"),
+        income: valTrim("income"),
+        height: valTrim("height"),
+        build: valTrim("build"),
+        eye: valTrim("eye"),
+        hair: valTrim("hair"),
+        skin: valTrim("skin"),
+        smoke: valTrim("smoke"),
+        marital: valTrim("marital"),
+        politics: valTrim("politics"),
+        family: valTrim("family"),
+        edu: valTrim("edu"),
+        love: valTrim("love"),
+        pets: valTrim("pets"),
+        religion
+      },
+      dating: {
+        intention: valTrim("datingIntent"),
+        marriedBy: valTrim("marriedBy"),
+        familyBy: valTrim("familyBy")
+      },
+      prefs: {
+        ageBand: valTrim("pref_ageBand") || "Any",
+        sex: valTrim("pref_sex") || "Any",
+        race: valTrim("pref_race") || "Any",
+        income: valTrim("pref_income") || "Any",
+        height: valTrim("pref_height") || "Any",
+        build: valTrim("pref_build") || "Any",
+        eye: valTrim("pref_eye") || "Any",
+        hair: valTrim("pref_hair") || "Any",
+        skin: valTrim("pref_skin") || "Any",
+        smoke: valTrim("pref_smoke") || "Any",
+        marital: valTrim("pref_marital") || "Any",
+        politics: valTrim("pref_politics") || "Any",
+        datingIntent: valTrim("pref_datingIntent") || "Any",
+        family: valTrim("pref_family") || "Any",
+        edu: valTrim("pref_edu") || "Any",
+        love: valTrim("pref_love") || "Any",
+        pets: valTrim("pref_pets") || "Any",
+        religion: valTrim("pref_religion") || "Any"
+      },
+      deal: {
+        ageBand: !!$("deal_ageBand")?.checked,
+        sex: !!$("deal_sex")?.checked,
+        race: !!$("deal_race")?.checked,
+        income: !!$("deal_income")?.checked,
+        height: !!$("deal_height")?.checked,
+        build: !!$("deal_build")?.checked,
+        eye: !!$("deal_eye")?.checked,
+        hair: !!$("deal_hair")?.checked,
+        skin: !!$("deal_skin")?.checked,
+        smoke: !!$("deal_smoke")?.checked,
+        marital: !!$("deal_marital")?.checked,
+        politics:!!$("deal_politics")?.checked,
+        datingIntent: !!$("deal_datingIntent")?.checked,
+        family: !!$("deal_family")?.checked,
+        edu: !!$("deal_edu")?.checked,
+        love: !!$("deal_love")?.checked,
+        pets: !!$("deal_pets")?.checked,
+        religion:!!$("deal_religion")?.checked
+      },
+      foodChips: Array.from(foodSet),
+      activityChips: Array.from(actSet),
+      firstDateLoc: valTrim("firstLoc"),
+      firstDateAvail: valTrim("firstAvail"),
+      pays: valTrim("pays"),
+      budget: valTrim("budget"),
+      bestPhysical: valTrim("bestPhysical"),
+      bestTrait: valTrim("bestTrait"),
+      publicBlurb: valTrim("publicBlurb"),
+      starter: valTrim("starter")
+    };
+  }
+
+  if(HOST_EVENT_TYPE==="networking"){
+    payload = {
+      ...basePayload,
+      networking: {
+        industry: valTrim("net_industry"),
+        roleLevel: valTrim("net_roleLevel"),
+        yearsExperience: valTrim("net_years"),
+        education: valTrim("net_edu"),
+        certifications: valTrim("net_certs"),
+        licenses: valTrim("net_licenses"),
+        intentions: Array.from(netIntentSet),
+        icebreakers: {
+          funnyCareerThing: valTrim("net_ice1"),
+          oneThingLearned: valTrim("net_ice2"),
+          changeOneThing: valTrim("net_ice3")
+        },
+        public: {
+          strongestSkill: valTrim("net_skill"),
+          knownFor: valTrim("net_knownFor"),
+          blurb: valTrim("net_publicBlurb")
+        }
+      }
+    };
+  }
+
+  sending = true;
+  updateSubmitEnabled();
+
+  const ok = safeSend({ type:"submit_payload", payload });
+  if(ok){
+    showToast("Sent","Submitting…");
+    setTimeout(()=>{
+      if(!submitted){
+        sending=false;
+        updateSubmitEnabled();
+        showToast("No response","If it didn’t submit, try again (or ask host to refresh).");
+      }
+    }, 8000);
+  }else{
+    sending=false;
+    updateSubmitEnabled();
+    showToast("Send failed","Try again in a moment.");
+  }
+}
+
+/* =========================
+   VOTING
+========================= */
+function requestRoster(){
+  const q=qs();
+  if(!q.room || !q.session) return;
+  safeSend({ type:"request_roster", roomId:q.room, room:q.room, barId:q.room, session:q.session, voterNonce: clientNonce });
+}
+function setVoteStats(){
+  $("seenCount").textContent = String(seenCount);
+  $("likedCount").textContent = String(likedCount);
+  $("myAliasPill").textContent = myAlias ? myAlias : "Anonymous";
+}
+function castVote(targetId, like){
+  const q=qs();
+  if(!targetId) return;
+
+  votes[targetId] = !!like;
+  seenCount = Object.keys(votes).length;
+  likedCount = Object.values(votes).filter(Boolean).length;
+  setVoteStats();
+
+  const ok = safeSend({ type:"vote", roomId:q.room, room:q.room, barId:q.room, session:q.session, voterNonce: clientNonce, targetId, like: !!like });
+  if(!ok) showToast("Vote not sent","Connection issue — try again.");
+
+  renderVoting();
+}
 function renderVoting(){
   const wrap = $("voteList");
-  if(!wrap) return;
   wrap.innerHTML = "";
   setVoteStats();
 
   if(!Array.isArray(roster) || roster.length===0){
-    wrap.innerHTML = `<div class="muted">No roster received yet.</div>`;
+    wrap.innerHTML = `<div class="muted">No roster received yet. Tap “Load Top 12”.</div>`;
     return;
   }
 
-  // Just show aliases for now (keep your original scoring UI in your real file)
-  roster.slice(0, TOP_N).forEach(p=>{
-    const div=document.createElement("div");
-    div.className="voteCard";
-    div.innerHTML = `<div><div class="voteAlias">${(p.alias||"Guest")}</div></div>`;
-    wrap.appendChild(div);
-  });
+  const list = roster
+    .slice()
+    .filter(p => p && p.id)
+    .sort((a,b)=>{
+      const sa = (typeof a.score === "number") ? a.score : -1;
+      const sb = (typeof b.score === "number") ? b.score : -1;
+      return sb - sa;
+    });
+
+  const top = list.slice(0, TOP_N);
+
+  for(const p of top){
+    const already = (p?.id && (p.id in votes));
+    const val = already ? votes[p.id] : null;
+    const pct = (typeof p.score === "number" && p.score >= 0) ? Math.round(p.score*100) : null;
+
+    const el = document.createElement("div");
+    el.className = "voteCard";
+
+    el.innerHTML = `
+      <div style="min-width:0">
+        <div class="voteAlias">${esc(p.alias || "Guest")}${pct!=null ? ` <span class="k">${pct}%</span>` : ``}</div>
+        <div class="voteSub">
+          ${p.venueId ? `Expected: <span class="k">${esc(barName(p.venueId))}</span>` : `<span class="muted">Expected: —</span>`}
+          ${already ? `<div style="margin-top:6px"><span class="k">${val ? "LIKED" : "PASSED"}</span></div>` : ``}
+        </div>
+      </div>
+      <div class="voteActions">
+        <button class="btn good" data-like="1" ${already ? "disabled" : ""}>Like</button>
+        <button class="btn bad"  data-like="0" ${already ? "disabled" : ""}>Pass</button>
+      </div>
+    `;
+
+    el.querySelector('button[data-like="1"]').onclick = ()=>castVote(p.id, true);
+    el.querySelector('button[data-like="0"]').onclick = ()=>castVote(p.id, false);
+    wrap.appendChild(el);
+  }
 }
 
 /* =========================
-   Boot
+   INIT + LIVE VALIDATION
 ========================= */
-(function init(){
-  // If you use the gate, keep your existing gate logic.
-  // This replacement focuses on the alias change only.
-  $("gateCard")?.classList.add("hidden");
-  $("formCard")?.classList.remove("hidden");
-  connectWS();
+function bindLiveValidation(){
+  const ids = [
+    "venueSelect","travelYes","identityPhone","age",
+    "sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","religionOther",
+    "datingIntent","marriedBy","familyBy",
+    "pref_ageBand","pref_sex","pref_race","pref_income","pref_height","pref_build","pref_eye","pref_hair","pref_skin","pref_smoke","pref_marital","pref_politics","pref_datingIntent","pref_family","pref_edu","pref_love","pref_pets","pref_religion",
+    "firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter",
+    "sharePhone","contactInstagram","contactTiktok","contactFacebook",
+    "net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses",
+    "net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb",
+    "net_sharePhone","net_linkedin","net_website"
+  ];
+  for(const id of ids){
+    const el=$(id);
+    if(!el) continue;
+    el.addEventListener("input", ()=>{
+      if(id==="identityPhone") clampDigitsInput(el, 10);
+      if(id==="sharePhone") clampDigitsInput(el, 10);
+      if(id==="net_sharePhone") clampDigitsInput(el, 10);
+      updateSubmitEnabled();
+    });
+    el.addEventListener("change", ()=>{
+      if(id==="identityPhone") clampDigitsInput(el, 10);
+      if(id==="sharePhone") clampDigitsInput(el, 10);
+      if(id==="net_sharePhone") clampDigitsInput(el, 10);
+      updateSubmitEnabled();
+    });
+  }
+}
+
+function initNetworkingChips(){
+  renderChips("netIntentChips", NET_INTENTS, netIntentSet);
+}
+
+function init(){
+  // URL fallback (pre-fill) while we wait for host config
+  parseBarsFromUrl();
+  if(hasUrlFallbackEnough()){
+    setCfgPill("FALLBACK");
+    setEventPill(HOST_EVENT_TYPE);
+  }else{
+    setCfgPill("WAITING");
+    setEventPill(HOST_EVENT_TYPE);
+  }
+  populateVenueSelect();
+  applyEventTypeUI();
+  updateGateConfigMessage();
+
+  // chips
+  renderChips("foodChips", FOOD, foodSet);
+  renderChips("actChips", ACTS, actSet);
+  initNetworkingChips();
+
+  hookReligionOther();
+  bindModals();
+  bindLiveValidation();
+
+  $("chk18")?.addEventListener("change", updateGateButton);
+  $("chkTerms")?.addEventListener("change", updateGateButton);
+  $("btnEnter")?.addEventListener("click", enterApp);
+
+  $("btnSubmit").onclick = submit;
+  $("btnSaveContact")?.addEventListener("click", ()=>saveMutualContact(false));
+  $("btnRequestRoster")?.addEventListener("click", ()=>{ requestRoster(); showToast("Requested","Asking host for top 12…"); });
+  $("btnRefreshRoster")?.addEventListener("click", ()=>{ requestRoster(); renderVoting(); });
+  $("btnClearVotes")?.addEventListener("click", ()=>{ votes={}; seenCount=0; likedCount=0; renderVoting(); showToast("Cleared","Local vote history cleared (host votes remain)."); });
+
+  // ✅ Background WS + config sync even on the gate screen
+  const q=qs();
+  if(q.room && q.session){
+    connectWS();
+  }else{
+    setWsStatus("ERROR");
+  }
+
+  // Show correct initial screen
+  if(isGateAccepted()){
+    $("gateCard").classList.add("hidden");
+    $("formCard").classList.remove("hidden");
+  }else{
+    showGate();
+    updateGateButton();
+  }
+
   setVoteStats();
-})();
+  updateSubmitEnabled();
+}
+init();
 </script>
 </body>
 </html>
+
+
 
 
 
