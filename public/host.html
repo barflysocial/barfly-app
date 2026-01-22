@@ -118,6 +118,7 @@
       <div class="pill"><b>Min Match</b> <span id="minMatchPill">75%</span></div>
       <div class="pill"><b>Hotspot</b> <span id="hotspotPill">—</span></div>
       <div class="pill" id="pinPillWrap"><b>Host Lock</b> <span id="pinPill">ON</span></div>
+      <div class="pill"><b>Next #</b> <span id="nextNumPill" class="mono">0001</span></div>
     </div>
 
     <div class="left">
@@ -133,8 +134,9 @@
     <div class="card">
       <h2>Event Setup</h2>
       <div class="muted">
-        Guests submit an <b>expected</b> location. At arrival, host verifies with <b>phone number</b> and assigns/checks-in the guest.
+        Guests submit a venue. Host verifies with <b>phone number</b> and checks the guest in.
         <br><span class="kbd">Rule</span> <span class="mini">TV matches require: mutual like + score ≥ min + both checked in.</span>
+        <br><span class="kbd">ID</span> <span class="mini">Host assigns chronological guest numbers <b>0001–9999</b> per room+session.</span>
       </div>
       <div class="hr"></div>
 
@@ -185,7 +187,6 @@
             <button class="btn primary" id="btnCreateEvent" type="button">Create/Update</button>
           </div>
 
-          <!-- EVENT TYPE (Host chooses) -->
           <div class="row" style="margin-top:10px">
             <div style="flex:1;min-width:220px">
               <label>Event Type</label>
@@ -194,7 +195,7 @@
                 <option value="networking">Professional Networking</option>
               </select>
               <div class="mini" style="margin-top:6px">
-                Dating hides Networking questions. Networking uses a professional-only form and networking-style aliases.
+                Dating hides Networking questions. Networking uses a professional-only form.
               </div>
             </div>
           </div>
@@ -217,9 +218,9 @@
 
       <div class="two">
         <div>
-          <label>Search alias (filters Arrivals + Checked-In)</label>
-          <input id="searchAlias" placeholder="Type 2–3 letters… (press Esc to clear)">
-          <div class="mini" style="margin-top:6px">Filters the lists below (alias only).</div>
+          <label>Search guest number (filters Arrivals + Checked-In)</label>
+          <input id="searchAlias" placeholder="Type digits… (press Esc to clear)">
+          <div class="mini" style="margin-top:6px">Filters the lists below (by number).</div>
         </div>
         <div>
           <label>Search helper</label>
@@ -227,7 +228,7 @@
             <button class="btn small" id="btnClearSearch" type="button">Clear Search</button>
             <span class="pill"><b>Filter</b> <span id="filterPill">OFF</span></span>
           </div>
-          <div class="mini" style="margin-top:6px">Shows only aliases that match your search.</div>
+          <div class="mini" style="margin-top:6px">Shows only guest numbers that match your search.</div>
         </div>
       </div>
 
@@ -246,15 +247,15 @@
             <span class="kbd">Host assigns venue</span>
           </div>
           <div class="mini" style="margin-top:8px">
-            If multiple guests share a phone (rare), you’ll be prompted to pick the alias.
+            If multiple guests share a phone (rare), you’ll be prompted to pick the number.
           </div>
         </div>
 
         <div>
           <h3>Manual (Fallback)</h3>
-          <div class="mini">Use alias search + buttons if phone wasn’t captured on submit.</div>
+          <div class="mini">Use number search + buttons if phone wasn’t captured on submit.</div>
           <div class="mini" style="margin-top:8px">
-            Tip: manual actions use the <b>Check-In Venue</b> dropdown (no bar IDs required).
+            Tip: manual actions use the <b>Check-In Venue</b> dropdown.
           </div>
         </div>
       </div>
@@ -263,7 +264,7 @@
 
       <div class="two">
         <div>
-          <h3>Arrivals Queue (Pending • A→Z)</h3>
+          <h3>Arrivals Queue (Pending • Low→High)</h3>
           <div class="mini">Guests appear after submit. Check them in when they arrive.</div>
           <div class="list" id="arrivals"></div>
 
@@ -390,24 +391,22 @@ const MIN_MATCH_SCORE = 0.75;
 const TV_EXPIRE_MS = 3 * 60 * 60 * 1000;
 const TV_ROTATE_MS = 10 * 1000;
 
-/* NOTE: Browser websockets can't send true TCP pings.
-   We do a lightweight app "ping" but we do NOT require a "pong" from relay,
-   because many relays don’t implement it. We only reconnect on actual close/error. */
 const HEARTBEAT_MS = 20 * 1000;
 const RECONNECT_BASE_MS = 800;
 const RECONNECT_MAX_MS  = 10 * 1000;
 
 const STORAGE = {
-  BARS: "bm_bars_v13",
-  HOST: "bm_host_v13",
-  PEOPLE: "bm_people_v13",
-  LIKES: "bm_likes_v13",
-  EVENT: "bm_event_v13",
-  TV: "bm_tv_v13",
-  DEDUPE: "bm_dedupe_v13",
-  CONTACTS: "bm_contacts_v13",
-  UI: "bm_ui_v13",
-  HOSTPIN: "bm_host_pin_v13"
+  BARS: "bm_bars_v14",
+  HOST: "bm_host_v14",
+  PEOPLE: "bm_people_v14",
+  LIKES: "bm_likes_v14",
+  EVENT: "bm_event_v14",
+  TV: "bm_tv_v14",
+  DEDUPE: "bm_dedupe_v14",
+  CONTACTS: "bm_contacts_v14",
+  UI: "bm_ui_v14",
+  HOSTPIN: "bm_host_pin_v14",
+  COUNTERS: "bm_counters_v14"
 };
 
 const $ = (id)=>document.getElementById(id);
@@ -504,10 +503,10 @@ function setSearch(val){
   const q = ui.search.trim();
   $("filterPill").textContent = q ? `"${q}"` : "OFF";
 }
-function matchSearch(alias){
+function matchSearch(displayId){
   const q = (ui.search||"").trim().toLowerCase();
   if(!q) return true;
-  return String(alias||"").toLowerCase().includes(q);
+  return String(displayId||"").toLowerCase().includes(q);
 }
 
 /* =========================
@@ -518,18 +517,81 @@ let host = loadJSON(STORAGE.HOST, { mode:"single", activeBarId:null, session: ge
 let people = loadJSON(STORAGE.PEOPLE, []);
 let likes  = loadJSON(STORAGE.LIKES, {});
 let contacts = loadJSON(STORAGE.CONTACTS, {});
-/* event includes type */
 let event  = loadJSON(STORAGE.EVENT, { eventId:"", name:"", type:"dating", participatingBarIds:[] });
 let tv     = loadJSON(STORAGE.TV, { matches:[] });
 let dedupe = loadJSON(STORAGE.DEDUPE, {});
+let counters = loadJSON(STORAGE.COUNTERS, {}); // per room+session counter
 
-/* Only allow dating | networking */
 function normalizeEventType(t){
   const s = String(t||"").toLowerCase().trim();
   if(s.includes("network")) return "networking";
   return "dating";
 }
 event.type = normalizeEventType(event.type);
+
+/* =========================
+   NUMBER IDS (chronological 0001-9999 per room+session)
+========================= */
+function currentRoomId(){
+  return (host.mode === "city") ? event.eventId : host.activeBarId;
+}
+function counterKey(){
+  return `${currentRoomId() || "room"}::${host.session || "session"}`;
+}
+function loadCounter(){
+  const k = counterKey();
+  const n = parseInt(counters[k] || "0", 10);
+  return Number.isFinite(n) ? n : 0;
+}
+function saveCounter(n){
+  const k = counterKey();
+  counters[k] = String(n);
+  saveJSON(STORAGE.COUNTERS, counters);
+}
+function formatDisplayId(n){
+  const nn = Math.max(0, Math.min(9999, parseInt(n||"0",10)));
+  return String(nn).padStart(4,"0");
+}
+function usedDisplayIdSet(){
+  const set = new Set();
+  for(const p of activePool()){
+    if(p.displayId) set.add(String(p.displayId));
+    else if(p.alias && /^\d{4}$/.test(String(p.alias))) set.add(String(p.alias));
+  }
+  return set;
+}
+function peekNextDisplayId(){
+  const used = usedDisplayIdSet();
+  let c = loadCounter();
+  for(let i=0;i<10000;i++){
+    const next = c + 1;
+    if(next > 9999) break;
+    const id = formatDisplayId(next);
+    if(!used.has(id)) return id;
+    c++;
+  }
+  return "9999";
+}
+function allocateDisplayId(){
+  const used = usedDisplayIdSet();
+  let c = loadCounter();
+  for(let i=0;i<10000;i++){
+    const next = c + 1;
+    if(next > 9999){
+      showToast("ID limit", "Reached 9999 for this room/session. Start a new session to reset numbering.");
+      return null;
+    }
+    const id = formatDisplayId(next);
+    c = next;
+    saveCounter(c);
+    if(!used.has(id)){
+      return id;
+    }
+    // if collision, keep looping (counter already advanced)
+  }
+  showToast("ID limit", "No IDs available (0001–9999) for this room/session.");
+  return null;
+}
 
 /* =========================
    BARS
@@ -559,7 +621,6 @@ function isVenueAllowed(venueId){
   if(set.size === 0) return true;
   return set.has(v);
 }
-
 function populateCheckinVenueSelect(){
   const sel = $("checkinVenue");
   if(!sel) return;
@@ -601,10 +662,6 @@ function safeSend(obj){
   }catch{}
   return false;
 }
-function currentRoomId(){
-  return (host.mode === "city") ? event.eventId : host.activeBarId;
-}
-
 function stopHeartbeat(){
   if(timers.heartbeat){ clearInterval(timers.heartbeat); timers.heartbeat=null; }
 }
@@ -613,7 +670,6 @@ function startHeartbeat(){
   timers.heartbeat = setInterval(()=>{
     if(WS_STATE!=="CONNECTED") return;
     const roomId = currentRoomId();
-    // Lightweight keepalive; relay may ignore. This is fine.
     safeSend({ type:"ping", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
   }, HEARTBEAT_MS);
 }
@@ -653,7 +709,8 @@ function broadcastConfig(){
       tvExpireMs: TV_EXPIRE_MS,
       tvRotateMs: TV_ROTATE_MS,
       checkIn: "phone_or_manual_host_only",
-      venueChange: "host_only"
+      venueChange: "host_only",
+      ids: "host_chronological_0001_9999"
     },
     hostLock: hostPin ? "pin_enabled" : "off"
   });
@@ -666,12 +723,17 @@ function activePool(){
   const roomId = currentRoomId();
   return people.filter(p => p.session === host.session && p.roomId === roomId && p.status !== "removed");
 }
+function bestLabel(p){
+  // always show number; fallback
+  return String(p?.displayId || p?.alias || "—");
+}
 function broadcastRosterSync(requesterNonce=null){
   const roomId = currentRoomId();
   const pool = activePool();
   const roster = pool.map(p => ({
     id: p.id,
-    alias: p.alias,
+    displayId: bestLabel(p),
+    alias: bestLabel(p), // compatibility
     venueId: p.expectedVenueId || p.venueId || "",
     status: p.status || "pending"
   }));
@@ -683,7 +745,7 @@ function broadcastRosterSync(requesterNonce=null){
     session: host.session,
     roster,
     people: roster,
-    you: you ? { id: you.id, alias: you.alias, venueId: you.expectedVenueId || "", status: you.status || "pending" } : undefined
+    you: you ? { id: you.id, displayId: bestLabel(you), alias: bestLabel(you), venueId: you.expectedVenueId || "", status: you.status || "pending" } : undefined
   });
 }
 
@@ -715,11 +777,10 @@ function payloadFingerprint(payload){
     session: payload?.session ?? "",
     clientNonce: payload?.clientNonce ?? "",
     id: payload?.id ?? payload?.personId ?? "",
-    alias: payload?.alias ?? "",
+    identityPhone: digitsOnly(payload?.identityPhone || payload?.contactPhone || contact.phone || payload?.attrs?.identityPhone || ""),
     venueId: payload?.venueId ?? payload?.expectedVenueId ?? "",
     travelYes: !!payload?.travelYes,
     eventType: String(payload?.eventType || payload?.event?.type || "").toLowerCase().trim(),
-    identityPhone: digitsOnly(payload?.identityPhone || payload?.contactPhone || contact.phone || payload?.attrs?.identityPhone || ""),
     net: {
       industry: net.industry || "",
       roleLevel: net.roleLevel || "",
@@ -732,13 +793,6 @@ function payloadFingerprint(payload){
       ice1: net.ice1 || "",
       ice2: net.ice2 || "",
       ice3: net.ice3 || ""
-    },
-    socials: {
-      linkedin: String(contact.linkedin || payload?.linkedin || "").trim(),
-      website: String(contact.website || payload?.website || "").trim(),
-      instagram: String(contact.instagram || "").trim(),
-      tiktok: String(contact.tiktok || "").trim(),
-      facebook: String(contact.facebook || "").trim()
     },
     attrs: payload?.attrs ?? {},
     food: (payload?.foodChips ?? []).slice().sort(),
@@ -856,8 +910,7 @@ function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
 function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
 
 /* =========================
-   IMPORT GUEST (Relay-authoritative alias + id)
-   ✅ NO host-side alias generation
+   UPSERT
 ========================= */
 function upsertGuestById(id, patch){
   const idx = people.findIndex(p=>p.id===id);
@@ -866,6 +919,25 @@ function upsertGuestById(id, patch){
   saveJSON(STORAGE.PEOPLE, people);
 }
 
+/* =========================
+   ID + ACK (host is authoritative for displayId)
+========================= */
+function sendSubmitAck(clientNonce, displayId){
+  if(!clientNonce) return;
+  const roomId = currentRoomId();
+  safeSend({
+    type: "submit_ack",
+    roomId, room: roomId, barId: roomId,
+    session: host.session,
+    clientNonce,
+    displayId,
+    alias: displayId // compatibility
+  });
+}
+
+/* =========================
+   CONTACT / PHONE EXTRACTION
+========================= */
 function extractIdentityPhone(payload, stableId){
   const direct = digitsOnly(payload?.identityPhone || "");
   if(direct.length===10) return direct;
@@ -885,6 +957,19 @@ function extractIdentityPhone(payload, stableId){
   return "";
 }
 
+/* =========================
+   IMPORT GUEST
+========================= */
+function normalizeIncomingDisplayId(payload){
+  // if payload already has a numeric-ish id, accept it
+  const raw = String(payload?.displayId || payload?.numberId || payload?.guestId || "").trim();
+  if(/^\d{1,4}$/.test(raw)){
+    return String(parseInt(raw,10)).padStart(4,"0");
+  }
+  if(/^\d{4}$/.test(raw)) return raw;
+  return "";
+}
+
 function importGuest(payload){
   const incomingRoom = payload.roomId ?? payload.room ?? payload.barId ?? payload.roomID ?? "";
   const relayId = String(payload.id || payload.personId || "").trim();
@@ -895,21 +980,30 @@ function importGuest(payload){
   const expectedVenue = payload.expectedVenueId || payload.venueId || "";
 
   const identityPhone = extractIdentityPhone(payload, stableId);
-
-  // If relay included eventType, respect it; otherwise fall back to host event.type
   const eventTypeFromPayload = normalizeEventType(payload?.eventType || payload?.event?.type || event.type || "dating");
 
   const net = payload?.net && typeof payload.net==="object" ? payload.net : {};
 
-  const aliasFromRelay = String(payload.alias || "").trim();
-  const alias = existing?.alias || aliasFromRelay || "Guest";
+  // ✅ assign/keep displayId
+  let displayId =
+    (existing?.displayId ? String(existing.displayId) : "") ||
+    normalizeIncomingDisplayId(payload);
+
+  if(!displayId){
+    const alloc = allocateDisplayId();
+    if(!alloc) return; // hard stop at limit
+    displayId = alloc;
+  }
+
+  // Store displayId in both fields for compatibility
+  const alias = displayId;
 
   const p = {
     id: stableId,
     clientNonce: nonceId || (existing?.clientNonce || null),
 
-    // ✅ RELAY ALIAS SOURCE OF TRUTH
-    alias,
+    displayId,     // ✅ canonical
+    alias,         // ✅ compatibility
 
     roomId: incomingRoom || currentRoomId(),
     session: payload.session,
@@ -923,7 +1017,6 @@ function importGuest(payload){
 
     eventType: eventTypeFromPayload,
 
-    /* dating fields (existing support) */
     attrs: payload.attrs || {},
     prefs: payload.prefs || {},
     deal: payload.deal || {},
@@ -936,7 +1029,6 @@ function importGuest(payload){
     pays: payload.pays || "",
     budget: payload.budget || "",
 
-    /* networking fields */
     net: {
       industry: net.industry || "",
       roleLevel: net.roleLevel || "",
@@ -965,6 +1057,9 @@ function importGuest(payload){
   upsertGuestById(stableId, p);
   ensureLikes(stableId);
   saveJSON(STORAGE.LIKES, likes);
+
+  // ✅ ACK back to that guest so join.html can show the big number
+  sendSubmitAck(p.clientNonce, p.displayId);
 
   renderAll();
 }
@@ -1071,7 +1166,7 @@ function phoneCheckIn(){
   if(matches.length === 0){
     const any = activePool().filter(p => digitsOnly(p.identityPhone)===d);
     if(any.length){
-      return showToast("Already found", `That phone belongs to ${any[0].alias} (status: ${any[0].status || "pending"}).`);
+      return showToast("Already found", `That phone belongs to ${bestLabel(any[0])} (status: ${any[0].status || "pending"}).`);
     }
     return showToast("Not found", "No pending guest with that phone in this room/session.");
   }
@@ -1079,11 +1174,11 @@ function phoneCheckIn(){
   if(matches.length === 1){
     hostSetStatus(matches[0].id, "checked_in", venueId);
     $("checkinPhone").value = "";
-    showToast("Checked in", `${matches[0].alias} checked in at ${barName(venueId)}.`);
+    showToast("Checked in", `${bestLabel(matches[0])} checked in at ${barName(venueId)}.`);
     return;
   }
 
-  const opts = matches.map((p,i)=>`${i+1}) ${p.alias} (Expected: ${barName(p.expectedVenueId || p.venueId || "")})`).join("\n");
+  const opts = matches.map((p,i)=>`${i+1}) ${bestLabel(p)} (Expected: ${barName(p.expectedVenueId || p.venueId || "")})`).join("\n");
   const pick = prompt("Multiple pending guests share this phone.\nChoose number:\n\n"+opts, "1");
   const idx = Math.max(1, parseInt(pick||"1",10)) - 1;
   const chosen = matches[idx];
@@ -1091,7 +1186,7 @@ function phoneCheckIn(){
 
   hostSetStatus(chosen.id, "checked_in", venueId);
   $("checkinPhone").value = "";
-  showToast("Checked in", `${chosen.alias} checked in at ${barName(venueId)}.`);
+  showToast("Checked in", `${bestLabel(chosen)} checked in at ${barName(venueId)}.`);
 }
 
 /* =========================
@@ -1175,7 +1270,7 @@ function handleVoteMessage(msg){
 }
 
 /* =========================
-   CONTACT SAVE (supports linkedin/website + dating socials)
+   CONTACT SAVE
 ========================= */
 function handleContactSave(msg){
   const roomId = currentRoomId();
@@ -1212,7 +1307,7 @@ function handleContactSave(msg){
   }
 
   safeSend({ type:"contact_saved_ack", roomId, room:roomId, barId:roomId, session:host.session, voterNonce, ok:true });
-  showToast("Contact saved", `Saved for ${p?.alias || "guest"}.`);
+  showToast("Contact saved", `Saved for ${bestLabel(p)}.`);
   renderAll();
 }
 
@@ -1249,7 +1344,7 @@ function computeCountsAndHotspot(){
 }
 
 /* =========================
-   TV SYNC (includes flags + counts)
+   TV SYNC
 ========================= */
 function broadcastTVSync(){
   const roomId = currentRoomId();
@@ -1264,8 +1359,11 @@ function broadcastTVSync(){
       const bVenue = B?.checkedInVenueId || B?.expectedVenueId || "";
       return {
         ...m,
-        aAlias: A?.alias || "Guest",
-        bAlias: B?.alias || "Guest",
+        aDisplayId: bestLabel(A),
+        bDisplayId: bestLabel(B),
+        // compat with older tv.html
+        aAlias: bestLabel(A),
+        bAlias: bestLabel(B),
         aVenueId: aVenue,
         bVenueId: bVenue,
         aCheckedIn: (A?.status === "checked_in"),
@@ -1306,7 +1404,6 @@ function wsConnect(isReconnect=false){
 
     startHeartbeat();
 
-    // Immediate broadcast so guests never hang on config
     broadcastConfig();
     broadcastTVSync();
     broadcastRosterSync(null);
@@ -1318,7 +1415,6 @@ function wsConnect(isReconnect=false){
     lastTrafficAt = now();
     let msg; try{ msg = JSON.parse(ev.data); }catch{ return; }
 
-    // Relay might send ping; reply politely (harmless)
     if(msg.type==="ping"){
       const roomId = currentRoomId();
       safeSend({ type:"pong", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
@@ -1342,15 +1438,13 @@ function wsConnect(isReconnect=false){
 
       const fp = payloadFingerprint(payload);
       if(dedupeSeen(fp)){
-        // ✅ Do NOT send submit_ack from host (relay already does this).
+        // already processed
         return;
       }
 
-      // ✅ Import relies on payload.id + payload.alias from relay
       importGuest(payload);
 
       showToast("Guest", "New guest received (Pending).");
-      // keep guests/tv updated
       broadcastConfig();
       broadcastRosterSync(payload.clientNonce || payload.id || null);
       broadcastTVSync();
@@ -1413,19 +1507,25 @@ function renderEventBars(){
   });
 }
 
+function sortByDisplayId(a,b){
+  const aa = parseInt(String(bestLabel(a)).replace(/\D/g,"")||"0",10);
+  const bb = parseInt(String(bestLabel(b)).replace(/\D/g,"")||"0",10);
+  return aa - bb;
+}
+
 function renderArrivals(){
   const wrap=$("arrivals");
   wrap.innerHTML="";
   const pool=activePool()
     .filter(p => (p.status||"pending")==="pending")
-    .filter(p => matchSearch(p.alias));
+    .filter(p => matchSearch(bestLabel(p)));
 
   if(!pool.length){
     wrap.innerHTML=`<div class="muted">${(ui.search||"").trim() ? "No pending arrivals match your search." : "No pending arrivals."}</div>`;
     return;
   }
 
-  pool.sort((a,b)=>String(a.alias||"").localeCompare(String(b.alias||""), undefined, {sensitivity:"base"}));
+  pool.sort(sortByDisplayId);
 
   for(const p of pool){
     const expected = p.expectedVenueId || p.venueId || "";
@@ -1435,11 +1535,11 @@ function renderArrivals(){
     el.className="item";
     el.innerHTML = `
       <div style="min-width:0">
-        <strong>${esc(p.alias)} ${invalid ? `<span class="badge bad" style="margin-left:8px">INVALID VENUE</span>` : ``}</strong>
+        <strong>${esc(bestLabel(p))} ${invalid ? `<span class="badge bad" style="margin-left:8px">INVALID VENUE</span>` : ``}</strong>
         <div class="sub">
           Type: <span class="mono">${esc(p.eventType || event.type || "dating")}</span><br/>
           Expected: <span class="mono">${esc(barName(expected))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
-          Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • ID: <span class="mono">${esc(p.id)}</span>
+          Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • Internal ID: <span class="mono">${esc(p.id)}</span>
         </div>
       </div>
       <div class="row" style="justify-content:flex-end">
@@ -1477,14 +1577,14 @@ function renderCheckedIn(){
   wrap.innerHTML="";
   const pool=activePool()
     .filter(p => (p.status||"pending")==="checked_in")
-    .filter(p => matchSearch(p.alias));
+    .filter(p => matchSearch(bestLabel(p)));
 
   if(!pool.length){
     wrap.innerHTML=`<div class="muted">${(ui.search||"").trim() ? "No checked-in guests match your search." : "No one checked in yet."}</div>`;
     return;
   }
 
-  pool.sort((a,b)=>String(a.alias||"").localeCompare(String(b.alias||""), undefined, {sensitivity:"base"}));
+  pool.sort(sortByDisplayId);
 
   for(const p of pool){
     const v = p.checkedInVenueId || p.expectedVenueId || "";
@@ -1493,11 +1593,11 @@ function renderCheckedIn(){
     el.className="item";
     el.innerHTML = `
       <div style="min-width:0">
-        <strong>${esc(p.alias)}</strong>
+        <strong>${esc(bestLabel(p))}</strong>
         <div class="sub">
           Type: <span class="mono">${esc(p.eventType || event.type || "dating")}</span><br/>
           Checked In: <span class="mono">${esc(barName(v))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
-          Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • ID: <span class="mono">${esc(p.id)}</span>
+          Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • Internal ID: <span class="mono">${esc(p.id)}</span>
         </div>
       </div>
       <div class="row" style="justify-content:flex-end">
@@ -1598,15 +1698,15 @@ function renderTVQueue(){
   for(const m of tv.matches){
     const A = pool.find(x=>x.id===m.aId);
     const B = pool.find(x=>x.id===m.bId);
-    const aAlias = A?.alias || "Guest A";
-    const bAlias = B?.alias || "Guest B";
+    const aLabel = bestLabel(A);
+    const bLabel = bestLabel(B);
 
     const minsLeft = Math.max(0, Math.round((m.expiresAt-now())/60000));
     const el=document.createElement("div");
     el.className="item";
     el.innerHTML=`
       <div style="min-width:0">
-        <strong>${esc(aAlias)} + ${esc(bAlias)} — ${Math.round(m.score*100)}%</strong>
+        <strong>${esc(aLabel)} + ${esc(bLabel)} — ${Math.round(m.score*100)}%</strong>
         <div class="sub">
           Code: <span class="mono">${esc(m.code)}</span> • Expires: <span class="mono">${minsLeft}m</span><br/>
           ${esc(m.plan)}
@@ -1626,6 +1726,8 @@ function renderCounts(){
   $("countCheckedIn").textContent = checked.length;
   $("countTV").textContent = activeTvMatches().length;
   $("countJoined").textContent = pool.length;
+
+  $("nextNumPill").textContent = peekNextDisplayId();
 }
 
 function updateLinks(){
@@ -1735,10 +1837,13 @@ function clearRoster(){
   dedupe = {};
   saveJSON(STORAGE.DEDUPE, dedupe);
 
+  // ✅ reset counter for this room+session
+  saveCounter(0);
+
   renderAll();
   broadcastRosterSync(null);
   broadcastTVSync();
-  showToast("Cleared","Roster + likes + contacts + TV queue cleared for this room/session.");
+  showToast("Cleared","Roster + likes + contacts + TV queue cleared for this room/session. Numbering reset to 0001.");
 }
 function createOrUpdateEvent(){
   if(!requireUnlock()) return;
@@ -1764,7 +1869,7 @@ function toggleParticipating(barId){
 function exportCSV(){
   const pool=activePool();
   const headers=[
-    "alias","id","eventType","status","identityPhone","expectedVenue","checkedInVenue","travelYes",
+    "displayId","id","eventType","status","identityPhone","expectedVenue","checkedInVenue","travelYes",
     "industry","roleLevel","yearsExperience","education","certifications","licenses","intentions","lookingFor","ice1","ice2","ice3",
     "foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter",
     "linkedin","website","instagram","tiktok","facebook"
@@ -1774,7 +1879,7 @@ function exportCSV(){
     const c = contacts[p.id] || {};
     const net = p.net || {};
     const row=[
-      p.alias,
+      bestLabel(p),
       p.id,
       p.eventType || "",
       p.status || "pending",
@@ -1927,8 +2032,10 @@ function init(){
     if(!requireUnlock()) { $("modeSelect").value = host.mode; return; }
     host.mode = $("modeSelect").value;
     saveJSON(STORAGE.HOST,host);
-    cleanupWs(); wsConnect();
+
+    // reset counter when switching rooms logically
     renderAll();
+    cleanupWs(); wsConnect();
     broadcastConfig(); broadcastTVSync(); broadcastRosterSync(null);
   });
 
@@ -1936,8 +2043,9 @@ function init(){
     if(!requireUnlock()) { $("sessionCode").value = host.session; return; }
     host.session = $("sessionCode").value.trim() || host.session;
     saveJSON(STORAGE.HOST,host);
-    cleanupWs(); wsConnect();
+
     renderAll();
+    cleanupWs(); wsConnect();
     broadcastConfig(); broadcastTVSync(); broadcastRosterSync(null);
   });
 
@@ -1949,9 +2057,13 @@ function init(){
     saveJSON(STORAGE.TV,tv);
     dedupe = {};
     saveJSON(STORAGE.DEDUPE, dedupe);
+
+    // reset numbering for new session
+    saveCounter(0);
+
     cleanupWs(); wsConnect();
     renderAll();
-    showToast("New session","Session refreshed.");
+    showToast("New session","Session refreshed. Numbering reset to 0001.");
   });
 
   $("barSelect").addEventListener("change", ()=>{
@@ -2077,6 +2189,8 @@ init();
 </script>
 </body>
 </html>
+
+
 
 
 
