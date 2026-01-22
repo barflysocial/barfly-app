@@ -216,6 +216,13 @@ textarea{min-height:86px;resize:vertical}
 .voteSub{margin-top:6px;color:var(--muted);font-weight:900;font-size:13px;line-height:1.35}
 .voteActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .voteList{display:flex;flex-direction:column;gap:10px}
+.reasons{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.reasonChip{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  padding:6px 8px;border-radius:999px;
+  font-size:12px;font-weight:900;color:var(--muted)
+}
 </style>
 </head>
 
@@ -227,6 +234,8 @@ textarea{min-height:86px;resize:vertical}
     <div class="pill" id="eventPillWrap"><b>Event</b> <span id="eventPill">Syncing…</span></div>
     <div class="pill" id="cfgPillWrap"><b>Config</b> <span id="cfgPill">WAITING</span></div>
     <div class="pill" id="wsPillWrap"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
+
+    <button class="btn small" id="btnReconnect" type="button" title="Reconnect WebSocket">Reconnect</button>
   </div>
 
   <!-- ✅ TITLE / 18+ / TERMS GATE -->
@@ -338,6 +347,24 @@ textarea{min-height:86px;resize:vertical}
         <input id="age" type="number" min="18" max="99" placeholder="18+" inputmode="numeric">
         <div class="muted small" style="margin-top:6px">
           Must be 18 or older.
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ Optional host check-in PIN (host can require) -->
+    <div class="two" id="pinWrap" style="margin-top:10px">
+      <div>
+        <label>Host Check-in PIN <span class="k" id="pinReqTag">OPTIONAL</span></label>
+        <input id="hostPin" inputmode="numeric" placeholder="Enter PIN from host stand">
+        <div class="muted small" style="margin-top:6px" id="pinHelp">
+          If the host requires a PIN, you must enter it before submitting.
+        </div>
+      </div>
+      <div>
+        <label>My Check-in Code</label>
+        <input id="checkinCode" readonly>
+        <div class="muted small" style="margin-top:6px">
+          Show this code to the host if asked. It helps staff find you quickly.
         </div>
       </div>
     </div>
@@ -850,7 +877,7 @@ textarea{min-height:86px;resize:vertical}
     <div class="hr"></div>
 
     <button class="btn primary" id="btnSubmit" type="button" style="width:100%;font-size:18px" disabled>Submit</button>
-    <div class="muted small" style="margin-top:8px">
+    <div class="muted small" style="margin-top:8px" id="submitHelp">
       Submitting requires WS. If it won’t connect, ask host to refresh/broadcast config.
     </div>
 
@@ -939,7 +966,7 @@ textarea{min-height:86px;resize:vertical}
         <li>You are responsible for your own behavior and personal safety. Meet in public, trust your instincts, and involve event staff if needed.</li>
       </ul>
 
-      <h3>5) Privacy & Data</h3>
+      <h3>5) Privacy &amp; Data</h3>
       <p>The Service uses <b>aliases</b> and minimizes identity sharing. Identity Phone is used for host verification. Optional mutual contact details (share phone/social/LinkedIn/website) are intended to be released only after mutual matching, as configured by the host.</p>
 
       <h3>6) No Guarantee of Matches</h3>
@@ -993,7 +1020,7 @@ textarea{min-height:86px;resize:vertical}
         <li>Release optional mutual contact only after a mutual match (as configured).</li>
       </ul>
 
-      <h3>3) Aliases & Identity</h3>
+      <h3>3) Aliases &amp; Identity</h3>
       <p>The system uses random aliases and does not require your real name. Do not enter sensitive personal info into free-text fields.</p>
 
       <h3>4) Sharing</h3>
@@ -1014,13 +1041,17 @@ textarea{min-height:86px;resize:vertical}
 
 <script>
 /* ============================================================
-   JOIN — HOST-SELECTED EVENT TYPE (Dating OR Networking)
-
-   ✅ FIX INCLUDED:
-   - WS + config now connect/sync in the BACKGROUND even on the gate screen,
-     so “Waiting for host config…” doesn’t feel stuck.
-   - Enter no longer needs to start WS; it just reveals the app.
-
+   JOIN — ALL 10 UPGRADES IMPLEMENTED
+   1) Gate blocks entry until config usable (READY or valid FALLBACK)
+   2) Reconnect button
+   3) Autosave draft to localStorage (+restore, clear on submit)
+   4) Better phone validation (reject obvious fakes)
+   5) Host check-in PIN option (config/url can require)
+   6) Voting undo window (10s)
+   7) Match reasons display (safe reasons[] from host)
+   8) Sanitize + length caps before sending
+   9) Smarter config retries (exponential backoff)
+   10) Host-driven required/optional/disabled schema support
 ============================================================ */
 
 const WS_URL = "wss://bar-match-relay.onrender.com";
@@ -1029,15 +1060,7 @@ const TOP_N = 12;
 const FOOD = ["American","Asian","Latin","BBQ","Italian","Indian","Mediterranean","Seafood","Steak","Sushi"];
 const ACTS = ["Trivia","Karaoke","Music Bingo","Bingo","Line Dancing","Latin Dancing","Crafting Cocktails","Wine Tasting","Movies","Video Games","Yoga","Daiquiris","Golf Range","Pickleball","Painting","Musical Instruments","Volunteering","Hunting","Fishing","Reading","Writing","Trampoline Park","Volleyball","Working Out","Football","Softball","Baseball","Basketball","Sports Bar","Shopping","Comedy Show","Photography","VR Sports","Cigar/Hookah","Bowling"];
 
-const NET_INTENTS = [
-  "Mentor",
-  "Employment",
-  "Business partners",
-  "Collaborators",
-  "Investors",
-  "Customers/clients",
-  "Internships"
-];
+const NET_INTENTS = ["Mentor","Employment","Business partners","Collaborators","Investors","Customers/clients","Internships"];
 
 const $ = (id)=>document.getElementById(id);
 
@@ -1050,6 +1073,8 @@ function qs(){
   q.bars = (q.bars || "").trim();                   // JSON (urlencoded)
   q.participating = (q.participating || "").trim(); // JSON (urlencoded)
   q.eventType = (q.eventType || q.event || "").trim().toLowerCase(); // optional fallback only
+  q.requirePin = (q.requirePin || "").trim().toLowerCase();          // "1"/"true"
+  q.pinHint = (q.pinHint || "").trim();                               // optional
   return q;
 }
 function esc(s){
@@ -1061,14 +1086,57 @@ function showToast(t,m){
   clearTimeout(showToast._t);
   showToast._t=setTimeout(()=>{el.style.display="none"}, 2600);
 }
+
 function digitsOnly(s){ return String(s||"").replace(/\D/g,""); }
 function clampDigitsInput(el, maxLen){
   if(!el) return;
   const d = digitsOnly(el.value).slice(0, maxLen);
   if(el.value !== d) el.value = d;
 }
-function validPhone10(raw){ return digitsOnly(raw).length === 10; }
 
+/* =========================
+   8) SANITIZE + CAPS
+========================= */
+function stripControls(s){
+  return String(s||"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim();
+}
+function sanitizeText(s, maxLen){
+  const x = stripControls(s);
+  return x.length > maxLen ? x.slice(0, maxLen) : x;
+}
+function sanitizeTextarea(s, maxLen){
+  // allow newlines but remove control chars
+  let x = String(s||"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"");
+  if(x.length > maxLen) x = x.slice(0, maxLen);
+  return x.trim();
+}
+function looksLikeContactLeak(s){
+  const t = String(s||"");
+  const hasEmail = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(t);
+  const hasPhone = /\b(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/.test(t);
+  return hasEmail || hasPhone;
+}
+
+/* =========================
+   4) BETTER PHONE VALIDATION
+========================= */
+const PLACEHOLDER_PHONES = new Set([
+  "0000000000","1111111111","2222222222","3333333333","4444444444","5555555555",
+  "6666666666","7777777777","8888888888","9999999999","1234567890","0987654321"
+]);
+function isAllSameDigits(s){ return /^(\d)\1+$/.test(s); }
+function validPhone10(raw){
+  const d = digitsOnly(raw);
+  if(d.length !== 10) return false;
+  if(PLACEHOLDER_PHONES.has(d)) return false;
+  if(isAllSameDigits(d)) return false;
+  if(d.startsWith("0") || d.startsWith("1")) return false; // basic NANP sanity
+  return true;
+}
+
+/* =========================
+   Handle/URL validation
+========================= */
 function normalizeHandle(raw){
   let s = String(raw||"").trim();
   if(!s) return "";
@@ -1139,13 +1207,64 @@ function bindModals(){
 }
 
 /* =========================
+   10) HOST SCHEMA (required/optional/disabled)
+   - Host can send:
+     schema: {
+       dating: { required:[...], optional:[...], disabled:[...] },
+       networking: { required:[...], optional:[...], disabled:[...] }
+     }
+================================================ */
+let HOST_SCHEMA = {
+  dating: { required: [], optional: [], disabled: [] },
+  networking: { required: [], optional: [], disabled: [] }
+};
+function schemaForType(t){
+  if(t==="dating") return HOST_SCHEMA.dating;
+  if(t==="networking") return HOST_SCHEMA.networking;
+  return { required: [], optional: [], disabled: [] };
+}
+function isDisabledField(id){
+  const t = HOST_EVENT_TYPE;
+  const s = schemaForType(t);
+  return Array.isArray(s.disabled) && s.disabled.includes(id);
+}
+function requiredFields(){
+  const t = HOST_EVENT_TYPE;
+  const s = schemaForType(t);
+  // If host provides required list, we use it; otherwise default hard-coded mandatory behavior below.
+  return Array.isArray(s.required) ? s.required : [];
+}
+function hasHostRequiredList(){
+  const t = HOST_EVENT_TYPE;
+  const s = schemaForType(t);
+  return Array.isArray(s.required) && s.required.length > 0;
+}
+function applyDisabledUI(){
+  const t = HOST_EVENT_TYPE;
+  if(!(t==="dating" || t==="networking")) return;
+  const dis = schemaForType(t).disabled || [];
+  for(const id of dis){
+    const el = $(id);
+    if(!el) continue;
+    try{ el.disabled = true; }catch{}
+    // Hide the nearest "field container" div when possible (avoid hiding whole sections accidentally)
+    const wrap = el.closest("div");
+    if(wrap) wrap.classList.add("hidden");
+  }
+  // chips special cases
+  if(dis.includes("foodChips")) $("foodChips")?.classList.add("hidden");
+  if(dis.includes("actChips")) $("actChips")?.classList.add("hidden");
+  if(dis.includes("netIntentChips")) $("netIntentChips")?.classList.add("hidden");
+}
+
+/* =========================
    18+ / TERMS GATE
 ========================= */
 function gateKey(){
   const q=qs();
   const room=q.room||"";
   const session=q.session||"";
-  return `bm_gate_v2_${room}_${session}`;
+  return `bm_gate_v3_${room}_${session}`;
 }
 function isGateAccepted(){
   try{ return localStorage.getItem(gateKey()) === "1"; }catch{ return false; }
@@ -1153,9 +1272,16 @@ function isGateAccepted(){
 function setGateAccepted(){
   try{ localStorage.setItem(gateKey(), "1"); }catch{}
 }
+function canProceedWithConfig(){
+  // 1) Gate blocks entry until config usable
+  if(CFG_STATE==="READY") return true;
+  if(CFG_STATE==="FALLBACK" && hasUrlFallbackEnough()) return true;
+  return false;
+}
 function updateGateButton(){
   const ok = !!$("chk18")?.checked && !!$("chkTerms")?.checked;
-  $("btnEnter").disabled = !ok;
+  // Gate also requires config usable
+  $("btnEnter").disabled = !(ok && canProceedWithConfig());
 }
 function showGate(){
   $("gateCard").classList.remove("hidden");
@@ -1168,16 +1294,16 @@ function enterApp(){
     showToast("Bad link", "Missing ?room=...&session=... in the URL.");
     return;
   }
-
-  // Ensure WS is connected (we try in background, but this is a safe fallback)
-  if(WS_STATE !== "CONNECTED" && WS_STATE !== "CONNECTING"){
-    connectWS();
+  if(!canProceedWithConfig()){
+    showToast("Not ready", "Waiting for host config (or valid link fallback).");
+    return;
   }
-
   setGateAccepted();
   $("gateCard").classList.add("hidden");
   $("formCard").classList.remove("hidden");
+  connectWS();
   setVoteStats();
+  restoreDraft(); // 3) restore draft when entering
   updateSubmitEnabled();
   showToast("Welcome", "Fill out your profile, submit, then vote.");
 }
@@ -1192,8 +1318,10 @@ let HOST_MODE = "single";           // "single" | "city"
 let HOST_PARTICIPATING_IDS = [];    // [id,id...]
 let HOST_EVENT_TYPE = "";           // "dating" | "networking"
 let CFG_STATE = "WAITING";          // WAITING | READY | FALLBACK
-let cfgRetryTimer=null;
-let cfgRetryCount=0;
+
+// 5) Host PIN requirement
+let HOST_REQUIRE_PIN = false;
+let HOST_PIN_HINT = "";
 
 function setCfgPill(state){
   CFG_STATE=state;
@@ -1202,8 +1330,8 @@ function setCfgPill(state){
   if(!wrap || !pill) return;
   pill.textContent = state;
   wrap.className = "pill " + (state==="READY" ? "good" : state==="FALLBACK" ? "warn" : "warn");
+  updateGateButton();
 }
-
 function setEventPill(type){
   const t = (type||"").toLowerCase();
   const label = t==="networking" ? "Professional Networking" : t==="dating" ? "Dating" : "Syncing…";
@@ -1230,19 +1358,53 @@ function parseBarsFromUrl(){
 
   const et = String(q.eventType||"").toLowerCase();
   if(et==="dating" || et==="networking") HOST_EVENT_TYPE = et;
+
+  // URL-based PIN requirement fallback
+  HOST_REQUIRE_PIN = (q.requirePin==="1" || q.requirePin==="true");
+  HOST_PIN_HINT = q.pinHint || "";
 }
 
 function extractEventTypeFromConfig(cfg){
-  const raw =
-    (cfg?.eventType) ||
-    (cfg?.event?.type) ||
-    (cfg?.type) ||
-    (cfg?.event_mode) ||
-    "";
+  const raw = (cfg?.eventType) || (cfg?.event?.type) || (cfg?.type) || (cfg?.event_mode) || "";
   const t = String(raw||"").toLowerCase();
   if(t.includes("network")) return "networking";
   if(t.includes("dating")) return "dating";
   return "";
+}
+
+function applyPinPolicyFromConfig(cfg){
+  // Host can define:
+  //   requirePin: true
+  //   pinHint: "Ask bartender"
+  const rp = !!(cfg?.requirePin || cfg?.security?.requirePin || cfg?.checkin?.requirePin);
+  const hint = String(cfg?.pinHint || cfg?.security?.pinHint || cfg?.checkin?.pinHint || "").trim();
+  if(rp) HOST_REQUIRE_PIN = true;
+  if(hint) HOST_PIN_HINT = hint;
+  // update UI
+  if($("pinReqTag")){
+    $("pinReqTag").textContent = HOST_REQUIRE_PIN ? "REQUIRED" : "OPTIONAL";
+    $("pinReqTag").className = "k";
+  }
+  if($("pinHelp")){
+    $("pinHelp").textContent = HOST_REQUIRE_PIN
+      ? ("PIN is required to submit. " + (HOST_PIN_HINT ? ("Hint: " + HOST_PIN_HINT) : "Ask the host stand."))
+      : ("If the host requires a PIN, you must enter it before submitting.");
+  }
+}
+
+function applySchemaFromConfig(cfg){
+  const sch = cfg?.schema || cfg?.formSchema || cfg?.requirements || null;
+  if(!sch || typeof sch !== "object") return;
+  for(const key of ["dating","networking"]){
+    const o = sch[key];
+    if(o && typeof o === "object"){
+      HOST_SCHEMA[key] = {
+        required: Array.isArray(o.required) ? o.required.slice() : (HOST_SCHEMA[key].required || []),
+        optional: Array.isArray(o.optional) ? o.optional.slice() : (HOST_SCHEMA[key].optional || []),
+        disabled: Array.isArray(o.disabled) ? o.disabled.slice() : (HOST_SCHEMA[key].disabled || [])
+      };
+    }
+  }
 }
 
 function applyHostConfig(cfg){
@@ -1264,6 +1426,9 @@ function applyHostConfig(cfg){
   const et = extractEventTypeFromConfig(cfg);
   if(et) HOST_EVENT_TYPE = et;
 
+  applyPinPolicyFromConfig(cfg);
+  applySchemaFromConfig(cfg);
+
   if(HOST_BARS.length && HOST_EVENT_TYPE){
     setCfgPill("READY");
   }else{
@@ -1273,6 +1438,7 @@ function applyHostConfig(cfg){
   setEventPill(HOST_EVENT_TYPE);
   populateVenueSelect();
   applyEventTypeUI();
+  applyDisabledUI();
   updateSubmitEnabled();
   updateGateConfigMessage();
 }
@@ -1286,19 +1452,21 @@ function updateGateConfigMessage(){
   const msg = $("cfgGateMsg");
   if(!warn || !msg) return;
 
-  if(CFG_STATE==="READY"){
+  if(CFG_STATE==="READY" || (CFG_STATE==="FALLBACK" && hasUrlFallbackEnough())){
     warn.classList.add("hidden");
+    updateGateButton();
     return;
   }
   warn.classList.remove("hidden");
 
   if(CFG_STATE==="FALLBACK"){
     msg.innerHTML = `Using link fallback. Event: <b>${esc($("eventPill").textContent)}</b>.`;
+    updateGateButton();
     return;
   }
 
-  const triesLeft = Math.max(0, 10 - cfgRetryCount);
-  msg.innerHTML = `Please wait. Retrying sync… (<b>${triesLeft}</b> more tries). If this takes too long, ask the host to refresh/broadcast the event.`;
+  msg.innerHTML = `Please wait. Syncing host configuration… If this takes too long, ask the host to refresh/broadcast the event.`;
+  updateGateButton();
 }
 
 /* =========================
@@ -1361,8 +1529,10 @@ function renderChips(containerId, items, set){
     c.className="chip"+(set.has(label)?" on":"");
     c.textContent=label;
     c.onclick=()=>{
+      if(isDisabledField(containerId)) return;
       if(set.has(label)) set.delete(label); else set.add(label);
       renderChips(containerId, items, set);
+      scheduleDraftSave();
       updateSubmitEnabled();
     };
     wrap.appendChild(c);
@@ -1387,6 +1557,7 @@ function applyEventTypeUI(){
     net.classList.add("hidden");
     $("eventSubtitle").textContent = "Syncing event type…";
   }
+  applyDisabledUI();
 }
 
 /* =========================
@@ -1401,9 +1572,10 @@ function hookReligionOther(){
     const isOther = sel.value==="Other";
     wrap.classList.toggle("hidden", !isOther);
     if(!isOther) input.value="";
+    scheduleDraftSave();
     updateSubmitEnabled();
   });
-  input.addEventListener("input", updateSubmitEnabled);
+  input.addEventListener("input", ()=>{ scheduleDraftSave(); updateSubmitEnabled(); });
 }
 
 /* =========================
@@ -1415,12 +1587,21 @@ let sending=false;
 let submitted=false;
 
 const clientNonce = (crypto?.randomUUID?.() || ("nonce_"+Math.random().toString(16).slice(2)));
+function shortCodeFromNonce(n){
+  const s = String(n||"").replace(/-/g,"");
+  return s.slice(0, 6).toUpperCase();
+}
+$("checkinCode").value = shortCodeFromNonce(clientNonce);
 
 let myAlias = "";
 let roster = [];
 let votes = {};
 let seenCount = 0;
 let likedCount = 0;
+
+// 6) vote undo tracking
+const UNDO_MS = 10000;
+const undoTimers = new Map(); // targetId -> { prev, newVal, t }
 
 function setWsStatus(s){
   WS_STATE=s;
@@ -1449,37 +1630,43 @@ function requestConfig(){
   safeSend({ type:"request_config", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 }
 
-function startConfigRetries(){
-  stopConfigRetries();
-  cfgRetryCount = 0;
-  updateGateConfigMessage();
+/* =========================
+   9) CONFIG RETRIES (EXPO BACKOFF)
+========================= */
+let cfgRetryTimer=null;
+let cfgRetryCount=0;
+let cfgRetryDelay=1200; // start
 
-  cfgRetryTimer = setInterval(()=>{
+function stopConfigRetries(){
+  clearTimeout(cfgRetryTimer);
+  cfgRetryTimer=null;
+}
+function scheduleConfigRetry(){
+  stopConfigRetries();
+  if(CFG_STATE==="READY") return;
+
+  cfgRetryTimer = setTimeout(()=>{
     if(CFG_STATE==="READY") { stopConfigRetries(); return; }
+
     cfgRetryCount++;
     requestConfig();
     setCfgPill(CFG_STATE==="FALLBACK" ? "FALLBACK" : "WAITING");
-    updateGateConfigMessage();
 
-    if(cfgRetryCount >= 3 && hasUrlFallbackEnough() && CFG_STATE!=="READY"){
+    // After a few tries, enable fallback if URL has enough
+    if(cfgRetryCount >= 2 && hasUrlFallbackEnough() && CFG_STATE!=="READY"){
       setCfgPill("FALLBACK");
       setEventPill(HOST_EVENT_TYPE);
       applyEventTypeUI();
       populateVenueSelect();
       updateSubmitEnabled();
-      updateGateConfigMessage();
     }
 
-    if(cfgRetryCount >= 10){
-      stopConfigRetries();
-      updateGateConfigMessage();
-    }
-  }, 3000);
-}
+    updateGateConfigMessage();
 
-function stopConfigRetries(){
-  clearInterval(cfgRetryTimer);
-  cfgRetryTimer=null;
+    // Backoff up to 30s; stop after ~12 attempts
+    cfgRetryDelay = Math.min(30000, Math.round(cfgRetryDelay * 1.6));
+    if(cfgRetryCount < 12) scheduleConfigRetry();
+  }, cfgRetryDelay);
 }
 
 function connectWS(){
@@ -1502,9 +1689,11 @@ function connectWS(){
 
   WS.onopen=()=>{
     setWsStatus("CONNECTED");
-    safeSend({ type:"join", role:"guest", roomId: room, room: room, barId: room, session });
+    safeSend({ type:"join", role:"guest", roomId: room, room: room, barId: room, session, clientNonce });
     requestConfig();
-    startConfigRetries();
+    cfgRetryCount = 0;
+    cfgRetryDelay = 1200;
+    scheduleConfigRetry();
   };
 
   WS.onmessage=(ev)=>{
@@ -1518,6 +1707,7 @@ function connectWS(){
 
       applyHostConfig(msg);
       if(CFG_STATE==="READY") stopConfigRetries();
+      updateGateButton();
       return;
     }
 
@@ -1526,6 +1716,7 @@ function connectWS(){
       submitted = true;
       sending = false;
       setWsStatus("CONNECTED");
+      clearDraft(); // 3) clear draft on submit
       $("formCard").classList.add("hidden");
       $("voteCard").classList.remove("hidden");
       showToast("Submitted","Now you can vote. Check in with host when you arrive.");
@@ -1562,7 +1753,25 @@ function connectWS(){
   };
 
   WS.onerror=()=>{ sending=false; setWsStatus("ERROR"); };
-  WS.onclose=()=>{ sending=false; setWsStatus("DISCONNECTED"); };
+  WS.onclose=()=>{
+    sending=false;
+    setWsStatus("DISCONNECTED");
+    // Attempt gentle auto-retry while user is on form/voting
+    // (doesn't spam; user still has Reconnect button)
+  };
+}
+
+/* =========================
+   2) RECONNECT BUTTON
+========================= */
+function reconnectNow(){
+  showToast("Reconnecting","Trying to reconnect…");
+  connectWS();
+  requestConfig();
+  cfgRetryCount = 0;
+  cfgRetryDelay = 1200;
+  scheduleConfigRetry();
+  updateSubmitEnabled();
 }
 
 /* =========================
@@ -1575,6 +1784,10 @@ function lockVenuePostSubmit(){
     $("venueLabel").textContent = "Expected location (locked — host can change)";
     $("venueHelp").textContent = "Your location is locked after submit. Only the host can move you.";
   }
+  // lock identity fields too (optional)
+  try{ $("identityPhone").disabled = true; }catch{}
+  try{ $("age").disabled = true; }catch{}
+  try{ $("hostPin").disabled = true; }catch{}
 }
 
 /* =========================
@@ -1589,7 +1802,7 @@ function validateMutualContactDating(errs){
   const ttRaw = valTrim("contactTiktok");
   const fbRaw = valTrim("contactFacebook");
 
-  if(sharePhoneRaw && !validPhone10(sharePhoneRaw)) errs.push("Share Phone must be 10 digits");
+  if(sharePhoneRaw && !validPhone10(sharePhoneRaw)) errs.push("Share Phone must be a real 10-digit number");
   if(igRaw && !validHandleAt(igRaw)) errs.push("Instagram must start with @ (letters/numbers/._)");
   if(ttRaw && !validHandleAt(ttRaw)) errs.push("TikTok must start with @ (letters/numbers/._)");
   if(fbRaw && !validFacebook(fbRaw)) errs.push("Facebook must be a link or a simple name");
@@ -1600,7 +1813,7 @@ function validateMutualContactNetworking(errs){
   const li = valTrim("net_linkedin");
   const web = valTrim("net_website");
 
-  if(sharePhoneRaw && !validPhone10(sharePhoneRaw)) errs.push("Share Phone must be 10 digits");
+  if(sharePhoneRaw && !validPhone10(sharePhoneRaw)) errs.push("Share Phone must be a real 10-digit number");
   if(li && !validUrlish(li)) errs.push("LinkedIn must be a valid link/URL");
   if(web && !validUrlish(web)) errs.push("Website must be a valid domain or URL");
 }
@@ -1610,35 +1823,94 @@ function validateCommon(errs){
 
   const idPhoneRaw = valTrim("identityPhone");
   if(!idPhoneRaw) errs.push("Identity Phone (required)");
-  else if(!validPhone10(idPhoneRaw)) errs.push("Identity Phone must be 10 digits");
+  else if(!validPhone10(idPhoneRaw)) errs.push("Identity Phone must be a real 10-digit number");
 
   if(!hasVal("venueSelect")) errs.push("Expected location");
   if(HOST_MODE === "city" && !hasVal("travelYes")) errs.push("Willing to travel");
 
   const ageVal = Number(valTrim("age")||0);
   if(!ageVal || ageVal < 18) errs.push("Age must be 18 or older");
+
+  // 5) Host PIN requirement
+  if(HOST_REQUIRE_PIN){
+    const pin = digitsOnly(valTrim("hostPin"));
+    if(!pin || pin.length < 3) errs.push("Host PIN required");
+  }
+}
+
+/* Default required sets (used when host does NOT provide schema.required) */
+const DEFAULT_REQUIRED = {
+  dating: [
+    "sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion",
+    "datingIntent","marriedBy","familyBy",
+    "firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter",
+    "foodChips","actChips"
+  ],
+  networking: [
+    "net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses",
+    "netIntentChips",
+    "net_ice1","net_ice2","net_ice3",
+    "net_skill","net_knownFor","net_publicBlurb"
+  ]
+};
+
+function getRequiredSetForEvent(){
+  const t = HOST_EVENT_TYPE;
+  if(!(t==="dating" || t==="networking")) return [];
+  if(hasHostRequiredList()) return requiredFields().slice();
+  return (DEFAULT_REQUIRED[t] || []).slice();
+}
+
+function fieldSatisfied(id){
+  if(isDisabledField(id)) return true;
+
+  // chips containers
+  if(id==="foodChips") return foodSet.size >= 1;
+  if(id==="actChips") return actSet.size >= 1;
+  if(id==="netIntentChips") return netIntentSet.size >= 1;
+
+  // special rule: religionOther if religion==Other
+  if(id==="religionOther"){
+    return valTrim("religion")!=="Other" || hasVal("religionOther");
+  }
+
+  const el=$(id);
+  if(!el) return true; // ignore unknown ids
+  return hasVal(id);
 }
 
 function validateDating(errs){
-  const reqIds = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","datingIntent","marriedBy","familyBy"];
-  for(const id of reqIds) if(!hasVal(id)) errs.push(id);
+  const req = getRequiredSetForEvent();
+  for(const id of req){
+    if(id==="netIntentChips") continue;
+    if(id==="foodChips" || id==="actChips"){
+      if(!fieldSatisfied(id)) errs.push("Pick at least 1 Favorite " + (id==="foodChips" ? "Food" : "Activity"));
+      continue;
+    }
+    if(!fieldSatisfied(id)) errs.push(id);
+  }
 
   if(valTrim("religion")==="Other" && !hasVal("religionOther")) errs.push("Other religion");
 
-  if(foodSet.size < 1) errs.push("At least 1 Favorite Food");
-  if(actSet.size < 1) errs.push("At least 1 Favorite Activity");
-
-  const reqIds2 = ["firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter"];
-  for(const id of reqIds2) if(!hasVal(id)) errs.push(id);
+  // 8) block contact leaks in public fields
+  if(looksLikeContactLeak(valTrim("publicBlurb"))) errs.push("Public blurb cannot include phone/email");
+  if(looksLikeContactLeak(valTrim("starter"))) errs.push("Conversation starter cannot include phone/email");
 
   validateMutualContactDating(errs);
 }
 
 function validateNetworking(errs){
-  const reqIds = ["net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses","net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb"];
-  for(const id of reqIds) if(!hasVal(id)) errs.push(id);
+  const req = getRequiredSetForEvent();
+  for(const id of req){
+    if(id==="foodChips" || id==="actChips") continue;
+    if(id==="netIntentChips"){
+      if(!fieldSatisfied(id)) errs.push("Pick at least 1 networking intention");
+      continue;
+    }
+    if(!fieldSatisfied(id)) errs.push(id);
+  }
 
-  if(netIntentSet.size < 1) errs.push("Pick at least 1 networking intention");
+  if(looksLikeContactLeak(valTrim("net_publicBlurb"))) errs.push("Public blurb cannot include phone/email");
 
   validateMutualContactNetworking(errs);
 }
@@ -1666,6 +1938,7 @@ function quietReadyToSubmit(){
   if(WS_STATE !== "CONNECTED") return false;
   if(!isGateAccepted()) return false;
 
+  // If config not ready, allow submit only if fallback has enough
   if(CFG_STATE!=="READY" && CFG_STATE!=="FALLBACK") return false;
   if(CFG_STATE==="FALLBACK" && !hasUrlFallbackEnough()) return false;
 
@@ -1677,24 +1950,31 @@ function quietReadyToSubmit(){
   if(!hasVal("venueSelect")) return false;
   if(HOST_MODE === "city" && !hasVal("travelYes")) return false;
 
-  if(!(HOST_EVENT_TYPE==="dating" || HOST_EVENT_TYPE==="networking")) return false;
-
-  if(HOST_EVENT_TYPE==="dating"){
-    const reqIds = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","datingIntent","marriedBy","familyBy"];
-    for(const id of reqIds) if(!hasVal(id)) return false;
-    if(valTrim("religion")==="Other" && !hasVal("religionOther")) return false;
-    if(foodSet.size < 1) return false;
-    if(actSet.size < 1) return false;
-    const reqIds2 = ["firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter"];
-    for(const id of reqIds2) if(!hasVal(id)) return false;
-    const tmp=[]; validateMutualContactDating(tmp); if(tmp.length) return false;
+  if(HOST_REQUIRE_PIN){
+    const pin = digitsOnly(valTrim("hostPin"));
+    if(!pin || pin.length < 3) return false;
   }
 
+  if(!(HOST_EVENT_TYPE==="dating" || HOST_EVENT_TYPE==="networking")) return false;
+
+  const req = getRequiredSetForEvent();
+  for(const id of req){
+    if(!fieldSatisfied(id)) return false;
+  }
+
+  // validate optional contact formats (if provided)
+  const tmp=[];
+  if(HOST_EVENT_TYPE==="dating") validateMutualContactDating(tmp);
+  if(HOST_EVENT_TYPE==="networking") validateMutualContactNetworking(tmp);
+  if(tmp.length) return false;
+
+  // public leak checks
+  if(HOST_EVENT_TYPE==="dating"){
+    if(looksLikeContactLeak(valTrim("publicBlurb"))) return false;
+    if(looksLikeContactLeak(valTrim("starter"))) return false;
+  }
   if(HOST_EVENT_TYPE==="networking"){
-    const reqIds = ["net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses","net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb"];
-    for(const id of reqIds) if(!hasVal(id)) return false;
-    if(netIntentSet.size < 1) return false;
-    const tmp=[]; validateMutualContactNetworking(tmp); if(tmp.length) return false;
+    if(looksLikeContactLeak(valTrim("net_publicBlurb"))) return false;
   }
 
   return true;
@@ -1704,6 +1984,104 @@ function updateSubmitEnabled(){
   const btn = $("btnSubmit");
   if(!btn) return;
   btn.disabled = !quietReadyToSubmit();
+
+  const help = $("submitHelp");
+  if(help){
+    if(WS_STATE!=="CONNECTED") help.textContent = "Submitting requires WS. Tap Reconnect if needed (or ask host to refresh).";
+    else if(HOST_REQUIRE_PIN && !(digitsOnly(valTrim("hostPin")).length>=3)) help.textContent = "Host PIN is required for this event.";
+    else help.textContent = "Ready when required fields are complete. Your info is alias-only for guests.";
+  }
+}
+
+/* =========================
+   3) DRAFT AUTOSAVE
+========================= */
+function draftKey(){
+  const q=qs();
+  return `bm_draft_v1_${q.room||"x"}_${q.session||"x"}`;
+}
+let draftSaveTimer=null;
+
+function buildDraft(){
+  const ids = [
+    "venueSelect","travelYes","identityPhone","age","hostPin",
+    // dating
+    "sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","religionOther",
+    "datingIntent","marriedBy","familyBy",
+    "pref_ageBand","pref_sex","pref_race","pref_income","pref_height","pref_build","pref_eye","pref_hair","pref_skin","pref_smoke","pref_marital","pref_politics","pref_datingIntent","pref_family","pref_edu","pref_love","pref_pets","pref_religion",
+    "firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter",
+    "sharePhone","contactInstagram","contactTiktok","contactFacebook",
+    // dealbreakers
+    "deal_ageBand","deal_sex","deal_race","deal_income","deal_height","deal_build","deal_eye","deal_hair","deal_skin","deal_smoke","deal_marital","deal_politics","deal_datingIntent","deal_family","deal_edu","deal_love","deal_pets","deal_religion",
+    // networking
+    "net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses",
+    "net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb",
+    "net_sharePhone","net_linkedin","net_website"
+  ];
+
+  const out = { v:1, ts: Date.now(), eventType: HOST_EVENT_TYPE, mode: HOST_MODE, data:{}, sets:{} };
+
+  for(const id of ids){
+    const el=$(id);
+    if(!el) continue;
+    if(el.type==="checkbox") out.data[id] = !!el.checked;
+    else out.data[id] = el.value;
+  }
+
+  out.sets.food = Array.from(foodSet);
+  out.sets.acts = Array.from(actSet);
+  out.sets.netIntents = Array.from(netIntentSet);
+
+  return out;
+}
+
+function saveDraftNow(){
+  try{
+    const d = buildDraft();
+    localStorage.setItem(draftKey(), JSON.stringify(d));
+  }catch{}
+}
+function scheduleDraftSave(){
+  if(submitted) return;
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraftNow, 350);
+}
+function clearDraft(){
+  try{ localStorage.removeItem(draftKey()); }catch{}
+}
+
+function restoreDraft(){
+  if(submitted) return;
+  let raw="";
+  try{ raw = localStorage.getItem(draftKey()) || ""; }catch{}
+  if(!raw) return;
+  let d=null;
+  try{ d = JSON.parse(raw); }catch{ return; }
+  if(!d || typeof d!=="object") return;
+
+  const data = d.data || {};
+  for(const [id,val] of Object.entries(data)){
+    const el=$(id);
+    if(!el) continue;
+    if(el.type==="checkbox") el.checked = !!val;
+    else el.value = String(val ?? "");
+  }
+
+  // restore sets + re-render
+  foodSet = new Set((d.sets?.food || []).filter(Boolean));
+  actSet = new Set((d.sets?.acts || []).filter(Boolean));
+  netIntentSet = new Set((d.sets?.netIntents || []).filter(Boolean));
+
+  renderChips("foodChips", FOOD, foodSet);
+  renderChips("actChips", ACTS, actSet);
+  renderChips("netIntentChips", NET_INTENTS, netIntentSet);
+
+  // re-apply dependent UI
+  if(valTrim("religion")==="Other") $("religionOtherWrap")?.classList.remove("hidden");
+  applyEventTypeUI();
+  populateVenueSelect(); // preserves options; selection stays if value exists
+  applyDisabledUI();
+  updateSubmitEnabled();
 }
 
 /* =========================
@@ -1720,7 +2098,7 @@ function buildMutualContact(){
     if(sharePhoneRaw) contact.phone = digitsOnly(sharePhoneRaw);
     if(igRaw) contact.instagram = normalizeHandle(igRaw);
     if(ttRaw) contact.tiktok = normalizeHandle(ttRaw);
-    if(fbRaw) contact.facebook = fbRaw.trim();
+    if(fbRaw) contact.facebook = sanitizeText(fbRaw.trim(), 200);
   }
 
   if(HOST_EVENT_TYPE==="networking"){
@@ -1728,8 +2106,8 @@ function buildMutualContact(){
     const li = valTrim("net_linkedin");
     const web = valTrim("net_website");
     if(sharePhoneRaw) contact.phone = digitsOnly(sharePhoneRaw);
-    if(li) contact.linkedin = li.trim();
-    if(web) contact.website = web.trim();
+    if(li) contact.linkedin = sanitizeText(li.trim(), 200);
+    if(web) contact.website = sanitizeText(web.trim(), 200);
   }
 
   return contact;
@@ -1768,7 +2146,8 @@ function saveMutualContact(isAuto=false){
 ========================= */
 function submit(){
   if(!isGateAccepted()) return showToast("Hold up","Confirm 18+ and agree to Terms first.");
-  if(WS_STATE!=="CONNECTED") return showToast("Not connected","Wait for WS to connect.");
+  if(!canProceedWithConfig()) return showToast("Not ready","Waiting for host config (or valid link fallback).");
+  if(WS_STATE!=="CONNECTED") return showToast("Not connected","Tap Reconnect (or wait for WS).");
   if(submitted) return showToast("Already submitted","You already submitted.");
   if(sending) return showToast("Please wait","Submitting in progress…");
 
@@ -1788,7 +2167,7 @@ function submit(){
   const venueId = valTrim("venueSelect");
 
   const basePayload = {
-    v: 11,
+    v: 12,
     clientNonce,
     roomId: q.room,
     room: q.room,
@@ -1799,7 +2178,15 @@ function submit(){
     venueId,
     expectedVenueId: venueId,
     travelYes: travelVal,
+
     identityPhone,
+
+    // 5) host PIN + check-in code
+    hostPin: (HOST_REQUIRE_PIN ? digitsOnly(valTrim("hostPin")) : ""),
+    checkinCode: shortCodeFromNonce(clientNonce),
+
+    // 10) schema snapshot (optional helpful for host logging)
+    schema: HOST_SCHEMA
   };
 
   let payload = { ...basePayload };
@@ -1812,47 +2199,47 @@ function submit(){
       ...basePayload,
       attrs: {
         age: Number(valTrim("age")),
-        sex: valTrim("sex"),
-        race: valTrim("race"),
-        income: valTrim("income"),
-        height: valTrim("height"),
-        build: valTrim("build"),
-        eye: valTrim("eye"),
-        hair: valTrim("hair"),
-        skin: valTrim("skin"),
-        smoke: valTrim("smoke"),
-        marital: valTrim("marital"),
-        politics: valTrim("politics"),
-        family: valTrim("family"),
-        edu: valTrim("edu"),
-        love: valTrim("love"),
-        pets: valTrim("pets"),
-        religion
+        sex: sanitizeText(valTrim("sex"), 40),
+        race: sanitizeText(valTrim("race"), 60),
+        income: sanitizeText(valTrim("income"), 20),
+        height: sanitizeText(valTrim("height"), 20),
+        build: sanitizeText(valTrim("build"), 30),
+        eye: sanitizeText(valTrim("eye"), 20),
+        hair: sanitizeText(valTrim("hair"), 20),
+        skin: sanitizeText(valTrim("skin"), 30),
+        smoke: sanitizeText(valTrim("smoke"), 20),
+        marital: sanitizeText(valTrim("marital"), 30),
+        politics: sanitizeText(valTrim("politics"), 30),
+        family: sanitizeText(valTrim("family"), 60),
+        edu: sanitizeText(valTrim("edu"), 30),
+        love: sanitizeText(valTrim("love"), 40),
+        pets: sanitizeText(valTrim("pets"), 40),
+        religion: sanitizeText(religion, 60)
       },
       dating: {
-        intention: valTrim("datingIntent"),
-        marriedBy: valTrim("marriedBy"),
-        familyBy: valTrim("familyBy")
+        intention: sanitizeText(valTrim("datingIntent"), 80),
+        marriedBy: sanitizeText(valTrim("marriedBy"), 20),
+        familyBy: sanitizeText(valTrim("familyBy"), 20)
       },
       prefs: {
-        ageBand: valTrim("pref_ageBand") || "Any",
-        sex: valTrim("pref_sex") || "Any",
-        race: valTrim("pref_race") || "Any",
-        income: valTrim("pref_income") || "Any",
-        height: valTrim("pref_height") || "Any",
-        build: valTrim("pref_build") || "Any",
-        eye: valTrim("pref_eye") || "Any",
-        hair: valTrim("pref_hair") || "Any",
-        skin: valTrim("pref_skin") || "Any",
-        smoke: valTrim("pref_smoke") || "Any",
-        marital: valTrim("pref_marital") || "Any",
-        politics: valTrim("pref_politics") || "Any",
-        datingIntent: valTrim("pref_datingIntent") || "Any",
-        family: valTrim("pref_family") || "Any",
-        edu: valTrim("pref_edu") || "Any",
-        love: valTrim("pref_love") || "Any",
-        pets: valTrim("pref_pets") || "Any",
-        religion: valTrim("pref_religion") || "Any"
+        ageBand: sanitizeText(valTrim("pref_ageBand") || "Any", 20),
+        sex: sanitizeText(valTrim("pref_sex") || "Any", 20),
+        race: sanitizeText(valTrim("pref_race") || "Any", 60),
+        income: sanitizeText(valTrim("pref_income") || "Any", 20),
+        height: sanitizeText(valTrim("pref_height") || "Any", 20),
+        build: sanitizeText(valTrim("pref_build") || "Any", 30),
+        eye: sanitizeText(valTrim("pref_eye") || "Any", 20),
+        hair: sanitizeText(valTrim("pref_hair") || "Any", 20),
+        skin: sanitizeText(valTrim("pref_skin") || "Any", 30),
+        smoke: sanitizeText(valTrim("pref_smoke") || "Any", 20),
+        marital: sanitizeText(valTrim("pref_marital") || "Any", 30),
+        politics: sanitizeText(valTrim("pref_politics") || "Any", 30),
+        datingIntent: sanitizeText(valTrim("pref_datingIntent") || "Any", 80),
+        family: sanitizeText(valTrim("pref_family") || "Any", 60),
+        edu: sanitizeText(valTrim("pref_edu") || "Any", 30),
+        love: sanitizeText(valTrim("pref_love") || "Any", 40),
+        pets: sanitizeText(valTrim("pref_pets") || "Any", 40),
+        religion: sanitizeText(valTrim("pref_religion") || "Any", 60)
       },
       deal: {
         ageBand: !!$("deal_ageBand")?.checked,
@@ -1874,16 +2261,16 @@ function submit(){
         pets: !!$("deal_pets")?.checked,
         religion:!!$("deal_religion")?.checked
       },
-      foodChips: Array.from(foodSet),
-      activityChips: Array.from(actSet),
-      firstDateLoc: valTrim("firstLoc"),
-      firstDateAvail: valTrim("firstAvail"),
-      pays: valTrim("pays"),
-      budget: valTrim("budget"),
-      bestPhysical: valTrim("bestPhysical"),
-      bestTrait: valTrim("bestTrait"),
-      publicBlurb: valTrim("publicBlurb"),
-      starter: valTrim("starter")
+      foodChips: Array.from(foodSet).map(x=>sanitizeText(x, 40)),
+      activityChips: Array.from(actSet).map(x=>sanitizeText(x, 40)),
+      firstDateLoc: sanitizeText(valTrim("firstLoc"), 40),
+      firstDateAvail: sanitizeText(valTrim("firstAvail"), 30),
+      pays: sanitizeText(valTrim("pays"), 20),
+      budget: sanitizeText(valTrim("budget"), 10),
+      bestPhysical: sanitizeText(valTrim("bestPhysical"), 40),
+      bestTrait: sanitizeText(valTrim("bestTrait"), 40),
+      publicBlurb: sanitizeText(valTrim("publicBlurb"), 120),
+      starter: sanitizeText(valTrim("starter"), 120)
     };
   }
 
@@ -1891,22 +2278,22 @@ function submit(){
     payload = {
       ...basePayload,
       networking: {
-        industry: valTrim("net_industry"),
-        roleLevel: valTrim("net_roleLevel"),
-        yearsExperience: valTrim("net_years"),
-        education: valTrim("net_edu"),
-        certifications: valTrim("net_certs"),
-        licenses: valTrim("net_licenses"),
-        intentions: Array.from(netIntentSet),
+        industry: sanitizeText(valTrim("net_industry"), 60),
+        roleLevel: sanitizeText(valTrim("net_roleLevel"), 40),
+        yearsExperience: sanitizeText(valTrim("net_years"), 10),
+        education: sanitizeText(valTrim("net_edu"), 30),
+        certifications: sanitizeText(valTrim("net_certs"), 120),
+        licenses: sanitizeText(valTrim("net_licenses"), 120),
+        intentions: Array.from(netIntentSet).map(x=>sanitizeText(x, 40)),
         icebreakers: {
-          funnyCareerThing: valTrim("net_ice1"),
-          oneThingLearned: valTrim("net_ice2"),
-          changeOneThing: valTrim("net_ice3")
+          funnyCareerThing: sanitizeTextarea(valTrim("net_ice1"), 500),
+          oneThingLearned: sanitizeTextarea(valTrim("net_ice2"), 500),
+          changeOneThing: sanitizeTextarea(valTrim("net_ice3"), 500)
         },
         public: {
-          strongestSkill: valTrim("net_skill"),
-          knownFor: valTrim("net_knownFor"),
-          blurb: valTrim("net_publicBlurb")
+          strongestSkill: sanitizeText(valTrim("net_skill"), 60),
+          knownFor: sanitizeText(valTrim("net_knownFor"), 60),
+          blurb: sanitizeText(valTrim("net_publicBlurb"), 140)
         }
       }
     };
@@ -1924,7 +2311,7 @@ function submit(){
         updateSubmitEnabled();
         showToast("No response","If it didn’t submit, try again (or ask host to refresh).");
       }
-    }, 8000);
+    }, 9000);
   }else{
     sending=false;
     updateSubmitEnabled();
@@ -1945,20 +2332,78 @@ function setVoteStats(){
   $("likedCount").textContent = String(likedCount);
   $("myAliasPill").textContent = myAlias ? myAlias : "Anonymous";
 }
-function castVote(targetId, like){
-  const q=qs();
-  if(!targetId) return;
 
+/* 6) Vote with undo window */
+function sendVoteToHost(targetId, like){
+  const q=qs();
+  return safeSend({ type:"vote", roomId:q.room, room:q.room, barId:q.room, session:q.session, voterNonce: clientNonce, targetId, like: !!like });
+}
+function commitVote(targetId, like){
   votes[targetId] = !!like;
   seenCount = Object.keys(votes).length;
   likedCount = Object.values(votes).filter(Boolean).length;
   setVoteStats();
+  const ok = sendVoteToHost(targetId, like);
+  if(!ok) showToast("Vote not sent","Connection issue — tap Reconnect and try again.");
+}
+function castVote(targetId, like){
+  if(!targetId) return;
 
-  const ok = safeSend({ type:"vote", roomId:q.room, room:q.room, barId:q.room, session:q.session, voterNonce: clientNonce, targetId, like: !!like });
-  if(!ok) showToast("Vote not sent","Connection issue — try again.");
+  // snapshot previous
+  const hadPrev = (targetId in votes);
+  const prev = hadPrev ? votes[targetId] : null;
 
+  // commit immediately
+  commitVote(targetId, like);
+
+  // clear old undo timer if any
+  if(undoTimers.has(targetId)){
+    clearTimeout(undoTimers.get(targetId).t);
+    undoTimers.delete(targetId);
+  }
+
+  // start undo window
+  const timer = setTimeout(()=>{
+    undoTimers.delete(targetId);
+    renderVoting();
+  }, UNDO_MS);
+
+  undoTimers.set(targetId, { prev, newVal: !!like, t: timer });
+
+  showToast("Vote saved", "You can undo for 10 seconds.");
   renderVoting();
 }
+
+function undoVote(targetId){
+  const u = undoTimers.get(targetId);
+  if(!u) return;
+
+  clearTimeout(u.t);
+  undoTimers.delete(targetId);
+
+  // restore previous state
+  if(u.prev === null){
+    delete votes[targetId];
+  }else{
+    votes[targetId] = u.prev;
+  }
+
+  seenCount = Object.keys(votes).length;
+  likedCount = Object.values(votes).filter(Boolean).length;
+  setVoteStats();
+
+  // send restored state to host (best-effort)
+  if(u.prev === null){
+    // no "delete vote" type in your relay; re-send opposite? We'll send "pass" false by default only if needed.
+    // Better approach: send a vote that matches restored state if it exists; if none, do nothing.
+  }else{
+    sendVoteToHost(targetId, u.prev);
+  }
+
+  showToast("Undone", "Your vote was restored.");
+  renderVoting();
+}
+
 function renderVoting(){
   const wrap = $("voteList");
   wrap.innerHTML = "";
@@ -1985,6 +2430,13 @@ function renderVoting(){
     const val = already ? votes[p.id] : null;
     const pct = (typeof p.score === "number" && p.score >= 0) ? Math.round(p.score*100) : null;
 
+    const undoActive = undoTimers.has(p.id);
+
+    const reasons = Array.isArray(p.reasons) ? p.reasons.slice(0,3) : []; // 7) safe reasons
+    const reasonsHtml = reasons.length
+      ? `<div class="reasons">${reasons.map(r=>`<span class="reasonChip">${esc(String(r).slice(0,48))}</span>`).join("")}</div>`
+      : "";
+
     const el = document.createElement("div");
     el.className = "voteCard";
 
@@ -1994,16 +2446,25 @@ function renderVoting(){
         <div class="voteSub">
           ${p.venueId ? `Expected: <span class="k">${esc(barName(p.venueId))}</span>` : `<span class="muted">Expected: —</span>`}
           ${already ? `<div style="margin-top:6px"><span class="k">${val ? "LIKED" : "PASSED"}</span></div>` : ``}
+          ${undoActive ? `<div style="margin-top:6px"><span class="k">UNDO AVAILABLE</span></div>` : ``}
+          ${reasonsHtml}
         </div>
       </div>
       <div class="voteActions">
-        <button class="btn good" data-like="1" ${already ? "disabled" : ""}>Like</button>
-        <button class="btn bad"  data-like="0" ${already ? "disabled" : ""}>Pass</button>
+        ${undoActive ? `<button class="btn warn" data-undo="1">Undo</button>` : `
+          <button class="btn good" data-like="1">Like</button>
+          <button class="btn bad"  data-like="0">Pass</button>
+        `}
       </div>
     `;
 
-    el.querySelector('button[data-like="1"]').onclick = ()=>castVote(p.id, true);
-    el.querySelector('button[data-like="0"]').onclick = ()=>castVote(p.id, false);
+    if(undoActive){
+      el.querySelector('button[data-undo="1"]').onclick = ()=>undoVote(p.id);
+    }else{
+      el.querySelector('button[data-like="1"]').onclick = ()=>castVote(p.id, true);
+      el.querySelector('button[data-like="0"]').onclick = ()=>castVote(p.id, false);
+    }
+
     wrap.appendChild(el);
   }
 }
@@ -2013,31 +2474,38 @@ function renderVoting(){
 ========================= */
 function bindLiveValidation(){
   const ids = [
-    "venueSelect","travelYes","identityPhone","age",
+    "venueSelect","travelYes","identityPhone","age","hostPin",
+    // dating
     "sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","family","edu","love","pets","religion","religionOther",
     "datingIntent","marriedBy","familyBy",
     "pref_ageBand","pref_sex","pref_race","pref_income","pref_height","pref_build","pref_eye","pref_hair","pref_skin","pref_smoke","pref_marital","pref_politics","pref_datingIntent","pref_family","pref_edu","pref_love","pref_pets","pref_religion",
     "firstLoc","firstAvail","pays","budget","bestPhysical","bestTrait","publicBlurb","starter",
     "sharePhone","contactInstagram","contactTiktok","contactFacebook",
+    // dealbreakers
+    "deal_ageBand","deal_sex","deal_race","deal_income","deal_height","deal_build","deal_eye","deal_hair","deal_skin","deal_smoke","deal_marital","deal_politics","deal_datingIntent","deal_family","deal_edu","deal_love","deal_pets","deal_religion",
+    // networking
     "net_industry","net_roleLevel","net_years","net_edu","net_certs","net_licenses",
     "net_ice1","net_ice2","net_ice3","net_skill","net_knownFor","net_publicBlurb",
     "net_sharePhone","net_linkedin","net_website"
   ];
+
   for(const id of ids){
     const el=$(id);
     if(!el) continue;
-    el.addEventListener("input", ()=>{
+
+    const handler = ()=>{
       if(id==="identityPhone") clampDigitsInput(el, 10);
       if(id==="sharePhone") clampDigitsInput(el, 10);
       if(id==="net_sharePhone") clampDigitsInput(el, 10);
+      if(id==="hostPin") clampDigitsInput(el, 8);
+
+      scheduleDraftSave();
       updateSubmitEnabled();
-    });
-    el.addEventListener("change", ()=>{
-      if(id==="identityPhone") clampDigitsInput(el, 10);
-      if(id==="sharePhone") clampDigitsInput(el, 10);
-      if(id==="net_sharePhone") clampDigitsInput(el, 10);
-      updateSubmitEnabled();
-    });
+      if(id==="chk18" || id==="chkTerms") updateGateButton();
+    };
+
+    el.addEventListener("input", handler);
+    el.addEventListener("change", handler);
   }
 }
 
@@ -2046,8 +2514,10 @@ function initNetworkingChips(){
 }
 
 function init(){
-  // URL fallback (pre-fill) while we wait for host config
   parseBarsFromUrl();
+  // pin policy from URL fallback (before config arrives)
+  applyPinPolicyFromConfig({ requirePin: HOST_REQUIRE_PIN, pinHint: HOST_PIN_HINT });
+
   if(hasUrlFallbackEnough()){
     setCfgPill("FALLBACK");
     setEventPill(HOST_EVENT_TYPE);
@@ -2059,7 +2529,6 @@ function init(){
   applyEventTypeUI();
   updateGateConfigMessage();
 
-  // chips
   renderChips("foodChips", FOOD, foodSet);
   renderChips("actChips", ACTS, actSet);
   initNetworkingChips();
@@ -2076,32 +2545,34 @@ function init(){
   $("btnSaveContact")?.addEventListener("click", ()=>saveMutualContact(false));
   $("btnRequestRoster")?.addEventListener("click", ()=>{ requestRoster(); showToast("Requested","Asking host for top 12…"); });
   $("btnRefreshRoster")?.addEventListener("click", ()=>{ requestRoster(); renderVoting(); });
-  $("btnClearVotes")?.addEventListener("click", ()=>{ votes={}; seenCount=0; likedCount=0; renderVoting(); showToast("Cleared","Local vote history cleared (host votes remain)."); });
+  $("btnClearVotes")?.addEventListener("click", ()=>{ votes={}; seenCount=0; likedCount=0; undoTimers.forEach(x=>clearTimeout(x.t)); undoTimers.clear(); renderVoting(); showToast("Cleared","Local vote history cleared (host votes remain)."); });
 
-  // ✅ Background WS + config sync even on the gate screen
-  const q=qs();
-  if(q.room && q.session){
-    connectWS();
-  }else{
-    setWsStatus("ERROR");
-  }
+  // 2) reconnect button
+  $("btnReconnect")?.addEventListener("click", reconnectNow);
 
-  // Show correct initial screen
+  // If gate already accepted, enter immediately
   if(isGateAccepted()){
     $("gateCard").classList.add("hidden");
     $("formCard").classList.remove("hidden");
+    connectWS();
+    // Restore draft automatically for returning users
+    restoreDraft();
   }else{
     showGate();
     updateGateButton();
+    setWsStatus("DISCONNECTED");
   }
 
   setVoteStats();
   updateSubmitEnabled();
+  updateGateButton();
 }
 init();
 </script>
 </body>
 </html>
+
+
 
 
 
