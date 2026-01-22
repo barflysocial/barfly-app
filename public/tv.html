@@ -21,7 +21,7 @@
     .title{font-weight:1000;font-size:34px;letter-spacing:.5px}
     .sub{color:var(--muted);font-weight:800;line-height:1.35}
     .pillRow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
-    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:10px 12px;border-radius:999px;background:rgba(255,255,255,.03);font-size:14px;color:var(--muted);white-space:nowrap}
+    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:10px 12px;border-radius:999px;background:rgba(255,255,255,.03);font-size:14px;color:var(--muted);white-space:nowrap;max-width:min(520px, 94vw)}
     .pill b{color:var(--txt)}
     .pill.good{border-color:rgba(45,212,191,.35);background:rgba(45,212,191,.08)}
     .pill.warn{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08)}
@@ -41,6 +41,7 @@
     .hidden{display:none !important;}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
     .k{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.03);color:var(--muted);font-weight:900;font-size:12px}
+    .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
   </style>
 </head>
 <body>
@@ -55,18 +56,16 @@
     </div>
 
     <div class="pillRow" style="min-width:320px">
-      <div class="pill" id="eventPillWrap"><b>Event</b> <span id="eventPill">—</span></div>
+      <div class="pill" id="eventPillWrap"><b>Event</b> <span id="eventPill" class="truncate">—</span></div>
 
       <div class="pill"><b>Room</b> <span id="roomPill">—</span></div>
       <div class="pill"><b>Session</b> <span id="sessionPill">—</span></div>
 
-      <!-- Venue pill hides automatically when All Venues -->
       <div class="pill" id="venuePillWrap"><b>Venue</b> <span id="venuePill">—</span></div>
 
       <div class="pill" id="wsPillWrap"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
       <div class="pill" id="syncPillWrap"><b>Host Sync</b> <span id="syncPill">—</span></div>
 
-      <!-- Option C hybrid pills -->
       <div class="pill warn"><b>Expected</b> <span id="expectedPill">0</span></div>
       <div class="pill good"><b>Checked In</b> <span id="checkedInPill">0</span></div>
       <div class="pill good"><b>Active</b> <span id="activeMatchesPill">0</span></div>
@@ -84,20 +83,7 @@
 
 <script>
 /* ============================================================
-   Barfly Social — TV (Event-Type Aware)
-
-   ✅ Rules:
-   - TV only shows matches where BOTH guests are checked-in.
-   - Counts use Option C Hybrid:
-       Expected = pending guests who selected a venue
-       Checked In = host verified
-       Active = TV pairs involving checked-in guests
-       Tonight’s Hotspot = venue with most active matches
-   - Prefers host-provided counts/hotspot; falls back if missing.
-   - Event Type (Dating vs Networking) comes from:
-       1) URL: ?event=dating | networking
-       2) Host config: eventType / event / type / mode fields (best-effort)
-   - Backward compatible if host hasn't added eventType yet.
+   Barfly Social — TV (Event-Type + Event-Name Aware)
 ============================================================ */
 
 const WS_URL = "wss://bar-match-relay.onrender.com";
@@ -107,8 +93,8 @@ const RESYNC_MS     = 25 * 1000;
 const RECONNECT_MS  = 2500;
 
 const HEARTBEAT_MS  = 15 * 1000;
-const STALE_MS      = 45 * 1000;   // if no traffic, force reconnect
-const SYNC_STALE_MS = 40 * 1000;   // if no tv_sync, show clearer waiting message
+const STALE_MS      = 45 * 1000;
+const SYNC_STALE_MS = 40 * 1000;
 
 const $ = (id)=>document.getElementById(id);
 
@@ -124,10 +110,6 @@ function qs(){
 function esc(s){
   return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
-
-/* Venue normalization:
-   - missing / "ALL" / "*" => treated as no filter (All Venues / City mode)
-*/
 function normVenue(v){
   const s = String(v||"").trim();
   if(!s) return "";
@@ -136,28 +118,26 @@ function normVenue(v){
 }
 
 /* =========================
-   EVENT TYPE
+   EVENT TYPE + NAME
 ========================= */
-let EVENT_TYPE = ""; // "dating" | "networking" | ""
+let EVENT_TYPE = "";   // "dating" | "networking" | ""
+let EVENT_NAME = "";   // from host config event.name (optional)
 
 function normalizeEventType(raw){
   const s = String(raw||"").trim().toLowerCase();
   if(!s) return "";
   if(s.includes("network")) return "networking";
   if(s.includes("dating")) return "dating";
-  // allow short forms
   if(s === "net") return "networking";
   if(s === "date") return "dating";
   return "";
 }
-
 function inferEventTypeFromConfig(cfg){
-  // best-effort mapping across possible host field names
   const candidates = [
     cfg?.eventType,
     cfg?.event,
     cfg?.type,
-    cfg?.mode,                 // if host uses "mode" for event type
+    cfg?.mode,
     cfg?.event?.type,
     cfg?.settings?.eventType,
     cfg?.settings?.type
@@ -167,6 +147,24 @@ function inferEventTypeFromConfig(cfg){
     if(n) return n;
   }
   return "";
+}
+function inferEventNameFromConfig(cfg){
+  // Host dashboard broadcasts: event: { eventId, name, type }
+  const n = (cfg?.event?.name ?? cfg?.name ?? cfg?.eventName ?? "").toString().trim();
+  return n;
+}
+
+function buildEventLabel(){
+  const t = EVENT_TYPE || "";
+  const n = (EVENT_NAME || "").trim();
+
+  if(t === "networking"){
+    return n ? `💼 Professional Networking — ${n}` : `💼 Professional Networking`;
+  }
+  if(t === "dating"){
+    return n ? `💚 Dating Night — ${n}` : `💚 Dating Night`;
+  }
+  return n ? `Live Event — ${n}` : `Live Event`;
 }
 
 function applyEventUI(){
@@ -180,41 +178,36 @@ function applyEventUI(){
 
   const t = EVENT_TYPE || "";
 
-  // default (unknown)
-  let eventLabel = "Live Event";
   let pillClass = "pill";
   let titleText = "Now Matching 💚";
-  let subHtml = `Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s<br/>
-    <span class="k">Only <b>Checked-In</b> guests appear here</span>`;
   let footerLeadText = "See your alias pairing? Go to the host stand to connect.";
   let footerTagText = "Barfly Social • Private Live Matchmaking";
 
   if(t === "networking"){
-    eventLabel = "💼 Professional Networking";
     pillClass = "pill net";
     titleText = "Now Networking 💼";
-    subHtml = `Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s<br/>
-      <span class="k">Only <b>Checked-In</b> guests appear here</span>`;
     footerLeadText = "See your networking pairing? Go to the host stand to connect.";
     footerTagText = "Barfly Social • Professional Networking";
   }else if(t === "dating"){
-    eventLabel = "💚 Dating Night";
     pillClass = "pill date";
     titleText = "Now Matching 💚";
-    subHtml = `Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s<br/>
-      <span class="k">Only <b>Checked-In</b> guests appear here</span>`;
     footerLeadText = "See your alias pairing? Go to the host stand to connect.";
     footerTagText = "Barfly Social • Private Live Matchmaking";
   }
 
   pillWrap.className = pillClass;
-  pill.textContent = eventLabel;
+  pill.textContent = buildEventLabel();
 
   title.textContent = titleText;
-  sub.innerHTML = subHtml;
+  sub.innerHTML = `Aliases only • Sorted high → low • Visible 3 hours • Rotates every 10s<br/>
+    <span class="k">Only <b>Checked-In</b> guests appear here</span>`;
 
   footerLead.textContent = footerLeadText;
   footerTag.textContent = footerTagText;
+
+  // optional: reflect in <title>
+  const short = (EVENT_TYPE==="networking") ? "Networking" : (EVENT_TYPE==="dating") ? "Dating" : "Live";
+  document.title = EVENT_NAME ? `Barfly Social — TV • ${short} • ${EVENT_NAME}` : `Barfly Social — TV • ${short}`;
 }
 
 /* =========================
@@ -252,7 +245,7 @@ function applyVenuePillUI(){
 ========================= */
 let WS=null;
 let WS_STATE="DISCONNECTED";
-let matches=[];                 // incoming from tv_sync (host)
+let matches=[];
 let page=0;
 
 let reconnectTimer=null;
@@ -286,7 +279,6 @@ function safeSend(obj){
   return false;
 }
 
-/* TV requests */
 function requestSync(){
   const q=qs();
   if(!q.room || !q.session) return;
@@ -298,7 +290,6 @@ function requestConfig(){
   safeSend({ type:"request_config", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 }
 
-/* heartbeat */
 function heartbeatTick(){
   if(WS_STATE!=="CONNECTED") return;
   const q=qs();
@@ -325,13 +316,6 @@ function stopHeartbeat(){
 /* =========================
    CHECK-IN FILTER + COUNTS
 ========================= */
-
-/* A match is TV-eligible ONLY if both checked in.
-   Host v11 may send:
-     - aCheckedIn / bCheckedIn booleans
-     - aStatus / bStatus strings
-   Back-compat: if host doesn't send flags, we assume true (older host behavior).
-*/
 function isCheckedInFlag(m, side){
   const isA = side==="a";
   const v1 = isA ? m.aCheckedIn : m.bCheckedIn;
@@ -350,11 +334,8 @@ function filteredMatches(){
   const t = Date.now();
 
   let list = (matches || []).filter(m => !m.expiresAt || m.expiresAt > t);
-
-  // enforce check-in
   list = list.filter(m => isCheckedInFlag(m,"a") && isCheckedInFlag(m,"b"));
 
-  // optional venue filter (single-location TV)
   if(venue){
     list = list.filter(m => (m.aVenueId === venue) || (m.bVenueId === venue));
   }
@@ -447,8 +428,7 @@ function waitingCard(){
   const venue = normVenue(q.venue);
   const venueLine = venue ? `<div style="margin-top:6px">TV Venue Filter: <span class="mono">${esc(labelVenue(venue))}</span></div>` : ``;
 
-  const t = EVENT_TYPE || "";
-  const extra = (t==="networking")
+  const extra = (EVENT_TYPE==="networking")
     ? `Guests must be <b>Checked In</b> by the host to appear on the networking TV.`
     : `Guests must be <b>Checked In</b> by the host to appear on TV.`;
 
@@ -461,7 +441,7 @@ function waitingCard(){
         ${venueLine}
       </div>
       <div class="meta" style="margin-top:10px">
-        <span class="mono">Tip:</span> Host should click <b>Broadcast Config</b> and then <b>Compute → TV</b> (or similar) if needed.
+        <span class="mono">Tip:</span> Host should click <b>Broadcast Config</b> and then <b>Compute → TV</b> if needed.
       </div>
     </div>
   `;
@@ -535,10 +515,9 @@ function connectWS(){
   $("roomPill").textContent=q.room || "—";
   $("sessionPill").textContent=q.session || "—";
 
-  // initial event type from URL, if provided
   const urlEvent = normalizeEventType(q.event);
-  if(urlEvent){ EVENT_TYPE = urlEvent; applyEventUI(); }
-
+  if(urlEvent){ EVENT_TYPE = urlEvent; }
+  applyEventUI();
   applyVenuePillUI();
 
   if(!q.room || !q.session){
@@ -580,7 +559,6 @@ function connectWS(){
     }
     if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack"){ return; }
 
-    // config
     if(msg.type==="config" || msg.type==="event_config"){
       const q=qs();
       const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
@@ -589,25 +567,18 @@ function connectWS(){
 
       HOST_CONFIG = msg;
 
-      // event type from host config (only override if host provides a recognized type)
-      const fromHost = inferEventTypeFromConfig(msg);
-      if(fromHost){
-        EVENT_TYPE = fromHost;
-        applyEventUI();
-      }else{
-        // if not set anywhere, keep whatever we already have (URL or default)
-        if(!EVENT_TYPE){
-          EVENT_TYPE = "";
-          applyEventUI();
-        }
-      }
+      const fromHostType = inferEventTypeFromConfig(msg);
+      if(fromHostType) EVENT_TYPE = fromHostType;
 
+      const fromHostName = inferEventNameFromConfig(msg);
+      if(fromHostName) EVENT_NAME = fromHostName;
+
+      applyEventUI();
       applyVenuePillUI();
       render();
       return;
     }
 
-    // tv sync
     if(msg.type==="tv_sync"){
       const q=qs();
       const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
@@ -616,12 +587,8 @@ function connectWS(){
 
       lastTvSyncAt = Date.now();
 
-      // event type can also arrive on tv_sync (best-effort)
-      const fromSync = normalizeEventType(msg.eventType || msg.event || msg.type);
-      if(fromSync && fromSync !== EVENT_TYPE){
-        EVENT_TYPE = fromSync;
-        applyEventUI();
-      }
+      const fromSyncType = normalizeEventType(msg.eventType || msg.event || msg.type);
+      if(fromSyncType) EVENT_TYPE = fromSyncType;
 
       matches = (msg.matches || []).map(m=>({
         score: m.score || 0,
@@ -643,6 +610,7 @@ function connectWS(){
 
       setCountsFromMsg(msg);
 
+      applyEventUI();
       page = 0;
       render();
       return;
@@ -668,7 +636,6 @@ setInterval(()=>{ setSyncPill(); }, 1000);
 
 /* boot */
 (function boot(){
-  // Apply default event UI immediately (or URL-driven)
   const q=qs();
   EVENT_TYPE = normalizeEventType(q.event) || "";
   applyEventUI();
@@ -679,6 +646,8 @@ setInterval(()=>{ setSyncPill(); }, 1000);
 </script>
 </body>
 </html>
+
+
 
 
 
