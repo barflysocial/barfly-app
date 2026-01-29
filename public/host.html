@@ -1,159 +1,218 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Barfly Social — Host Dashboard</title>
   <style>
     :root{
-      --bg:#0b0f1a; --card:#111a2b; --txt:#e9f0ff; --muted:#a7b3d1; --line:rgba(255,255,255,.12);
-      --good:#2dd4bf; --bad:#fb7185; --warn:#fbbf24; --brand:#60a5fa; --shadow:0 10px 30px rgba(0,0,0,.35); --r:18px;
+      --bg:#070a12; --txt:#e9f0ff; --muted:#a7b3d1; --line:rgba(255,255,255,.12);
+      --good:#2dd4bf; --brand:#60a5fa; --warn:#fbbf24; --bad:#fb7185;
+      --shadow:0 10px 30px rgba(0,0,0,.35); --r:18px;
+      --net:#60a5fa; --date:#2dd4bf;
+      --panel:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
     }
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:
-      radial-gradient(1200px 800px at 20% -10%, rgba(96,165,250,.20), transparent 60%),
-      radial-gradient(900px 700px at 110% 10%, rgba(45,212,191,.18), transparent 55%),
-      var(--bg);
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:
+        radial-gradient(1400px 900px at 10% 0%, rgba(96,165,250,.18), transparent 60%),
+        radial-gradient(1200px 800px at 100% 0%, rgba(45,212,191,.14), transparent 55%),
+        var(--bg);
       color:var(--txt);
     }
-    .wrap{max-width:1400px;margin:0 auto;padding:18px}
-    .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--line);border-radius:var(--r);
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));box-shadow:var(--shadow);position:sticky;top:10px;z-index:10;backdrop-filter:blur(10px)}
-    .left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .brand{display:flex;gap:10px;align-items:center;line-height:1.1;padding:6px 10px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
-    .logo{
-      width:34px;height:34px;border-radius:10px;border:1px solid var(--line);
-      background:rgba(0,0,0,.18);object-fit:contain;display:block;
-    }
-    .brandText{display:flex;flex-direction:column}
-    .brand .t{font-weight:1000;letter-spacing:.3px;font-size:18px}
-    .brand .s{font-size:12px;color:var(--muted);font-weight:800}
-    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:9px 10px;border-radius:999px;background:rgba(255,255,255,.03);font-size:13px;color:var(--muted);white-space:nowrap}
-    .pill b{color:var(--txt);font-weight:1000}
-    .btn{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--txt);padding:11px 12px;border-radius:14px;font-weight:900;cursor:pointer;display:inline-flex;gap:8px;align-items:center;justify-content:center;user-select:none}
-    .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.08)}
-    .btn:active{transform:translateY(0)}
-    .btn.primary{background:rgba(96,165,250,.20);border-color:rgba(96,165,250,.35)}
-    .btn.good{background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35)}
-    .btn.bad{background:rgba(251,113,133,.16);border-color:rgba(251,113,133,.35)}
-    .btn.warn{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.35)}
-    .btn.small{padding:9px 10px;font-size:13px;border-radius:12px}
-    .grid{display:grid;gap:12px;grid-template-columns:1.25fr .75fr;margin-top:12px}
-    @media(max-width:1100px){.grid{grid-template-columns:1fr}.topbar{position:static}}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px}
-    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    @media(max-width:720px){.two{grid-template-columns:1fr}}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .hr{height:1px;background:var(--line);margin:12px 0}
-    label{font-size:13px;color:var(--muted);font-weight:900}
-    input,select{width:100%;padding:12px 12px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--txt);outline:none;font-size:16px}
-    .muted{color:var(--muted)}
-    .list{display:flex;flex-direction:column;gap:8px}
-    .item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:12px;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.20);overflow:hidden}
-    .item strong{display:block;font-size:15px;font-weight:1000}
-    .sub{font-size:13px;color:var(--muted);line-height:1.35}
-    .badge{border:1px solid var(--line);padding:7px 9px;border-radius:999px;font-size:12px;color:var(--muted);white-space:nowrap;font-weight:900}
-    .badge.good{color:var(--good);border-color:rgba(45,212,191,.35);background:rgba(45,212,191,.10)}
-    .badge.bad{color:var(--bad);border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.10)}
-    .badge.warn{color:var(--warn);border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.10)}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
-    .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(17,26,43,.92);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--shadow);display:none;max-width:92vw;z-index:60}
-    .toast .t{font-weight:1000;margin-bottom:2px}
-    .toast .m{font-size:13px;color:var(--muted)}
-    .hidden{display:none !important;}
-    .mini{font-size:12px;color:var(--muted);font-weight:900}
-    .kbd{
+    .wrap{max-width:1500px;margin:0 auto;padding:18px}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+    .title{font-weight:1000;font-size:30px;letter-spacing:.4px}
+    .sub{color:var(--muted);font-weight:850;line-height:1.35}
+    .pillRow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+    .pill{
+      display:inline-flex;gap:8px;align-items:center;
       border:1px solid var(--line);
-      padding:7px 10px;
-      border-radius:999px;
+      padding:10px 12px;border-radius:999px;
       background:rgba(255,255,255,.03);
-      color:var(--muted);
-      font-weight:900;
-      font-size:12px;
-      display:inline-flex;
-      gap:8px;
-      align-items:center;
-      white-space:nowrap;
+      font-size:14px;color:var(--muted);
+      white-space:nowrap;max-width:min(620px, 94vw)
+    }
+    .pill b{color:var(--txt)}
+    .pill.good{border-color:rgba(45,212,191,.35);background:rgba(45,212,191,.08)}
+    .pill.warn{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08)}
+    .pill.bad{border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.08)}
+    .pill.net{border-color:rgba(96,165,250,.38);background:rgba(96,165,250,.10);color:#bcd8ff}
+    .pill.date{border-color:rgba(45,212,191,.40);background:rgba(45,212,191,.10);color:#c9fff2}
+    .k{
+      display:inline-flex;gap:8px;align-items:center;
+      border:1px solid var(--line);
+      padding:7px 10px;border-radius:999px;
+      background:rgba(255,255,255,.03);
+      color:var(--muted);font-weight:900;font-size:12px
     }
 
-    /* QR modal */
-    .modalBack{
-      position:fixed; inset:0; background:rgba(0,0,0,.55);
-      display:none; align-items:center; justify-content:center; padding:16px; z-index:80;
-    }
-    .modal{
-      width:min(520px, 94vw);
-      border:1px solid var(--line); border-radius:22px;
-      background:linear-gradient(180deg, rgba(17,26,43,.98), rgba(17,26,43,.92));
+    .row{display:grid;grid-template-columns: 440px 1fr; gap:14px; align-items:start}
+    @media(max-width:1100px){ .row{grid-template-columns:1fr} }
+
+    .card{
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      background:var(--panel);
       box-shadow:var(--shadow);
       padding:14px;
     }
-    .modalTop{display:flex;justify-content:space-between;align-items:center;gap:10px}
-    .modalTitle{font-weight:1000;font-size:18px}
-    .qrBox{
-      margin-top:12px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;
-      border:1px solid var(--line); border-radius:18px; padding:12px; background:rgba(0,0,0,.18);
+    .card h3{margin:0 0 10px;font-size:16px;font-weight:1000}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+    label{display:block;font-size:13px;color:var(--muted);font-weight:900;margin-bottom:6px}
+    input,select{
+      width:100%;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.25);
+      color:var(--txt);
+      outline:none;
+      font-size:16px
     }
-    .qrImg{width:260px;height:260px;border-radius:14px;border:1px solid var(--line);background:#0a1020;object-fit:contain}
-    .modalSmall{color:var(--muted);font-weight:900;font-size:12px;line-height:1.35;max-width:200px}
-    .modalLink{margin-top:10px; font-size:12px; color:var(--muted); word-break:break-all}
+    .btn{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      color:var(--txt);
+      padding:11px 12px;
+      border-radius:14px;
+      font-weight:950;
+      cursor:pointer;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+      width:100%;
+    }
+    .btn.primary{background:rgba(96,165,250,.20);border-color:rgba(96,165,250,.35)}
+    .btn.good{background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35)}
+    .btn.warn{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.35)}
+    .btn.bad{background:rgba(251,113,133,.16);border-color:rgba(251,113,133,.35)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:560px){ .two{grid-template-columns:1fr} }
+
+    .seg{
+      display:inline-flex;
+      border:1px solid var(--line);
+      border-radius:999px;
+      overflow:hidden;
+      background:rgba(255,255,255,.03);
+      width:max-content;
+      max-width:100%;
+    }
+    .seg button{
+      border:0;
+      background:transparent;
+      color:var(--muted);
+      padding:10px 12px;
+      font-weight:950;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .seg button.on{
+      color:var(--txt);
+      background:rgba(45,212,191,.12);
+      outline:1px solid rgba(45,212,191,.20);
+    }
+
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    @media(max-width:1400px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}}
+
+    .matchCard{min-height:140px}
+    .pair{font-weight:1000;font-size:18px;line-height:1.2}
+    .meta{margin-top:8px;color:var(--muted);font-weight:900;line-height:1.35}
+    .code{
+      display:inline-block;margin-top:10px;padding:8px 10px;border-radius:999px;
+      border:1px solid rgba(45,212,191,.35);
+      background:rgba(45,212,191,.10);
+      color:var(--good);font-weight:1000
+    }
+    .code.net{border-color:rgba(96,165,250,.38);background:rgba(96,165,250,.10);color:#bcd8ff}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 9px;border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      font-size:12px;font-weight:950;color:var(--muted)
+    }
+    .badge.good{border-color:rgba(45,212,191,.35);background:rgba(45,212,191,.08);color:#c9fff2}
+    .badge.bad{border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.08);color:#ffd2db}
+    .badge.warn{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08);color:#ffe6b0}
+
+    .toast{
+      position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+      background:rgba(17,26,43,.92);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:12px 14px;
+      box-shadow:var(--shadow);
+      display:none;
+      max-width:92vw;
+      z-index:60
+    }
+    .toast .t{font-weight:1000;margin-bottom:2px}
+    .toast .m{font-size:13px;color:var(--muted);font-weight:850;line-height:1.35}
+    .small{font-size:12px;color:var(--muted);font-weight:850}
+    .hidden{display:none !important;}
   </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="topbar">
-    <div class="left">
-      <div class="brand">
-        <img class="logo" id="brandLogo" alt="Barfly logo" src="/logo.png" onerror="this.style.display='none'">
-        <div class="brandText">
-          <div class="t">Barfly Social</div>
-          <div class="s">Host Dashboard • Phone Check-In</div>
-        </div>
+  <div class="top">
+    <div style="min-width:320px">
+      <div class="title" id="titleText">Host Dashboard — Matches</div>
+      <div class="sub" id="subText">
+        Toggle between <b>Host Venue</b> and <b>All Venues</b>. Shows <b>checked-in status</b> and <b>where</b>.
       </div>
-
-      <div class="pill"><b>Room</b> <span id="roomPill" class="mono">—</span></div>
-      <div class="pill"><b>Session</b> <span id="sessionPill" class="mono">—</span></div>
-      <div class="pill"><b>WS</b> <span id="wsPill" class="mono">DISCONNECTED</span></div>
-
-      <div class="pill"><b>Min Match</b> <span id="minMatchPill">75%</span></div>
-      <div class="pill"><b>Hotspot</b> <span id="hotspotPill">—</span></div>
-      <div class="pill" id="pinPillWrap"><b>Host Lock</b> <span id="pinPill">ON</span></div>
-      <div class="pill"><b>Next #</b> <span id="nextNumPill" class="mono">0001</span></div>
+      <div class="small" style="margin-top:8px">
+        Link format: <span class="mono">?room=ROOMID&session=SESSIONID&venue=VENUEID</span>
+      </div>
     </div>
 
-    <div class="left">
-      <button class="btn small primary" id="btnCopyJoin">Copy Join Link</button>
-      <button class="btn small primary" id="btnShowJoinQR">Join QR</button>
-      <button class="btn small warn" id="btnCopyTV">Copy TV Link</button>
-      <button class="btn small warn" id="btnShowTVQR">TV QR</button>
-      <button class="btn small good" id="btnExport">Export CSV</button>
+    <div class="pillRow">
+      <div class="pill" id="eventPillWrap"><b>Event</b> <span id="eventPill">—</span></div>
+      <div class="pill"><b>Room</b> <span id="roomPill">—</span></div>
+      <div class="pill"><b>Session</b> <span id="sessionPill">—</span></div>
+      <div class="pill" id="venuePillWrap"><b>Host Venue</b> <span id="venuePill">—</span></div>
+      <div class="pill" id="wsPillWrap"><b>WS</b> <span id="wsPill">DISCONNECTED</span></div>
+      <div class="pill" id="syncPillWrap"><b>Last Sync</b> <span id="syncPill">—</span></div>
+      <div class="pill warn"><b>Expected</b> <span id="expectedPill">0</span></div>
+      <div class="pill good"><b>Checked In</b> <span id="checkedInPill">0</span></div>
+      <div class="pill good"><b>Active</b> <span id="activeMatchesPill">0</span></div>
+      <div class="pill"><b>Hotspot</b> <span id="hotspotPill">—</span></div>
     </div>
   </div>
 
-  <div class="grid">
+  <div class="row">
+    <!-- LEFT: Controls -->
     <div class="card">
-      <h2>Event Setup</h2>
-      <div class="muted">
-        Guests submit a venue. Host verifies with <b>phone number</b> and checks the guest in.
-        <br><span class="kbd">Rule</span> <span class="mini">TV matches require: mutual like + score ≥ min + both checked in.</span>
-        <br><span class="kbd">ID</span> <span class="mini">Host assigns chronological guest numbers <b>0001–9999</b> per room+session.</span>
-      </div>
-      <div class="hr"></div>
+      <h3>Controls</h3>
 
       <div class="two">
         <div>
-          <label>Mode</label>
-          <select id="modeSelect">
-            <option value="single" selected>Single Location</option>
-            <option value="city">City-Wide Event</option>
+          <label>Host Venue (used for “Host Venue” view)</label>
+          <select id="hostVenueSelect">
+            <option value="" selected>Waiting for config…</option>
           </select>
+          <div class="small" style="margin-top:6px">
+            This is the venue used when filter is set to <b>Host Venue</b>.
+          </div>
         </div>
-
         <div>
-          <label>Session code</label>
-          <div class="row">
-            <input id="sessionCode" class="mono">
-            <button class="btn primary" id="btnNewSession" type="button">New</button>
+          <label>View</label>
+          <div class="seg">
+            <button id="btnFilterHost" class="on" type="button">Host Venue</button>
+            <button id="btnFilterAll" type="button">All Venues</button>
+          </div>
+          <div class="small" style="margin-top:10px">
+            <span class="k">Shows venues + check-in status</span>
           </div>
         </div>
       </div>
@@ -161,199 +220,48 @@
       <div class="hr"></div>
 
       <div class="two">
-        <div>
-          <label>Locations (Bars)</label>
-          <select id="barSelect"></select>
-
-          <div class="row" style="margin-top:8px">
-            <input id="newBarName" placeholder="e.g., The Brickyard">
-            <button class="btn primary" id="btnAddBar" type="button">Add</button>
-          </div>
-
-          <div class="row" style="margin-top:8px">
-            <button class="btn bad small" id="btnDeleteBar" type="button">Delete bar</button>
-            <button class="btn warn small" id="btnClearRoster" type="button">Clear roster</button>
-          </div>
-
-          <div class="mini" style="margin-top:8px">
-            Tip: In City mode, double-click the dropdown to toggle “participating” for the selected bar.
-          </div>
-        </div>
-
-        <div>
-          <label>City Event</label>
-          <div class="row">
-            <input id="eventName" placeholder="e.g., Baton Rouge Barfly Night">
-            <button class="btn primary" id="btnCreateEvent" type="button">Create/Update</button>
-          </div>
-
-          <div class="row" style="margin-top:10px">
-            <div style="flex:1;min-width:220px">
-              <label>Event Type</label>
-              <select id="eventType">
-                <option value="dating">Dating</option>
-                <option value="networking">Professional Networking</option>
-              </select>
-              <div class="mini" style="margin-top:6px">
-                Dating hides Networking questions. Networking uses a professional-only form.
-              </div>
-            </div>
-          </div>
-
-          <div class="mini" style="margin-top:8px">Participating locations (only these appear in guest dropdown):</div>
-          <div class="list" id="eventBars"></div>
-        </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <div class="row">
-        <button class="btn primary" id="btnRefresh" type="button">Refresh View</button>
-        <button class="btn good" id="btnComputeMutuals" type="button">Compute Mutuals → TV</button>
-        <button class="btn warn" id="btnBroadcastConfig" type="button">Broadcast Config</button>
-        <button class="btn small" id="btnHostPin" type="button">Set/Unlock Host PIN</button>
-      </div>
-
-      <div class="hr"></div>
-
-      <div class="two">
-        <div>
-          <label>Search guest number (filters Arrivals + Checked-In)</label>
-          <input id="searchAlias" placeholder="Type digits… (press Esc to clear)">
-          <div class="mini" style="margin-top:6px">Filters the lists below (by number).</div>
-        </div>
-        <div>
-          <label>Search helper</label>
-          <div class="row">
-            <button class="btn small" id="btnClearSearch" type="button">Clear Search</button>
-            <span class="pill"><b>Filter</b> <span id="filterPill">OFF</span></span>
-          </div>
-          <div class="mini" style="margin-top:6px">Shows only guest numbers that match your search.</div>
-        </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <div class="two">
-        <div>
-          <h3>Phone Check-In (Recommended)</h3>
-          <div class="mini">Ask guest for phone → enter 10 digits → choose where they are standing → Check In.</div>
-          <div class="row" style="margin-top:8px">
-            <input id="checkinPhone" inputmode="numeric" placeholder="Phone (10 digits)">
-            <button class="btn good" id="btnPhoneCheckin" type="button">Check In</button>
-          </div>
-          <div class="row" style="margin-top:8px">
-            <select id="checkinVenue"></select>
-            <span class="kbd">Host assigns venue</span>
-          </div>
-          <div class="mini" style="margin-top:8px">
-            If multiple guests share a phone (rare), you’ll be prompted to pick the number.
-          </div>
-        </div>
-
-        <div>
-          <h3>Manual (Fallback)</h3>
-          <div class="mini">Use number search + buttons if phone wasn’t captured on submit.</div>
-          <div class="mini" style="margin-top:8px">
-            Tip: manual actions use the <b>Check-In Venue</b> dropdown.
-          </div>
-        </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <div class="two">
-        <div>
-          <h3>Arrivals Queue (Pending • Low→High)</h3>
-          <div class="mini">Guests appear after submit. Check them in when they arrive.</div>
-          <div class="list" id="arrivals"></div>
-
-          <div class="hr"></div>
-
-          <h3>Checked In</h3>
-          <div class="mini">Only <b>checked-in</b> mutuals can appear on TV.</div>
-          <div class="list" id="checkedIn"></div>
-        </div>
-
-        <div>
-          <h3>Venue Counts (Option C Hybrid)</h3>
-          <div class="mini">Expected = pending who selected venue • Checked In = host verified • Active Matches = TV pairs involving that venue</div>
-          <div class="list" id="venueCounts"></div>
-
-          <div class="hr"></div>
-
-          <h3>TV Queue (Active)</h3>
-          <div class="mini">Active = both sides checked in + mutual like + score ≥ min.</div>
-          <div class="list" id="tvQueue"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Status</h2>
-      <div class="hr"></div>
-
-      <div class="item">
-        <div style="min-width:0">
-          <strong>WebSocket Relay</strong>
-          <div class="sub mono" id="wsUrlTxt">—</div>
-        </div>
-        <div class="badge" id="wsBadge">—</div>
-      </div>
-
-      <div class="hr"></div>
-
-      <h3>Quick Links</h3>
-      <div class="list">
-        <div class="item">
-          <div style="min-width:0">
-            <strong>Join</strong>
-            <div class="sub mono" id="joinLink">—</div>
-          </div>
-          <button class="btn small primary" id="btnCopyJoin2" type="button">Copy</button>
-        </div>
-        <div class="item">
-          <div style="min-width:0">
-            <strong>TV</strong>
-            <div class="sub mono" id="tvLink">—</div>
-          </div>
-          <button class="btn small warn" id="btnCopyTV2" type="button">Copy</button>
-        </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <h3>Totals</h3>
-      <div class="two">
-        <div>
-          <div class="muted">Expected (pending)</div>
-          <div style="font-size:30px;font-weight:1000" id="countExpected">0</div>
-        </div>
-        <div>
-          <div class="muted">Checked In</div>
-          <div style="font-size:30px;font-weight:1000" id="countCheckedIn">0</div>
-        </div>
+        <button class="btn primary" id="btnRequestConfig" type="button">Request Config</button>
+        <button class="btn good" id="btnRequestSync" type="button">Request Matches</button>
       </div>
 
       <div class="two" style="margin-top:10px">
-        <div>
-          <div class="muted">Active TV Matches</div>
-          <div style="font-size:30px;font-weight:1000" id="countTV">0</div>
-        </div>
-        <div>
-          <div class="muted">Joined (all)</div>
-          <div style="font-size:30px;font-weight:1000" id="countJoined">0</div>
-        </div>
+        <button class="btn warn" id="btnToggleAuto" type="button">Auto-Refresh: OFF</button>
+        <button class="btn" id="btnClearLocal" type="button">Clear Local Cache</button>
       </div>
 
       <div class="hr"></div>
 
-      <div class="muted" style="font-weight:900;line-height:1.35">
-        If guests say “Waiting for host config,” confirm:<br>
-        1) Host is open and <b>WS shows CONNECTED</b><br>
-        2) The guest link uses the <b>same room + session</b> shown in the pills above<br>
-        3) Press <b>Broadcast Config</b> once
+      <div class="two">
+        <div>
+          <label>Show only pairs where BOTH are checked in?</label>
+          <select id="checkedOnly">
+            <option value="yes" selected>Yes (TV-style)</option>
+            <option value="no">No (show all matches)</option>
+          </select>
+        </div>
+        <div>
+          <label>Rotation</label>
+          <select id="rotation">
+            <option value="0">No rotation</option>
+            <option value="10" selected>Rotate every 10s</option>
+            <option value="5">Rotate every 5s</option>
+            <option value="15">Rotate every 15s</option>
+          </select>
+        </div>
       </div>
+
+      <div class="small" style="margin-top:10px">
+        If matches aren’t appearing: make sure your compute/broadcast button on the host tool is sending
+        <span class="mono">tv_sync</span> to the relay for this <b>room</b> + <b>session</b>.
+      </div>
+    </div>
+
+    <!-- RIGHT: Matches -->
+    <div class="card">
+      <h3>Matches</h3>
+      <div class="small" id="matchesNote">Waiting for sync…</div>
+      <div class="hr"></div>
+      <div class="grid" id="grid"></div>
     </div>
   </div>
 
@@ -363,1832 +271,711 @@
   </div>
 </div>
 
-<div class="modalBack" id="qrBack" role="dialog" aria-modal="true">
-  <div class="modal">
-    <div class="modalTop">
-      <div class="modalTitle" id="qrTitle">QR Code</div>
-      <button class="btn small" id="btnCloseQR" type="button">Close</button>
-    </div>
-    <div class="qrBox">
-      <img class="qrImg" id="qrImg" alt="QR code">
-      <div class="modalSmall">
-        Point your phone camera at the QR code to open the link.
-        <div style="margin-top:10px" class="mini">
-          Pro tip: Use <b>Join QR</b> on flyers, and <b>TV QR</b> for the screen operator.
-        </div>
-      </div>
-    </div>
-    <div class="modalLink mono" id="qrLinkTxt">—</div>
-  </div>
-</div>
-
 <script>
-/* =========================
-   CONFIG
-========================= */
+/* ============================================================
+   Barfly Social — Host Dashboard (REPLACEMENT FILE)
+
+   Adds:
+   - Toggle: Host Venue vs All Venues
+   - Shows checked-in status for each side + venue labels
+   - Optional: show only checked-in pairs (TV-style)
+   - Auto-refresh + optional rotation
+
+   Relay expectations (same as your TV page):
+   - request_config -> receives config/event_config
+   - request_tv_sync -> receives tv_sync { matches: [...] }
+
+============================================================ */
+
 const WS_URL = "wss://bar-match-relay.onrender.com";
-const MIN_MATCH_SCORE = 0.75;
-const TV_EXPIRE_MS = 3 * 60 * 60 * 1000;
-const TV_ROTATE_MS = 10 * 1000;
 
-const HEARTBEAT_MS = 20 * 1000;
-const RECONNECT_BASE_MS = 800;
-const RECONNECT_MAX_MS  = 10 * 1000;
+const HEARTBEAT_MS = 15 * 1000;
+const STALE_MS     = 45 * 1000;
 
-const STORAGE = {
-  BARS: "bm_bars_v14",
-  HOST: "bm_host_v14",
-  PEOPLE: "bm_people_v14",
-  LIKES: "bm_likes_v14",
-  EVENT: "bm_event_v14",
-  TV: "bm_tv_v14",
-  DEDUPE: "bm_dedupe_v14",
-  CONTACTS: "bm_contacts_v14",
-  UI: "bm_ui_v14",
-  HOSTPIN: "bm_host_pin_v14",
-  COUNTERS: "bm_counters_v14"
-};
+const PER_PAGE = 9;
 
 const $ = (id)=>document.getElementById(id);
-function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
-function now(){ return Date.now(); }
+
+function qs(){
+  const u=new URL(location.href);
+  const q = Object.fromEntries(u.searchParams.entries());
+  q.room    = (q.room || q.roomId || q.barId || "").trim();
+  q.session = (q.session || "").trim();
+  q.venue   = (q.venue || "").trim(); // optional host venue hint
+  q.event   = (q.event || q.eventType || q.type || "").trim().toLowerCase();
+  return q;
+}
+function esc(s){
+  return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
 function showToast(t,m){
-  $("toastT").textContent=t; $("toastM").textContent=m;
-  const el=$("toast"); el.style.display="block";
+  $("toastT").textContent=t;
+  $("toastM").textContent=m;
+  const el=$("toast");
+  el.style.display="block";
   clearTimeout(showToast._t);
   showToast._t=setTimeout(()=>{el.style.display="none"}, 2600);
 }
-function uid(){ return (crypto?.randomUUID?.() || ("id_"+Math.random().toString(16).slice(2)+"_"+Math.random().toString(16).slice(2))); }
-function genSession(){ return Math.random().toString(36).slice(2,6).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase(); }
-
-function loadJSON(key, fallback){
-  try{ return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }catch{ return fallback; }
-}
-function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
-
-function digitsOnly(s){ return String(s||"").replace(/\D/g,""); }
-function phoneLast4(s){
-  const d = digitsOnly(s);
-  if(d.length < 4) return "";
-  return d.slice(-4);
-}
 
 /* =========================
-   HOST PIN (light lock)
+   Event type/name
 ========================= */
-let hostPin = (localStorage.getItem(STORAGE.HOSTPIN) || "").trim();
-let hostUnlocked = false;
+let EVENT_TYPE=""; // dating | networking | ""
+let EVENT_NAME="";
 
-function pinHash(str){
-  const s = String(str||"");
-  let h=2166136261;
-  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return "h"+(h>>>0).toString(16);
-}
-function setPinPill(){
-  $("pinPill").textContent = hostPin ? (hostUnlocked ? "UNLOCKED" : "LOCKED") : "OFF";
-  $("pinPillWrap").className = "pill" + (hostPin ? (hostUnlocked ? " good":" warn") : "");
-}
-function requireUnlock(){
-  if(!hostPin) return true;
-  if(hostUnlocked) return true;
-  const attempt = prompt("Host PIN required:", "");
-  if(!attempt) return false;
-  if(pinHash(attempt) === hostPin){
-    hostUnlocked = true;
-    setPinPill();
-    showToast("Unlocked","Host controls unlocked.");
-    return true;
-  }
-  showToast("Denied","Incorrect PIN.");
-  return false;
-}
-function handlePinButton(){
-  const cur = hostPin ? prompt("Enter current PIN to change/unlock (or Cancel):", "") : null;
-  if(hostPin){
-    if(!cur) { return requireUnlock(); }
-    if(pinHash(cur) !== hostPin){
-      showToast("Denied","Incorrect PIN.");
-      return;
-    }
-  }
-  const next = prompt("Set a NEW PIN (4-8 digits). Leave blank to turn OFF:", "");
-  if(!next){
-    hostPin = "";
-    localStorage.removeItem(STORAGE.HOSTPIN);
-    hostUnlocked = false;
-    setPinPill();
-    showToast("PIN","Host PIN turned OFF.");
-    return;
-  }
-  const d = digitsOnly(next);
-  if(d.length < 4 || d.length > 8){
-    showToast("PIN","Use 4–8 digits.");
-    return;
-  }
-  hostPin = pinHash(d);
-  localStorage.setItem(STORAGE.HOSTPIN, hostPin);
-  hostUnlocked = true;
-  setPinPill();
-  showToast("PIN","Host PIN set and unlocked.");
-}
-
-/* =========================
-   UI STATE (search)
-========================= */
-let ui = loadJSON(STORAGE.UI, { search:"" });
-function setSearch(val){
-  ui.search = String(val||"");
-  saveJSON(STORAGE.UI, ui);
-  const q = ui.search.trim();
-  $("filterPill").textContent = q ? `"${q}"` : "OFF";
-}
-function matchSearch(displayId){
-  const q = (ui.search||"").trim().toLowerCase();
-  if(!q) return true;
-  return String(displayId||"").toLowerCase().includes(q);
-}
-
-/* =========================
-   STATE
-========================= */
-let bars = loadJSON(STORAGE.BARS, []);
-let host = loadJSON(STORAGE.HOST, { mode:"single", activeBarId:null, session: genSession() });
-let people = loadJSON(STORAGE.PEOPLE, []);
-let likes  = loadJSON(STORAGE.LIKES, {});
-let contacts = loadJSON(STORAGE.CONTACTS, {});
-let event  = loadJSON(STORAGE.EVENT, { eventId:"", name:"", type:"dating", participatingBarIds:[] });
-let tv     = loadJSON(STORAGE.TV, { matches:[] });
-let dedupe = loadJSON(STORAGE.DEDUPE, {});
-let counters = loadJSON(STORAGE.COUNTERS, {}); // per room+session counter
-
-function normalizeEventType(t){
-  const s = String(t||"").toLowerCase().trim();
+function normalizeEventType(raw){
+  const s = String(raw||"").trim().toLowerCase();
+  if(!s) return "";
   if(s.includes("network")) return "networking";
-  return "dating";
+  if(s.includes("dating")) return "dating";
+  if(s === "net") return "networking";
+  if(s === "date") return "dating";
+  return "";
 }
-event.type = normalizeEventType(event.type);
+function inferEventTypeFromConfig(cfg){
+  const candidates = [
+    cfg?.eventType,
+    cfg?.event,
+    cfg?.type,
+    cfg?.mode,
+    cfg?.event?.type,
+    cfg?.settings?.eventType,
+    cfg?.settings?.type
+  ];
+  for(const c of candidates){
+    const n = normalizeEventType(c);
+    if(n) return n;
+  }
+  return "";
+}
+function inferEventNameFromConfig(cfg){
+  return (cfg?.event?.name ?? cfg?.name ?? cfg?.eventName ?? "").toString().trim();
+}
+function buildEventLabel(){
+  const t = EVENT_TYPE || "";
+  const n = (EVENT_NAME || "").trim();
+  if(t === "networking") return n ? `💼 Professional Networking — ${n}` : `💼 Professional Networking`;
+  if(t === "dating") return n ? `💚 Dating Night — ${n}` : `💚 Dating Night`;
+  return n ? `Live Event — ${n}` : `Live Event`;
+}
+function applyEventUI(){
+  const wrap = $("eventPillWrap");
+  const pill = $("eventPill");
+  let pillClass = "pill";
+  if(EVENT_TYPE==="networking") pillClass = "pill net";
+  if(EVENT_TYPE==="dating") pillClass = "pill date";
+  wrap.className = pillClass;
+  pill.textContent = buildEventLabel();
 
-/* =========================
-   NUMBER IDS (chronological 0001-9999 per room+session)
-========================= */
-function currentRoomId(){
-  return (host.mode === "city") ? event.eventId : host.activeBarId;
-}
-function counterKey(){
-  return `${currentRoomId() || "room"}::${host.session || "session"}`;
-}
-function loadCounter(){
-  const k = counterKey();
-  const n = parseInt(counters[k] || "0", 10);
-  return Number.isFinite(n) ? n : 0;
-}
-function saveCounter(n){
-  const k = counterKey();
-  counters[k] = String(n);
-  saveJSON(STORAGE.COUNTERS, counters);
-}
-function formatDisplayId(n){
-  const nn = Math.max(0, Math.min(9999, parseInt(n||"0",10)));
-  return String(nn).padStart(4,"0");
-}
-function usedDisplayIdSet(){
-  const set = new Set();
-  for(const p of activePool()){
-    if(p.displayId) set.add(String(p.displayId));
-    else if(p.alias && /^\d{4}$/.test(String(p.alias))) set.add(String(p.alias));
-  }
-  return set;
-}
-function peekNextDisplayId(){
-  const used = usedDisplayIdSet();
-  let c = loadCounter();
-  for(let i=0;i<10000;i++){
-    const next = c + 1;
-    if(next > 9999) break;
-    const id = formatDisplayId(next);
-    if(!used.has(id)) return id;
-    c++;
-  }
-  return "9999";
-}
-function allocateDisplayId(){
-  const used = usedDisplayIdSet();
-  let c = loadCounter();
-  for(let i=0;i<10000;i++){
-    const next = c + 1;
-    if(next > 9999){
-      showToast("ID limit", "Reached 9999 for this room/session. Start a new session to reset numbering.");
-      return null;
-    }
-    const id = formatDisplayId(next);
-    c = next;
-    saveCounter(c);
-    if(!used.has(id)){
-      return id;
-    }
-    // if collision, keep looping (counter already advanced)
-  }
-  showToast("ID limit", "No IDs available (0001–9999) for this room/session.");
-  return null;
+  const label = buildEventLabel();
+  document.title = `Barfly Social — Host • ${label}`;
+  $("titleText").textContent = `Host Dashboard — ${EVENT_TYPE==="networking" ? "Networking" : EVENT_TYPE==="dating" ? "Dating" : "Live"} Matches`;
 }
 
 /* =========================
-   BARS
-========================= */
-function ensureDefaultBar(){
-  if(!bars.length){
-    const id = uid();
-    bars = [{id, name:"Default Bar"}];
-    saveJSON(STORAGE.BARS, bars);
-  }
-  if(!host.activeBarId) host.activeBarId = bars[0].id;
-  if(!event.eventId){
-    event.eventId = "CITY-"+uid().slice(0,6).toUpperCase();
-    saveJSON(STORAGE.EVENT, event);
-  }
-}
-function barName(id){ return bars.find(b=>b.id===id)?.name || (id ? id : "—"); }
-
-function participatingSet(){
-  return new Set((event.participatingBarIds || []).filter(id => bars.some(b=>b.id===id)));
-}
-function isVenueAllowed(venueId){
-  const v = String(venueId||"").trim();
-  if(!v) return true;
-  if(host.mode !== "city") return true;
-  const set = participatingSet();
-  if(set.size === 0) return true;
-  return set.has(v);
-}
-function populateCheckinVenueSelect(){
-  const sel = $("checkinVenue");
-  if(!sel) return;
-  sel.innerHTML = "";
-  for(const b of bars){
-    const opt = document.createElement("option");
-    opt.value = b.id;
-    opt.textContent = b.name;
-    if(b.id === host.activeBarId) opt.selected = true;
-    sel.appendChild(opt);
-  }
-}
-
-/* =========================
-   WS + HEARTBEAT
+   State
 ========================= */
 let WS=null;
 let WS_STATE="DISCONNECTED";
-let lastTrafficAt = 0;
-let reconnectAttempts = 0;
+let HOST_CONFIG=null;
 
-const timers = { tvPurge:null, rebroadcastConfig:null, rosterSync:null, heartbeat:null };
+let lastTrafficAt = Date.now();
+let lastSyncAt = 0;
 
-function wsSetStatus(s){
-  WS_STATE=s;
-  $("wsPill").textContent = s;
-  const ageSec = lastTrafficAt ? Math.max(0, Math.round((now()-lastTrafficAt)/1000)) : null;
-  const label = (s==="CONNECTED" && ageSec!=null) ? `CONNECTED • ${ageSec}s` : (s==="CONNECTED" ? "CONNECTED" : s);
-  $("wsBadge").textContent = label;
-  $("wsBadge").className = "badge" + (s==="CONNECTED"?" good": s==="CONNECTING"?" warn": s==="ERROR"?" bad":"");
+let matches = [];
+let page = 0;
+
+let autoOn = false;
+let autoTimer = null;
+let rotateTimer = null;
+
+let filterMode = "host"; // "host" | "all"
+let hostVenueId = "";    // selected in dropdown
+
+/* =========================
+   Local storage
+========================= */
+const LS_KEY = "barfly_host_matches_prefs_v1";
+
+function loadPrefs(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return;
+    const p = JSON.parse(raw);
+    if(p.filterMode) filterMode = p.filterMode;
+    if(p.hostVenueId) hostVenueId = p.hostVenueId;
+    if(p.checkedOnly) $("checkedOnly").value = p.checkedOnly;
+    if(p.rotation != null) $("rotation").value = String(p.rotation);
+    if(p.autoOn != null) autoOn = !!p.autoOn;
+  }catch{}
 }
+function savePrefs(){
+  try{
+    const p = {
+      filterMode,
+      hostVenueId,
+      checkedOnly: $("checkedOnly").value,
+      rotation: Number($("rotation").value || 0),
+      autoOn
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(p));
+  }catch{}
+}
+
+/* =========================
+   Pills / status
+========================= */
+function setWsStatus(s){
+  WS_STATE=s;
+  $("wsPill").textContent=s;
+  $("wsPillWrap").className = "pill " + (s==="CONNECTED"?"good": s==="CONNECTING"?"warn": s==="ERROR"?"bad":"");
+}
+function setSyncPill(){
+  const age = lastSyncAt ? Math.max(0, Math.round((Date.now()-lastSyncAt)/1000)) : null;
+  $("syncPill").textContent = age==null ? "—" : `${age}s`;
+  const cls = (age==null) ? "" : (age <= 10 ? " good" : age <= 25 ? " warn" : " bad");
+  $("syncPillWrap").className = "pill" + cls;
+}
+
+/* =========================
+   Config: venue labels
+========================= */
+function barNameFromCfg(id){
+  const clean = String(id||"").trim();
+  if(!clean) return "";
+  const b = (HOST_CONFIG?.bars || []).find(x => x.id === clean);
+  return (b?.name || clean);
+}
+function labelVenue(id){
+  const clean = String(id||"").trim();
+  if(!clean) return "—";
+  return barNameFromCfg(clean) || clean;
+}
+function setHostVenuePill(){
+  const wrap = $("venuePillWrap");
+  const pill = $("venuePill");
+  if(!hostVenueId){
+    wrap.classList.add("hidden");
+    pill.textContent = "—";
+  }else{
+    wrap.classList.remove("hidden");
+    pill.textContent = labelVenue(hostVenueId);
+  }
+}
+
+function populateVenueSelectFromConfig(){
+  const sel = $("hostVenueSelect");
+  const bars = Array.isArray(HOST_CONFIG?.bars) ? HOST_CONFIG.bars : [];
+
+  sel.innerHTML = "";
+  if(!bars.length){
+    sel.innerHTML = `<option value="" selected>Waiting for config…</option>`;
+    return;
+  }
+
+  sel.innerHTML = `<option value="" disabled>Select host venue</option>`;
+  for(const b of bars){
+    const opt = document.createElement("option");
+    opt.value = b.id;
+    opt.textContent = b.name || b.id;
+    sel.appendChild(opt);
+  }
+
+  const urlVenue = String(qs().venue||"").trim();
+  const preferred = hostVenueId || urlVenue || bars[0]?.id || "";
+  if(preferred){
+    sel.value = preferred;
+    hostVenueId = preferred;
+  }else{
+    sel.value = bars[0]?.id || "";
+    hostVenueId = sel.value;
+  }
+  setHostVenuePill();
+  savePrefs();
+}
+
+/* =========================
+   Relay helpers
+========================= */
+function touchTraffic(){ lastTrafficAt = Date.now(); }
+
 function safeSend(obj){
   try{
     if(WS && WS.readyState===WebSocket.OPEN){
       WS.send(JSON.stringify(obj));
-      lastTrafficAt = now();
       return true;
     }
   }catch{}
   return false;
 }
-function stopHeartbeat(){
-  if(timers.heartbeat){ clearInterval(timers.heartbeat); timers.heartbeat=null; }
+function requestConfig(){
+  const q=qs();
+  if(!q.room || !q.session) return;
+  safeSend({ type:"request_config", roomId:q.room, room:q.room, barId:q.room, session:q.session });
 }
-function startHeartbeat(){
-  stopHeartbeat();
-  timers.heartbeat = setInterval(()=>{
-    if(WS_STATE!=="CONNECTED") return;
-    const roomId = currentRoomId();
-    safeSend({ type:"ping", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
-  }, HEARTBEAT_MS);
-}
-function cleanupWs(){
-  stopHeartbeat();
-  try{
-    WS && (WS.onopen = WS.onmessage = WS.onerror = WS.onclose = null);
-    if(WS && (WS.readyState===WebSocket.OPEN || WS.readyState===WebSocket.CONNECTING)) WS.close();
-  }catch{}
-  WS=null;
-}
-function scheduleReconnect(){
-  cleanupWs();
-  const jitter = Math.floor(Math.random()*250);
-  const backoff = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts));
-  const wait = backoff + jitter;
-  reconnectAttempts = Math.min(10, reconnectAttempts+1);
-  setTimeout(()=>wsConnect(true), wait);
+function requestSync(){
+  const q=qs();
+  if(!q.room || !q.session) return;
+  safeSend({ type:"request_tv_sync", roomId:q.room, room:q.room, barId:q.room, session:q.session });
 }
 
 /* =========================
-   CONFIG BROADCAST
+   Check-in helpers
 ========================= */
-function broadcastConfig(){
-  const roomId = currentRoomId();
-  const participatingIds = Array.from(participatingSet());
-  safeSend({
-    type: "config",
-    roomId, room: roomId, barId: roomId,
-    session: host.session,
-    mode: host.mode,
-    event: { eventId: event.eventId, name: event.name || "", type: event.type || "dating" },
-    bars: bars.map(b => ({ id:b.id, name:b.name })),
-    participatingBarIds: participatingIds,
-    rules: {
-      minMatch: MIN_MATCH_SCORE,
-      tvExpireMs: TV_EXPIRE_MS,
-      tvRotateMs: TV_ROTATE_MS,
-      checkIn: "phone_or_manual_host_only",
-      venueChange: "host_only",
-      ids: "host_chronological_0001_9999"
-    },
-    hostLock: hostPin ? "pin_enabled" : "off"
-  });
+function isCheckedInFlag(m, side){
+  const isA = side==="a";
+  const v1 = isA ? m.aCheckedIn : m.bCheckedIn;
+  const v2 = isA ? m.checkedInA : m.checkedInB;
+  const st = isA ? (m.aStatus || m.statusA) : (m.bStatus || m.statusB);
+
+  if(typeof v1 === "boolean") return v1;
+  if(typeof v2 === "boolean") return v2;
+  if(typeof st === "string") return st.toLowerCase().includes("check");
+  return undefined; // unknown
+}
+
+function badgeHTML(flag){
+  if(flag === true)  return `<span class="badge good">✓ Checked In</span>`;
+  if(flag === false) return `<span class="badge bad">✗ Not Checked</span>`;
+  return `<span class="badge warn">• Unknown</span>`;
 }
 
 /* =========================
-   POOL + ROSTER SYNC
+   Filtering + counts
 ========================= */
-function activePool(){
-  const roomId = currentRoomId();
-  return people.filter(p => p.session === host.session && p.roomId === roomId && p.status !== "removed");
-}
-function bestLabel(p){
-  // always show number; fallback
-  return String(p?.displayId || p?.alias || "—");
-}
-function broadcastRosterSync(requesterNonce=null){
-  const roomId = currentRoomId();
-  const pool = activePool();
-  const roster = pool.map(p => ({
-    id: p.id,
-    displayId: bestLabel(p),
-    alias: bestLabel(p), // compatibility
-    venueId: p.expectedVenueId || p.venueId || "",
-    status: p.status || "pending"
-  }));
-  const you = requesterNonce ? pool.find(p => p.clientNonce === requesterNonce || p.id === requesterNonce) : null;
+function filteredMatches(){
+  const checkedOnly = $("checkedOnly").value === "yes";
+  const now = Date.now();
 
-  safeSend({
-    type: "roster_sync",
-    roomId, room: roomId, barId: roomId,
-    session: host.session,
-    roster,
-    people: roster,
-    you: you ? { id: you.id, displayId: bestLabel(you), alias: bestLabel(you), venueId: you.expectedVenueId || "", status: you.status || "pending" } : undefined
-  });
-}
+  let list = (matches || []).filter(m => !m.expiresAt || m.expiresAt > now);
 
-/* =========================
-   SUBMISSION + DEDUPE
-========================= */
-function normalizeIncomingPayload(msg){
-  const p = msg?.payload || (msg?.type==="submit_payload" ? msg.payload : null);
-  if(p) return p;
-  if(msg?.type==="submit_payload" && !msg.payload){
-    const copy = {...msg};
-    delete copy.type;
-    return copy;
-  }
-  return null;
-}
-function payloadRoomSessionOk(payload){
-  const room = payload?.roomId ?? payload?.room ?? payload?.barId ?? "";
-  const session = payload?.session ?? "";
-  if(session && session !== host.session) return false;
-  if(room && room !== currentRoomId()) return false;
-  return true;
-}
-function payloadFingerprint(payload){
-  const net = payload?.net || {};
-  const contact = payload?.contact || {};
-  const obj = {
-    room: payload?.roomId ?? payload?.room ?? payload?.barId ?? "",
-    session: payload?.session ?? "",
-    clientNonce: payload?.clientNonce ?? "",
-    id: payload?.id ?? payload?.personId ?? "",
-    identityPhone: digitsOnly(payload?.identityPhone || payload?.contactPhone || contact.phone || payload?.attrs?.identityPhone || ""),
-    venueId: payload?.venueId ?? payload?.expectedVenueId ?? "",
-    travelYes: !!payload?.travelYes,
-    eventType: String(payload?.eventType || payload?.event?.type || "").toLowerCase().trim(),
-    net: {
-      industry: net.industry || "",
-      roleLevel: net.roleLevel || "",
-      yearsExperience: net.yearsExperience || "",
-      education: net.education || "",
-      certifications: net.certifications || "",
-      licenses: net.licenses || "",
-      intentions: net.intentions || "",
-      lookingFor: (net.lookingFor || []).slice().sort(),
-      ice1: net.ice1 || "",
-      ice2: net.ice2 || "",
-      ice3: net.ice3 || ""
-    },
-    attrs: payload?.attrs ?? {},
-    food: (payload?.foodChips ?? []).slice().sort(),
-    act: (payload?.activityChips ?? []).slice().sort(),
-    firstLoc: payload?.firstDateLoc ?? "",
-    firstAvail: payload?.firstDateAvail ?? "",
-    pays: payload?.pays ?? "",
-    budget: payload?.budget ?? "",
-    blurb: payload?.publicBlurb ?? "",
-    starter: payload?.starter ?? ""
-  };
-  const s = JSON.stringify(obj);
-  let h=2166136261;
-  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return "fp_" + (h>>>0).toString(16);
-}
-function dedupeSeen(fp){
-  const cutoff = now() - 10*60*1000;
-  for(const k in dedupe){ if(dedupe[k] < cutoff) delete dedupe[k]; }
-  if(dedupe[fp]) return true;
-  dedupe[fp] = now();
-  saveJSON(STORAGE.DEDUPE, dedupe);
-  return false;
-}
-
-/* =========================
-   MATCH / SCORE (Dating logic stays as-is)
-========================= */
-const CODE_WORDS = ["LIME","WAVE","NOVA","GOLD","MOON","JAZZ","ROSE","BAYOU","SPARK","VIBE","MINT","ONYX","SUGAR","VELVET","NEON"];
-function makeMatchCode(){
-  const w = CODE_WORDS[Math.floor(Math.random()*CODE_WORDS.length)];
-  const n = Math.floor(Math.random()*90)+10;
-  return `${w}-${n}`;
-}
-function pairKey(aId,bId){ return aId < bId ? `${aId}::${bId}` : `${bId}::${aId}`; }
-function clamp01(x){ return Math.max(0, Math.min(1, x)); }
-function overlapScore(arrA, arrB){
-  const A = Array.from(new Set(arrA || []));
-  const B = new Set(arrB || []);
-  if(A.length===0 || B.size===0) return 0;
-  let inter=0;
-  for(const x of A) if(B.has(x)) inter++;
-  return inter / Math.max(1, Math.min(A.length, B.size));
-}
-function bandContainsAge(band, age){
-  if(!band || band==="Any") return true;
-  if(band==="55+") return age>=55;
-  const m = band.match(/(\d+)\D+(\d+)/);
-  if(!m) return true;
-  const lo = parseInt(m[1],10), hi=parseInt(m[2],10);
-  return age>=lo && age<=hi;
-}
-function meetsHardFilters(A,B){
-  const P = A.prefs || {};
-  const D = A.deal || {};
-  const attr = B.attrs || {};
-  function hard(field){
-    const pref = P[field];
-    const isDeal = D[field] === true;
-    if(!isDeal) return true;
-    if(pref === "Any") return true;
-    if(field==="ageBand") return bandContainsAge(pref, attr.age);
-    return pref === attr[field];
-  }
-  return hard("ageBand") &&
-    ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"]
-    .every(f=>hard(f));
-}
-function ageCompat(A,B){
-  const aOk = bandContainsAge(A?.prefs?.ageBand, B?.attrs?.age);
-  const bOk = bandContainsAge(B?.prefs?.ageBand, A?.attrs?.age);
-  return (aOk && bOk) ? 1 : (aOk || bOk) ? 0.6 : 0;
-}
-function preferenceScore(A,B){
-  const P = A.prefs || {};
-  const attr = B.attrs || {};
-  let used=0, good=0;
-  const fields = ["sex","race","income","height","build","eye","hair","skin","smoke","marital","politics","intent","family","edu","love","pets","religion"];
-  for(const f of fields){
-    if(P[f] && P[f] !== "Any"){ used++; if(P[f] === attr[f]) good++; }
-  }
-  if(P.ageBand){ used++; if(bandContainsAge(P.ageBand, attr.age)) good++; }
-  if(used===0) return 0.5;
-  return good/used;
-}
-function interestsScore(A,B){
-  const food = overlapScore(A.foodChips, B.foodChips);
-  const act  = overlapScore(A.activityChips, B.activityChips);
-  return clamp01(0.45*food + 0.55*act);
-}
-function scorePair(A,B){
-  if(!meetsHardFilters(A,B)) return -999;
-  const age = ageCompat(A,B);
-  const intr = interestsScore(A,B);
-  const prefs = preferenceScore(A,B);
-  return clamp01(0.30*age + 0.40*intr + 0.30*prefs);
-}
-function travelPlan(A,B){
-  const aVenue = A.checkedInVenueId || A.expectedVenueId || A.venueId;
-  const bVenue = B.checkedInVenueId || B.expectedVenueId || B.venueId;
-  const same = aVenue === bVenue;
-  if(same) return { allowed:true, plan:`Meet at: ${barName(aVenue)} (same location)` };
-  const aYes = !!A.travelYes, bYes = !!B.travelYes;
-  if(!aYes && !bYes) return { allowed:false, plan:"No cross-location match (both chose No travel)" };
-  if(aYes && !bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(bVenue)} (A travels)` };
-  if(!aYes && bYes)  return { allowed:true, plan:`Traveler goes to: ${barName(aVenue)} (B travels)` };
-  return { allowed:true, plan:`Either can travel — check host stand to pick meetup bar` };
-}
-
-/* =========================
-   LIKES / MUTUALS
-========================= */
-function ensureLikes(voterId){ if(!likes[voterId]) likes[voterId] = {}; }
-function getLike(aId,bId){ return likes?.[aId]?.[bId]; }
-function isMutual(aId,bId){ return getLike(aId,bId)===true && getLike(bId,aId)===true; }
-
-/* =========================
-   UPSERT
-========================= */
-function upsertGuestById(id, patch){
-  const idx = people.findIndex(p=>p.id===id);
-  if(idx>=0) people[idx] = { ...people[idx], ...patch };
-  else people.push(patch);
-  saveJSON(STORAGE.PEOPLE, people);
-}
-
-/* =========================
-   ID + ACK (host is authoritative for displayId)
-========================= */
-function sendSubmitAck(clientNonce, displayId){
-  if(!clientNonce) return;
-  const roomId = currentRoomId();
-  safeSend({
-    type: "submit_ack",
-    roomId, room: roomId, barId: roomId,
-    session: host.session,
-    clientNonce,
-    displayId,
-    alias: displayId // compatibility
-  });
-}
-
-/* =========================
-   CONTACT / PHONE EXTRACTION
-========================= */
-function extractIdentityPhone(payload, stableId){
-  const direct = digitsOnly(payload?.identityPhone || "");
-  if(direct.length===10) return direct;
-
-  const c1 = digitsOnly(payload?.contactPhone || "");
-  if(c1.length===10) return c1;
-
-  const c2 = digitsOnly(payload?.contact?.phone || "");
-  if(c2.length===10) return c2;
-
-  const c3 = digitsOnly(payload?.attrs?.identityPhone || "");
-  if(c3.length===10) return c3;
-
-  const stored = digitsOnly(contacts?.[stableId]?.phone || "");
-  if(stored.length===10) return stored;
-
-  return "";
-}
-
-/* =========================
-   IMPORT GUEST
-========================= */
-function normalizeIncomingDisplayId(payload){
-  // if payload already has a numeric-ish id, accept it
-  const raw = String(payload?.displayId || payload?.numberId || payload?.guestId || "").trim();
-  if(/^\d{1,4}$/.test(raw)){
-    return String(parseInt(raw,10)).padStart(4,"0");
-  }
-  if(/^\d{4}$/.test(raw)) return raw;
-  return "";
-}
-
-function importGuest(payload){
-  const incomingRoom = payload.roomId ?? payload.room ?? payload.barId ?? payload.roomID ?? "";
-  const relayId = String(payload.id || payload.personId || "").trim();
-  const nonceId = String(payload.clientNonce || "").trim();
-  const stableId = relayId || nonceId || uid();
-
-  const existing = people.find(p=>p.id===stableId);
-  const expectedVenue = payload.expectedVenueId || payload.venueId || "";
-
-  const identityPhone = extractIdentityPhone(payload, stableId);
-  const eventTypeFromPayload = normalizeEventType(payload?.eventType || payload?.event?.type || event.type || "dating");
-
-  const net = payload?.net && typeof payload.net==="object" ? payload.net : {};
-
-  // ✅ assign/keep displayId
-  let displayId =
-    (existing?.displayId ? String(existing.displayId) : "") ||
-    normalizeIncomingDisplayId(payload);
-
-  if(!displayId){
-    const alloc = allocateDisplayId();
-    if(!alloc) return; // hard stop at limit
-    displayId = alloc;
+  if(checkedOnly){
+    list = list.filter(m => isCheckedInFlag(m,"a") === true && isCheckedInFlag(m,"b") === true);
   }
 
-  // Store displayId in both fields for compatibility
-  const alias = displayId;
-
-  const p = {
-    id: stableId,
-    clientNonce: nonceId || (existing?.clientNonce || null),
-
-    displayId,     // ✅ canonical
-    alias,         // ✅ compatibility
-
-    roomId: incomingRoom || currentRoomId(),
-    session: payload.session,
-
-    expectedVenueId: expectedVenue,
-    checkedInVenueId: existing?.checkedInVenueId || "",
-    status: existing?.status || "pending",
-    travelYes: !!payload.travelYes,
-
-    identityPhone: identityPhone || (existing?.identityPhone || ""),
-
-    eventType: eventTypeFromPayload,
-
-    attrs: payload.attrs || {},
-    prefs: payload.prefs || {},
-    deal: payload.deal || {},
-    foodChips: payload.foodChips || [],
-    activityChips: payload.activityChips || [],
-    firstDateLoc: payload.firstDateLoc || "",
-    firstDateAvail: payload.firstDateAvail || "",
-    publicBlurb: payload.publicBlurb || "",
-    starter: payload.starter || "",
-    pays: payload.pays || "",
-    budget: payload.budget || "",
-
-    net: {
-      industry: net.industry || "",
-      roleLevel: net.roleLevel || "",
-      yearsExperience: net.yearsExperience || "",
-      education: net.education || "",
-      certifications: net.certifications || "",
-      licenses: net.licenses || "",
-      intentions: net.intentions || "",
-      lookingFor: Array.isArray(net.lookingFor) ? net.lookingFor : [],
-      ice1: net.ice1 || "",
-      ice2: net.ice2 || "",
-      ice3: net.ice3 || ""
-    },
-
-    updatedAt: now()
-  };
-
-  if(p.session !== host.session) return;
-  if(p.roomId !== currentRoomId()) return;
-
-  if(host.mode==="city" && expectedVenue && !isVenueAllowed(expectedVenue)){
-    showToast("Blocked", `Guest selected a non-participating venue: ${barName(expectedVenue)}.`);
-    return;
+  if(filterMode === "host" && hostVenueId){
+    list = list.filter(m => (String(m.aVenueId||"").trim() === hostVenueId) || (String(m.bVenueId||"").trim() === hostVenueId));
   }
 
-  upsertGuestById(stableId, p);
-  ensureLikes(stableId);
-  saveJSON(STORAGE.LIKES, likes);
-
-  // ✅ ACK back to that guest so join.html can show the big number
-  sendSubmitAck(p.clientNonce, p.displayId);
-
-  renderAll();
+  list.sort((a,b)=>(b.score||0)-(a.score||0));
+  return list;
 }
 
-/* =========================
-   CHECK-IN / MOVE / KICK
-========================= */
-function pickVenueByName(title){
-  if(!bars.length) return null;
-  const lines = bars.map((b,i)=>`${i+1}) ${b.name}`).join("\n");
-  const pick = prompt(`${title}\n\nChoose a number:\n${lines}`, "1");
-  const idx = Math.max(1, parseInt(pick||"1",10)) - 1;
-  const chosen = bars[idx];
-  return chosen ? chosen.id : null;
-}
-
-function hostSetStatus(id, status, venueOverrideId=null){
-  if(!requireUnlock()) return;
-
-  const p = people.find(x=>x.id===id);
-  if(!p) return;
-
-  if(status === "checked_in"){
-    p.status = "checked_in";
-    const v = (venueOverrideId || host.activeBarId || p.expectedVenueId || p.venueId || "").trim();
-    if(host.mode==="city" && v && !isVenueAllowed(v)){
-      showToast("Blocked", `Cannot check in to non-participating venue: ${barName(v)}`);
-      return;
-    }
-    p.checkedInVenueId = v;
-  }else if(status === "pending"){
-    p.status = "pending";
-    p.checkedInVenueId = "";
-  }else if(status === "removed"){
-    p.status = "removed";
-  }
-  p.updatedAt = now();
-  saveJSON(STORAGE.PEOPLE, people);
-
-  if(status === "checked_in"){
-    activateTvForGuest(id);
-  }
-
-  renderAll();
-  broadcastRosterSync(p.clientNonce || p.id);
-  broadcastTVSync();
-}
-
-function hostMoveVenue(id, newVenueId){
-  if(!requireUnlock()) return;
-
-  const p = people.find(x=>x.id===id);
-  if(!p) return;
-  const v = String(newVenueId||"").trim();
-  if(host.mode==="city" && v && !isVenueAllowed(v)){
-    showToast("Blocked", `Cannot move to non-participating venue: ${barName(v)}`);
-    return;
-  }
-
-  p.expectedVenueId = v;
-  if(p.status === "checked_in") p.checkedInVenueId = v;
-  p.updatedAt = now();
-  saveJSON(STORAGE.PEOPLE, people);
-
-  renderAll();
-  broadcastRosterSync(p.clientNonce || p.id);
-  broadcastTVSync();
-}
-
-function activateTvForGuest(id){
-  const pool = activePool();
-  const me = pool.find(x=>x.id===id);
-  if(!me) return;
-  for(const other of pool){
-    if(other.id===id) continue;
-    if(!isMutual(id, other.id)) continue;
-    tryCreateTvMatchForPair(id, other.id);
-  }
-}
-
-/* =========================
-   PHONE CHECK-IN
-========================= */
-function findGuestsByPhone(phone10){
-  const d = digitsOnly(phone10);
-  if(d.length !== 10) return [];
-  return activePool().filter(p => (p.status||"pending")==="pending" && digitsOnly(p.identityPhone) === d);
-}
-function phoneCheckIn(){
-  if(!requireUnlock()) return;
-
-  const raw = ($("checkinPhone")?.value || "").trim();
-  const d = digitsOnly(raw);
-  if(d.length !== 10) return showToast("Phone needed", "Enter a 10-digit phone number.");
-
-  const venueId = ($("checkinVenue")?.value || host.activeBarId || "").trim();
-  if(!venueId) return showToast("Venue needed", "Select a venue for check-in.");
-
-  if(host.mode==="city" && !isVenueAllowed(venueId)){
-    return showToast("Blocked", `Venue not participating: ${barName(venueId)}`);
-  }
-
-  const matches = findGuestsByPhone(d);
-  if(matches.length === 0){
-    const any = activePool().filter(p => digitsOnly(p.identityPhone)===d);
-    if(any.length){
-      return showToast("Already found", `That phone belongs to ${bestLabel(any[0])} (status: ${any[0].status || "pending"}).`);
-    }
-    return showToast("Not found", "No pending guest with that phone in this room/session.");
-  }
-
-  if(matches.length === 1){
-    hostSetStatus(matches[0].id, "checked_in", venueId);
-    $("checkinPhone").value = "";
-    showToast("Checked in", `${bestLabel(matches[0])} checked in at ${barName(venueId)}.`);
-    return;
-  }
-
-  const opts = matches.map((p,i)=>`${i+1}) ${bestLabel(p)} (Expected: ${barName(p.expectedVenueId || p.venueId || "")})`).join("\n");
-  const pick = prompt("Multiple pending guests share this phone.\nChoose number:\n\n"+opts, "1");
-  const idx = Math.max(1, parseInt(pick||"1",10)) - 1;
-  const chosen = matches[idx];
-  if(!chosen) return;
-
-  hostSetStatus(chosen.id, "checked_in", venueId);
-  $("checkinPhone").value = "";
-  showToast("Checked in", `${bestLabel(chosen)} checked in at ${barName(venueId)}.`);
-}
-
-/* =========================
-   TV MATCH RULE
-========================= */
-function idFromVoterNonce(voterNonce){
-  if(!voterNonce) return null;
-  const pool = activePool();
-  const me = pool.find(p => p.clientNonce === voterNonce || p.id === voterNonce);
-  return me?.id || null;
-}
-function tvHasPair(aId,bId){
-  const key = pairKey(aId,bId);
-  return (tv.matches||[]).some(m => pairKey(m.aId,m.bId) === key && m.expiresAt > now());
-}
-function activeTvMatches(){ return (tv.matches||[]).filter(m => m.expiresAt > now()); }
-
-function tryCreateTvMatchForPair(aId,bId){
-  const pool = activePool();
-  const A = pool.find(x=>x.id===aId);
-  const B = pool.find(x=>x.id===bId);
-  if(!A || !B) return false;
-
-  if(A.status !== "checked_in" || B.status !== "checked_in") return false;
-
-  const plan = travelPlan(A,B);
-  if(!plan.allowed) return false;
-
-  const sc = scorePair(A,B);
-  if(sc < MIN_MATCH_SCORE) return false;
-
-  if(tvHasPair(aId,bId)) return false;
-
-  tv.matches = activeTvMatches();
-  tv.matches.push({
-    aId, bId,
-    score: sc,
-    plan: plan.plan,
-    code: makeMatchCode(),
-    createdAt: now(),
-    expiresAt: now() + TV_EXPIRE_MS
-  });
-  tv.matches.sort((x,y)=> y.score - x.score);
-  saveJSON(STORAGE.TV, tv);
-
-  renderAll();
-  broadcastTVSync();
-  return true;
-}
-
-/* =========================
-   VOTES
-========================= */
-function handleVoteMessage(msg){
-  const roomId = currentRoomId();
-  const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
-  if(msg.session && msg.session !== host.session) return;
-  if(msgRoom && msgRoom !== roomId) return;
-
-  const voterNonce = (msg.voterNonce || msg.clientNonce || "").trim();
-  const voterId = idFromVoterNonce(voterNonce);
-  const targetId = (msg.targetId || "").trim();
-  const likeVal = !!msg.like;
-
-  if(!voterId || !targetId || voterId===targetId) return;
-
-  const pool = activePool();
-  if(!pool.some(p=>p.id===targetId)) return;
-
-  ensureLikes(voterId);
-  likes[voterId][targetId] = likeVal;
-  saveJSON(STORAGE.LIKES, likes);
-
-  if(isMutual(voterId, targetId)){
-    tryCreateTvMatchForPair(voterId, targetId);
-  }
-
-  renderAll();
-  broadcastRosterSync(voterNonce || null);
-  broadcastTVSync();
-}
-
-/* =========================
-   CONTACT SAVE
-========================= */
-function handleContactSave(msg){
-  const roomId = currentRoomId();
-  const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
-  if(msg.session && msg.session !== host.session) return;
-  if(msgRoom && msgRoom !== roomId) return;
-
-  const voterNonce = (msg.voterNonce || msg.clientNonce || "").trim();
-  const voterId = idFromVoterNonce(voterNonce);
-  if(!voterId) return;
-
-  const contact = (msg.contact && typeof msg.contact === "object") ? msg.contact : {};
-  const phone = digitsOnly(contact.phone || "");
-  const instagram = String(contact.instagram || "").trim();
-  const tiktok = String(contact.tiktok || "").trim();
-  const facebook = String(contact.facebook || "").trim();
-  const linkedin = String(contact.linkedin || "").trim();
-  const website  = String(contact.website || "").trim();
-
-  if(!contacts[voterId]) contacts[voterId] = {};
-  if(phone.length===10) contacts[voterId].phone = phone;
-  if(linkedin) contacts[voterId].linkedin = linkedin;
-  if(website) contacts[voterId].website = website;
-  if(instagram) contacts[voterId].instagram = instagram;
-  if(tiktok) contacts[voterId].tiktok = tiktok;
-  if(facebook) contacts[voterId].facebook = facebook;
-  saveJSON(STORAGE.CONTACTS, contacts);
-
-  const p = people.find(x=>x.id===voterId);
-  if(p && !digitsOnly(p.identityPhone) && phone.length===10){
-    p.identityPhone = phone;
-    p.updatedAt = now();
-    saveJSON(STORAGE.PEOPLE, people);
-  }
-
-  safeSend({ type:"contact_saved_ack", roomId, room:roomId, barId:roomId, session:host.session, voterNonce, ok:true });
-  showToast("Contact saved", `Saved for ${bestLabel(p)}.`);
-  renderAll();
-}
-
-/* =========================
-   COUNTS + HOTSPOT
-========================= */
-function computeCountsAndHotspot(){
-  const pool = activePool();
-  const expected = pool.filter(p => (p.status||"pending")==="pending" && (p.expectedVenueId || p.venueId));
-  const checked = pool.filter(p => (p.status||"pending")==="checked_in");
-
-  const active = activeTvMatches();
+function computeHotspot(list){
   const counts = new Map();
-  for(const m of active){
-    const A = pool.find(x=>x.id===m.aId);
-    const B = pool.find(x=>x.id===m.bId);
-    const aV = (A?.checkedInVenueId || A?.expectedVenueId || "").trim();
-    const bV = (B?.checkedInVenueId || B?.expectedVenueId || "").trim();
-    if(aV) counts.set(aV, (counts.get(aV)||0)+1);
-    if(bV) counts.set(bV, (counts.get(bV)||0)+1);
+  for(const m of list){
+    const av = String(m.aVenueId||"").trim();
+    const bv = String(m.bVenueId||"").trim();
+    if(av) counts.set(av, (counts.get(av)||0)+1);
+    if(bv) counts.set(bv, (counts.get(bv)||0)+1);
   }
   let bestId="", bestCount=0;
   for(const [id,c] of counts.entries()){
-    if(c>bestCount){ bestId=id; bestCount=c; }
+    if(c > bestCount){ bestId=id; bestCount=c; }
   }
-  const hotspotLabel = bestId ? `${barName(bestId)} (${bestCount})` : "—";
+  if(!bestId) return "—";
+  return `${labelVenue(bestId)} (${bestCount})`;
+}
 
-  return {
-    expected: expected.length,
-    checkedIn: checked.length,
-    activeMatches: active.length,
-    hotspotLabel
-  };
+function setCountsFromMsg(msg){
+  const c = msg.counts || msg.stats || msg.summary || {};
+  const expected =
+    (typeof c.expected === "number" ? c.expected :
+    typeof c.pendingExpected === "number" ? c.pendingExpected :
+    typeof msg.expected === "number" ? msg.expected : null);
+
+  const checkedIn =
+    (typeof c.checkedIn === "number" ? c.checkedIn :
+    typeof c.arrived === "number" ? c.arrived :
+    typeof msg.checkedIn === "number" ? msg.checkedIn : null);
+
+  if(expected!=null) $("expectedPill").textContent = String(expected);
+  if(checkedIn!=null) $("checkedInPill").textContent = String(checkedIn);
+}
+
+function setCountsFallback(){
+  // fallback: count distinct checked-in guests inside current dataset
+  const checked = new Set();
+  for(const m of matches || []){
+    if(isCheckedInFlag(m,"a") === true) checked.add("a:"+String(m.aId||m.aAlias||m.a||""));
+    if(isCheckedInFlag(m,"b") === true) checked.add("b:"+String(m.bId||m.bAlias||m.b||""));
+  }
+  $("checkedInPill").textContent = String(checked.size || 0);
+
+  const active = filteredMatches();
+  $("activeMatchesPill").textContent = String(active.length);
+  $("hotspotPill").textContent = computeHotspot(active);
 }
 
 /* =========================
-   TV SYNC
+   Render
 ========================= */
-function broadcastTVSync(){
-  const roomId = currentRoomId();
-  const pool = activePool();
+function render(){
+  setSyncPill();
 
-  const active = activeTvMatches()
-    .sort((a,b) => b.score - a.score)
-    .map(m => {
-      const A = pool.find(x => x.id === m.aId);
-      const B = pool.find(x => x.id === m.bId);
-      const aVenue = A?.checkedInVenueId || A?.expectedVenueId || "";
-      const bVenue = B?.checkedInVenueId || B?.expectedVenueId || "";
-      return {
-        ...m,
-        aDisplayId: bestLabel(A),
-        bDisplayId: bestLabel(B),
-        // compat with older tv.html
-        aAlias: bestLabel(A),
-        bAlias: bestLabel(B),
-        aVenueId: aVenue,
-        bVenueId: bVenue,
-        aCheckedIn: (A?.status === "checked_in"),
-        bCheckedIn: (B?.status === "checked_in"),
-        aStatus: A?.status || "pending",
-        bStatus: B?.status || "pending"
-      };
-    });
+  // update toggle UI
+  $("btnFilterHost").classList.toggle("on", filterMode==="host");
+  $("btnFilterAll").classList.toggle("on", filterMode==="all");
 
-  const counts = computeCountsAndHotspot();
+  // update host venue pill visibility
+  setHostVenuePill();
 
-  safeSend({
-    type: "tv_sync",
-    roomId, room: roomId, barId: roomId,
-    session: host.session,
-    matches: active,
-    counts
-  });
+  const list = filteredMatches();
+  $("activeMatchesPill").textContent = String(list.length);
+  $("hotspotPill").textContent = computeHotspot(list);
+
+  const grid = $("grid");
+  grid.innerHTML = "";
+
+  const viewLabel = (filterMode==="host" ? "Host Venue" : "All Venues");
+  const hv = (filterMode==="host" && hostVenueId) ? ` • ${labelVenue(hostVenueId)}` : "";
+  $("matchesNote").textContent = `View: ${viewLabel}${hv} • Checked-only: ${$("checkedOnly").value==="yes" ? "Yes" : "No"} • Total shown: ${list.length}`;
+
+  if(!list.length){
+    grid.innerHTML = `
+      <div class="card matchCard" style="grid-column:1/-1">
+        <div class="pair">No matches to show (based on filters).</div>
+        <div class="meta">
+          Click <b>Request Matches</b>. If still blank, the relay may not be sending <span class="mono">tv_sync</span> for this session.
+          <div style="margin-top:10px">
+            <span class="k">Filter: <b>${esc(viewLabel)}</b></span>
+            ${filterMode==="host" && hostVenueId ? `<span class="k">Host Venue: <b>${esc(labelVenue(hostVenueId))}</b></span>` : ``}
+            <span class="k">Checked-only: <b>${$("checkedOnly").value==="yes" ? "Yes" : "No"}</b></span>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+  page = page % pages;
+
+  const labelCode = (EVENT_TYPE === "networking") ? "Connect Code" : "Match Code";
+  const codeClass = (EVENT_TYPE === "networking") ? "code net" : "code";
+
+  const slice = list.slice(page*PER_PAGE, page*PER_PAGE + PER_PAGE);
+
+  for(const m of slice){
+    const el = document.createElement("div");
+    el.className = "card matchCard";
+
+    const aIn = isCheckedInFlag(m,"a");
+    const bIn = isCheckedInFlag(m,"b");
+
+    const aAlias = m.aAlias || m.a || m.aliasA || "Guest A";
+    const bAlias = m.bAlias || m.b || m.aliasB || "Guest B";
+
+    const aVenue = String(m.aVenueId||"").trim();
+    const bVenue = String(m.bVenueId||"").trim();
+
+    const percent = Math.round((m.score||0)*100);
+
+    const plan = (m.plan || "").trim() || (EVENT_TYPE==="networking"
+      ? "See host to connect professionally."
+      : "See host to connect.");
+
+    const venuesLine = `
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="badge">${esc(aAlias)} @ <span class="mono">${esc(labelVenue(aVenue))}</span></span>
+        ${badgeHTML(aIn)}
+        <span class="badge">${esc(bAlias)} @ <span class="mono">${esc(labelVenue(bVenue))}</span></span>
+        ${badgeHTML(bIn)}
+      </div>
+    `;
+
+    el.innerHTML = `
+      <div class="pair">${esc(aAlias)} + ${esc(bAlias)} — ${percent}%</div>
+      <div class="meta">
+        ${esc(plan)}
+        ${venuesLine}
+      </div>
+      <div class="${codeClass}">${labelCode}: <span class="mono">${esc(m.code||"—")}</span></div>
+    `;
+    grid.appendChild(el);
+  }
 }
 
 /* =========================
-   WS CONNECT
+   Rotation + Auto-refresh
 ========================= */
-function wsConnect(isReconnect=false){
-  if(WS && (WS.readyState===WebSocket.OPEN || WS.readyState===WebSocket.CONNECTING)) return;
+function setRotation(){
+  const sec = Number($("rotation").value || 0);
+  clearInterval(rotateTimer);
+  rotateTimer = null;
+
+  if(sec > 0){
+    rotateTimer = setInterval(()=>{
+      page++;
+      render();
+    }, sec * 1000);
+  }
+  savePrefs();
+}
+
+function setAuto(){
+  clearInterval(autoTimer);
+  autoTimer = null;
+
+  $("btnToggleAuto").textContent = `Auto-Refresh: ${autoOn ? "ON" : "OFF"}`;
+
+  if(autoOn){
+    autoTimer = setInterval(()=>{
+      if(WS_STATE==="CONNECTED") requestSync();
+    }, 25 * 1000);
+  }
+  savePrefs();
+}
+
+/* =========================
+   Connect WS
+========================= */
+let hbTimer=null;
+
+function heartbeatTick(){
+  if(WS_STATE!=="CONNECTED") return;
+  const q=qs();
+  safeSend({ type:"ping", roomId:q.room, room:q.room, barId:q.room, session:q.session, t: Date.now() });
+  if(Date.now() - lastTrafficAt > STALE_MS){
+    try{ WS?.close(); }catch{}
+  }
+}
+
+function startHeartbeat(){
+  clearInterval(hbTimer);
+  touchTraffic();
+  hbTimer = setInterval(heartbeatTick, HEARTBEAT_MS);
+}
+function stopHeartbeat(){
+  clearInterval(hbTimer);
+  hbTimer=null;
+}
+
+function connectWS(){
+  const q=qs();
+
+  $("roomPill").textContent = q.room || "—";
+  $("sessionPill").textContent = q.session || "—";
+
+  // URL can hint event type (optional)
+  const urlEvent = normalizeEventType(q.event);
+  if(urlEvent) EVENT_TYPE = urlEvent;
+  applyEventUI();
+
+  if(!q.room || !q.session){
+    setWsStatus("ERROR");
+    $("grid").innerHTML = `
+      <div class="card matchCard" style="grid-column:1/-1">
+        <div class="pair">Missing room/session</div>
+        <div class="meta">Host link must include <span class="mono">?room=...&session=...</span></div>
+      </div>
+    `;
+    return;
+  }
+
+  stopHeartbeat();
+  try{ WS?.close(); }catch{}
 
   WS = new WebSocket(WS_URL);
-  wsSetStatus("CONNECTING");
+  setWsStatus("CONNECTING");
 
-  WS.onopen = ()=>{
-    wsSetStatus("CONNECTED");
-    reconnectAttempts = 0;
-    lastTrafficAt = now();
-
-    const roomId = currentRoomId();
-    $("roomPill").textContent = roomId || "—";
-    safeSend({ type:"join", role:"host", roomId, room: roomId, barId: roomId, session: host.session });
-
+  WS.onopen = () => {
+    setWsStatus("CONNECTED");
+    touchTraffic();
     startHeartbeat();
 
-    broadcastConfig();
-    broadcastTVSync();
-    broadcastRosterSync(null);
+    // join as host so the relay can treat this page as privileged if needed
+    safeSend({ type:"join", role:"host", roomId:q.room, room:q.room, barId:q.room, session:q.session });
 
-    if(isReconnect) showToast("Reconnected", "WebSocket connection restored.");
+    requestConfig();
+    requestSync();
+    showToast("Connected", "Requested config + matches");
   };
 
-  WS.onmessage = (ev)=>{
-    lastTrafficAt = now();
+  WS.onmessage = (ev) => {
+    touchTraffic();
     let msg; try{ msg = JSON.parse(ev.data); }catch{ return; }
 
     if(msg.type==="ping"){
-      const roomId = currentRoomId();
-      safeSend({ type:"pong", roomId, room: roomId, barId: roomId, session: host.session, t: now() });
+      const q=qs();
+      safeSend({ type:"pong", roomId:q.room, room:q.room, barId:q.room, session:q.session, t: Date.now() });
+      return;
+    }
+    if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack") return;
+
+    // CONFIG
+    if(msg.type==="config" || msg.type==="event_config"){
+      const q=qs();
+      const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+      if(msg.session && msg.session !== q.session) return;
+      if(msgRoom && msgRoom !== q.room) return;
+
+      HOST_CONFIG = msg;
+
+      const fromHostType = inferEventTypeFromConfig(msg);
+      if(fromHostType) EVENT_TYPE = fromHostType;
+
+      const fromHostName = inferEventNameFromConfig(msg);
+      if(fromHostName) EVENT_NAME = fromHostName;
+
+      applyEventUI();
+      populateVenueSelectFromConfig();
+      render();
+      showToast("Config Loaded", "Venue names updated");
       return;
     }
 
-    if(msg.type === "request_config"){ broadcastConfig(); return; }
-    if(msg.type === "request_tv_sync"){ broadcastTVSync(); return; }
-    if(msg.type === "request_roster"){
-      const requesterNonce = (msg.voterNonce || msg.clientNonce || "").trim() || null;
-      broadcastRosterSync(requesterNonce);
-      return;
-    }
-    if(msg.type === "vote"){ handleVoteMessage(msg); return; }
-    if(msg.type === "contact_save"){ handleContactSave(msg); return; }
+    // MATCHES SYNC (TV-style)
+    if(msg.type==="tv_sync"){
+      const q=qs();
+      const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+      if(msg.session && msg.session !== q.session) return;
+      if(msgRoom && msgRoom !== q.room) return;
 
-    if(msg.type === "submit_payload" || msg.type === "payload_received"){
-      const payload = normalizeIncomingPayload(msg);
-      if(!payload) return;
-      if(!payloadRoomSessionOk(payload)) return;
+      lastSyncAt = Date.now();
 
-      const fp = payloadFingerprint(payload);
-      if(dedupeSeen(fp)){
-        // already processed
-        return;
-      }
+      const fromSyncType = normalizeEventType(msg.eventType || msg.event || msg.type);
+      if(fromSyncType) EVENT_TYPE = fromSyncType;
 
-      importGuest(payload);
+      matches = (msg.matches || []).map(m => ({
+        score: m.score || 0,
+        code: m.code || "",
+        plan: m.plan || "",
+        expiresAt: m.expiresAt || 0,
 
-      showToast("Guest", "New guest received (Pending).");
-      broadcastConfig();
-      broadcastRosterSync(payload.clientNonce || payload.id || null);
-      broadcastTVSync();
+        aAlias: m.aAlias || m.a || m.aliasA || "",
+        bAlias: m.bAlias || m.b || m.aliasB || "",
+
+        aVenueId: m.aVenueId || "",
+        bVenueId: m.bVenueId || "",
+
+        aCheckedIn: (typeof m.aCheckedIn === "boolean") ? m.aCheckedIn : (typeof m.checkedInA === "boolean" ? m.checkedInA : undefined),
+        bCheckedIn: (typeof m.bCheckedIn === "boolean") ? m.bCheckedIn : (typeof m.checkedInB === "boolean" ? m.checkedInB : undefined),
+        aStatus: m.aStatus || m.statusA || "",
+        bStatus: m.bStatus || m.statusB || ""
+      }));
+
+      setCountsFromMsg(msg);
+      setCountsFallback();
+
+      page = 0;
+      applyEventUI();
+      render();
+
+      showToast("Matches Updated", `${matches.length} match records received`);
       return;
     }
   };
 
-  WS.onerror = ()=>{ wsSetStatus("ERROR"); };
-  WS.onclose = ()=>{
-    wsSetStatus("DISCONNECTED");
+  WS.onerror = () => {
+    setWsStatus("ERROR");
+    showToast("WebSocket Error", "Connection problem");
+    try{ WS?.close(); }catch{}
+  };
+
+  WS.onclose = () => {
+    setWsStatus("DISCONNECTED");
     stopHeartbeat();
-    scheduleReconnect();
+    showToast("Disconnected", "Retrying…");
+    setTimeout(connectWS, 2200);
   };
 }
 
 /* =========================
-   RENDERING
+   UI events
 ========================= */
-function renderBars(){
-  const sel = $("barSelect");
-  sel.innerHTML = "";
-  for(const b of bars){
-    const opt=document.createElement("option");
-    opt.value=b.id; opt.textContent=b.name;
-    if(b.id===host.activeBarId) opt.selected=true;
-    sel.appendChild(opt);
-  }
-  populateCheckinVenueSelect();
-}
-function renderEventBars(){
-  const wrap = $("eventBars");
-  wrap.innerHTML = "";
-  const ids = event.participatingBarIds || [];
-  if(!ids.length){
-    wrap.innerHTML = `<div class="muted">No participating locations selected yet.</div>`;
-    return;
-  }
-  for(const id of ids){
-    const row=document.createElement("div");
-    row.className="item";
-    row.innerHTML = `
-      <div style="min-width:0">
-        <strong>${esc(barName(id))}</strong>
-        <div class="sub mono">${esc(id)}</div>
-      </div>
-      <button class="btn small bad" data-remove="${esc(id)}" type="button">Remove</button>
-    `;
-    wrap.appendChild(row);
-  }
-  wrap.querySelectorAll("button[data-remove]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      if(!requireUnlock()) return;
-      const id=btn.getAttribute("data-remove");
-      event.participatingBarIds = (event.participatingBarIds||[]).filter(x=>x!==id);
-      saveJSON(STORAGE.EVENT, event);
-      renderEventBars();
-      broadcastConfig();
-      updateLinks();
-    });
-  });
+function setFilterMode(mode){
+  filterMode = mode;
+  page = 0;
+  savePrefs();
+  render();
 }
 
-function sortByDisplayId(a,b){
-  const aa = parseInt(String(bestLabel(a)).replace(/\D/g,"")||"0",10);
-  const bb = parseInt(String(bestLabel(b)).replace(/\D/g,"")||"0",10);
-  return aa - bb;
-}
+$("btnFilterHost").addEventListener("click", ()=> setFilterMode("host"));
+$("btnFilterAll").addEventListener("click",  ()=> setFilterMode("all"));
 
-function renderArrivals(){
-  const wrap=$("arrivals");
-  wrap.innerHTML="";
-  const pool=activePool()
-    .filter(p => (p.status||"pending")==="pending")
-    .filter(p => matchSearch(bestLabel(p)));
+$("hostVenueSelect").addEventListener("change", (e)=>{
+  hostVenueId = e.target.value || "";
+  page = 0;
+  savePrefs();
+  setHostVenuePill();
+  render();
+});
 
-  if(!pool.length){
-    wrap.innerHTML=`<div class="muted">${(ui.search||"").trim() ? "No pending arrivals match your search." : "No pending arrivals."}</div>`;
-    return;
-  }
+$("btnRequestConfig").addEventListener("click", ()=>{
+  requestConfig();
+  showToast("Requested", "Config request sent");
+});
 
-  pool.sort(sortByDisplayId);
+$("btnRequestSync").addEventListener("click", ()=>{
+  requestSync();
+  showToast("Requested", "Match sync request sent");
+});
 
-  for(const p of pool){
-    const expected = p.expectedVenueId || p.venueId || "";
-    const last4 = phoneLast4(p.identityPhone);
-    const invalid = (host.mode==="city" && expected && !isVenueAllowed(expected));
-    const el=document.createElement("div");
-    el.className="item";
-    el.innerHTML = `
-      <div style="min-width:0">
-        <strong>${esc(bestLabel(p))} ${invalid ? `<span class="badge bad" style="margin-left:8px">INVALID VENUE</span>` : ``}</strong>
-        <div class="sub">
-          Type: <span class="mono">${esc(p.eventType || event.type || "dating")}</span><br/>
-          Expected: <span class="mono">${esc(barName(expected))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
-          Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • Internal ID: <span class="mono">${esc(p.id)}</span>
-        </div>
-      </div>
-      <div class="row" style="justify-content:flex-end">
-        <button class="btn small good" data-act="checkin" data-id="${esc(p.id)}" type="button">Check In</button>
-        <button class="btn small warn" data-act="move" data-id="${esc(p.id)}" type="button">Move</button>
-        <button class="btn small bad"  data-act="kick" data-id="${esc(p.id)}" type="button">Kick</button>
-      </div>
-    `;
-    wrap.appendChild(el);
-  }
+$("btnToggleAuto").addEventListener("click", ()=>{
+  autoOn = !autoOn;
+  setAuto();
+  showToast("Auto-Refresh", autoOn ? "ON" : "OFF");
+});
 
-  wrap.querySelectorAll("button[data-act]").forEach(btn=>{
-    const id = btn.getAttribute("data-id");
-    const act = btn.getAttribute("data-act");
+$("btnClearLocal").addEventListener("click", ()=>{
+  try{ localStorage.removeItem(LS_KEY); }catch{}
+  showToast("Cleared", "Local cache cleared. Refreshing…");
+  location.reload();
+});
 
-    btn.addEventListener("click", ()=>{
-      if(act==="checkin"){
-        const venueId = ($("checkinVenue")?.value || host.activeBarId || "").trim();
-        if(!venueId) return showToast("Venue needed","Pick a venue in the Check-In dropdown.");
-        return hostSetStatus(id, "checked_in", venueId);
-      }
-      if(act==="kick") return hostSetStatus(id, "removed");
-      if(act==="move"){
-        if(!requireUnlock()) return;
-        const chosen = pickVenueByName("Move expected venue to:");
-        if(!chosen) return;
-        hostMoveVenue(id, chosen);
-      }
-    });
-  });
-}
+$("checkedOnly").addEventListener("change", ()=>{
+  page = 0;
+  savePrefs();
+  render();
+});
 
-function renderCheckedIn(){
-  const wrap=$("checkedIn");
-  wrap.innerHTML="";
-  const pool=activePool()
-    .filter(p => (p.status||"pending")==="checked_in")
-    .filter(p => matchSearch(bestLabel(p)));
-
-  if(!pool.length){
-    wrap.innerHTML=`<div class="muted">${(ui.search||"").trim() ? "No checked-in guests match your search." : "No one checked in yet."}</div>`;
-    return;
-  }
-
-  pool.sort(sortByDisplayId);
-
-  for(const p of pool){
-    const v = p.checkedInVenueId || p.expectedVenueId || "";
-    const last4 = phoneLast4(p.identityPhone);
-    const el=document.createElement("div");
-    el.className="item";
-    el.innerHTML = `
-      <div style="min-width:0">
-        <strong>${esc(bestLabel(p))}</strong>
-        <div class="sub">
-          Type: <span class="mono">${esc(p.eventType || event.type || "dating")}</span><br/>
-          Checked In: <span class="mono">${esc(barName(v))}</span> • Travel: <span class="mono">${p.travelYes?"Yes":"No"}</span><br/>
-          Phone: <span class="mono">${last4 ? ("••••"+esc(last4)) : "—"}</span> • Internal ID: <span class="mono">${esc(p.id)}</span>
-        </div>
-      </div>
-      <div class="row" style="justify-content:flex-end">
-        <button class="btn small warn" data-act="move" data-id="${esc(p.id)}" type="button">Move</button>
-        <button class="btn small bad"  data-act="kick" data-id="${esc(p.id)}" type="button">Kick</button>
-      </div>
-    `;
-    wrap.appendChild(el);
-  }
-
-  wrap.querySelectorAll("button[data-act]").forEach(btn=>{
-    const id = btn.getAttribute("data-id");
-    const act = btn.getAttribute("data-act");
-    btn.addEventListener("click", ()=>{
-      if(act==="kick") return hostSetStatus(id, "removed");
-      if(act==="move"){
-        if(!requireUnlock()) return;
-        const chosen = pickVenueByName("Move checked-in guest to:");
-        if(!chosen) return;
-        hostMoveVenue(id, chosen);
-      }
-    });
-  });
-}
-
-function renderVenueCounts(){
-  const wrap=$("venueCounts");
-  wrap.innerHTML="";
-
-  const pool = activePool();
-  const expected = pool.filter(p => (p.status||"pending")==="pending" && (p.expectedVenueId || p.venueId));
-  const checked = pool.filter(p => (p.status||"pending")==="checked_in");
-  const active = activeTvMatches();
-
-  const byVenue = new Map();
-  for(const b of bars){
-    byVenue.set(b.id, { id:b.id, name:b.name, expected:0, checkedIn:0, activeMatches:0 });
-  }
-
-  for(const p of expected){
-    const v = p.expectedVenueId || p.venueId;
-    if(byVenue.has(v)) byVenue.get(v).expected++;
-  }
-  for(const p of checked){
-    const v = p.checkedInVenueId || p.expectedVenueId || p.venueId;
-    if(byVenue.has(v)) byVenue.get(v).checkedIn++;
-  }
-  for(const m of active){
-    const A = pool.find(x=>x.id===m.aId);
-    const B = pool.find(x=>x.id===m.bId);
-    const aV = A?.checkedInVenueId || A?.expectedVenueId || "";
-    const bV = B?.checkedInVenueId || B?.expectedVenueId || "";
-    if(byVenue.has(aV)) byVenue.get(aV).activeMatches++;
-    if(byVenue.has(bV)) byVenue.get(bV).activeMatches++;
-  }
-
-  const list = Array.from(byVenue.values())
-    .filter(x => x.id)
-    .sort((a,b)=> (b.activeMatches - a.activeMatches) || (b.checkedIn - a.checkedIn) || (b.expected - a.expected) || a.name.localeCompare(b.name));
-
-  const hotspot = list.length ? list[0] : null;
-  $("hotspotPill").textContent = hotspot ? `${hotspot.name} (${hotspot.activeMatches})` : "—";
-
-  if(!list.length){
-    wrap.innerHTML = `<div class="muted">No venues yet.</div>`;
-    return;
-  }
-
-  for(const v of list){
-    const el=document.createElement("div");
-    el.className="item";
-    el.innerHTML = `
-      <div style="min-width:0">
-        <strong>${esc(v.name)}</strong>
-        <div class="sub">
-          Expected: <span class="mono">${v.expected}</span> • Checked In: <span class="mono">${v.checkedIn}</span><br/>
-          Active Matches: <span class="mono">${v.activeMatches}</span>
-        </div>
-      </div>
-      <div class="badge ${v.activeMatches>0 ? "good":"warn"}">${v.activeMatches>0 ? "HOT" : "IDLE"}</div>
-    `;
-    wrap.appendChild(el);
-  }
-}
-
-function renderTVQueue(){
-  const wrap=$("tvQueue");
-  wrap.innerHTML="";
-  tv.matches = activeTvMatches().sort((a,b)=>b.score-a.score);
-  saveJSON(STORAGE.TV, tv);
-
-  if(!tv.matches.length){
-    wrap.innerHTML = `<div class="muted">No active TV matches yet.</div>`;
-    return;
-  }
-
-  const pool=activePool();
-  for(const m of tv.matches){
-    const A = pool.find(x=>x.id===m.aId);
-    const B = pool.find(x=>x.id===m.bId);
-    const aLabel = bestLabel(A);
-    const bLabel = bestLabel(B);
-
-    const minsLeft = Math.max(0, Math.round((m.expiresAt-now())/60000));
-    const el=document.createElement("div");
-    el.className="item";
-    el.innerHTML=`
-      <div style="min-width:0">
-        <strong>${esc(aLabel)} + ${esc(bLabel)} — ${Math.round(m.score*100)}%</strong>
-        <div class="sub">
-          Code: <span class="mono">${esc(m.code)}</span> • Expires: <span class="mono">${minsLeft}m</span><br/>
-          ${esc(m.plan)}
-        </div>
-      </div>
-      <div class="badge good">TV</div>
-    `;
-    wrap.appendChild(el);
-  }
-}
-
-function renderCounts(){
-  const pool = activePool();
-  const expected = pool.filter(p => (p.status||"pending")==="pending" && (p.expectedVenueId || p.venueId));
-  const checked = pool.filter(p => (p.status||"pending")==="checked_in");
-  $("countExpected").textContent = expected.length;
-  $("countCheckedIn").textContent = checked.length;
-  $("countTV").textContent = activeTvMatches().length;
-  $("countJoined").textContent = pool.length;
-
-  $("nextNumPill").textContent = peekNextDisplayId();
-}
-
-function updateLinks(){
-  const base = new URL(location.href);
-  const roomId = currentRoomId();
-
-  const join = new URL(base);
-  join.pathname = "/join.html";
-  join.searchParams.set("room", roomId);
-  join.searchParams.set("session", host.session);
-  join.searchParams.set("mode", host.mode);
-  join.searchParams.set("eventType", event.type || "dating");
-  join.searchParams.set("eventName", event.name || "");
-  join.searchParams.set("bars", JSON.stringify(bars.map(b=>({id:b.id,name:b.name}))));
-  join.searchParams.set("participating", JSON.stringify(event.participatingBarIds || []));
-
-  const tvu = new URL(base);
-  tvu.pathname = "/tv.html";
-  tvu.searchParams.set("room", roomId);
-  tvu.searchParams.set("session", host.session);
-  if(host.mode === "single") tvu.searchParams.set("venue", host.activeBarId);
-  else tvu.searchParams.delete("venue");
-
-  $("joinLink").textContent = join.toString();
-  $("tvLink").textContent = tvu.toString();
-
-  $("sessionPill").textContent = host.session;
-  $("roomPill").textContent = roomId;
-  $("minMatchPill").textContent = `${Math.round(MIN_MATCH_SCORE*100)}%`;
-}
-
-function renderAll(){
-  $("wsUrlTxt").textContent = WS_URL;
-  renderBars();
-  $("modeSelect").value = host.mode;
-  $("sessionCode").value = host.session;
-  $("eventName").value = event.name || "";
-  $("eventType").value = normalizeEventType(event.type);
-
-  renderEventBars();
-
-  renderArrivals();
-  renderCheckedIn();
-  renderVenueCounts();
-  renderTVQueue();
-  renderCounts();
-  updateLinks();
-
-  setSearch(ui.search);
-  wsSetStatus(WS_STATE);
-  setPinPill();
-}
+$("rotation").addEventListener("change", ()=>{
+  page = 0;
+  setRotation();
+  render();
+});
 
 /* =========================
-   ACTIONS
+   Boot
 ========================= */
-function addBar(name){
-  if(!requireUnlock()) return;
-  const id=uid();
-  bars.push({id,name});
-  saveJSON(STORAGE.BARS,bars);
-  host.activeBarId=id;
-  saveJSON(STORAGE.HOST,host);
-  renderAll();
-  broadcastConfig();
-}
-function deleteBar(){
-  if(!requireUnlock()) return;
-  if(bars.length===1){ showToast("Blocked","Keep at least one bar."); return; }
-  const id=host.activeBarId;
-  bars=bars.filter(b=>b.id!==id);
-  saveJSON(STORAGE.BARS,bars);
-  host.activeBarId=bars[0].id;
-  saveJSON(STORAGE.HOST,host);
+(function boot(){
+  loadPrefs();
 
-  event.participatingBarIds = (event.participatingBarIds||[]).filter(x=>x!==id);
-  saveJSON(STORAGE.EVENT,event);
+  // apply filter buttons immediately
+  $("btnFilterHost").classList.toggle("on", filterMode==="host");
+  $("btnFilterAll").classList.toggle("on", filterMode==="all");
 
-  renderAll();
-  broadcastConfig();
-}
-function clearRoster(){
-  if(!requireUnlock()) return;
+  // apply auto + rotation prefs
+  $("btnToggleAuto").textContent = `Auto-Refresh: ${autoOn ? "ON" : "OFF"}`;
+  setAuto();
+  setRotation();
 
-  const roomId=currentRoomId();
-  const toRemove = people.filter(p => p.roomId===roomId && p.session===host.session).map(p=>p.id);
-  const removeSet = new Set(toRemove);
+  // initial host venue from URL if we don't have one saved
+  const q = qs();
+  if(!hostVenueId && q.venue) hostVenueId = q.venue;
 
-  people = people.filter(p => !(p.roomId===roomId && p.session===host.session));
-  saveJSON(STORAGE.PEOPLE, people);
+  setHostVenuePill();
 
-  for(const id of removeSet){
-    delete likes[id];
-    delete contacts[id];
-  }
-  for(const voterId in likes){
-    for(const targetId in (likes[voterId]||{})){
-      if(removeSet.has(targetId)) delete likes[voterId][targetId];
-    }
-  }
-  saveJSON(STORAGE.LIKES, likes);
-  saveJSON(STORAGE.CONTACTS, contacts);
+  // event type from URL (optional)
+  EVENT_TYPE = normalizeEventType(q.event) || EVENT_TYPE;
+  applyEventUI();
 
-  tv.matches = tv.matches.filter(m => !(removeSet.has(m.aId) || removeSet.has(m.bId)));
-  saveJSON(STORAGE.TV, tv);
+  connectWS();
 
-  dedupe = {};
-  saveJSON(STORAGE.DEDUPE, dedupe);
+  // keep sync pill ticking
+  setInterval(setSyncPill, 1000);
 
-  // ✅ reset counter for this room+session
-  saveCounter(0);
+  // fallback counts refresh
+  setInterval(()=>{ if(WS_STATE==="CONNECTED") setCountsFallback(); }, 5000);
 
-  renderAll();
-  broadcastRosterSync(null);
-  broadcastTVSync();
-  showToast("Cleared","Roster + likes + contacts + TV queue cleared for this room/session. Numbering reset to 0001.");
-}
-function createOrUpdateEvent(){
-  if(!requireUnlock()) return;
-  if(!event.eventId) event.eventId = "CITY-"+uid().slice(0,6).toUpperCase();
-  event.name = $("eventName").value.trim() || event.name || "City Event";
-  event.type = normalizeEventType($("eventType").value);
-  saveJSON(STORAGE.EVENT,event);
-  renderAll();
-  broadcastConfig();
-  showToast("Event saved", "City event updated.");
-}
-function toggleParticipating(barId){
-  if(!requireUnlock()) return;
-  const list = new Set(event.participatingBarIds || []);
-  if(list.has(barId)) list.delete(barId); else list.add(barId);
-  event.participatingBarIds = Array.from(list);
-  saveJSON(STORAGE.EVENT,event);
-  renderEventBars();
-  broadcastConfig();
-  updateLinks();
-}
-
-function exportCSV(){
-  const pool=activePool();
-  const headers=[
-    "displayId","id","eventType","status","identityPhone","expectedVenue","checkedInVenue","travelYes",
-    "industry","roleLevel","yearsExperience","education","certifications","licenses","intentions","lookingFor","ice1","ice2","ice3",
-    "foods","activities","firstDateLoc","firstDateAvail","pays","budget","publicBlurb","starter",
-    "linkedin","website","instagram","tiktok","facebook"
-  ];
-  let csv=headers.join(",")+"\n";
-  for(const p of pool){
-    const c = contacts[p.id] || {};
-    const net = p.net || {};
-    const row=[
-      bestLabel(p),
-      p.id,
-      p.eventType || "",
-      p.status || "pending",
-      (p.identityPhone ? digitsOnly(p.identityPhone) : ""),
-      barName(p.expectedVenueId || p.venueId),
-      barName(p.checkedInVenueId || ""),
-      p.travelYes?"Yes":"No",
-
-      net.industry || "",
-      net.roleLevel || "",
-      net.yearsExperience || "",
-      net.education || "",
-      net.certifications || "",
-      net.licenses || "",
-      net.intentions || "",
-      (Array.isArray(net.lookingFor)? net.lookingFor.join("|") : ""),
-      net.ice1 || "",
-      net.ice2 || "",
-      net.ice3 || "",
-
-      (p.foodChips||[]).join("|"),
-      (p.activityChips||[]).join("|"),
-      p.firstDateLoc||"",
-      p.firstDateAvail||"",
-      p.pays||"",
-      p.budget||"",
-      p.publicBlurb||"",
-      p.starter||"",
-
-      c.linkedin||"",
-      c.website||"",
-      c.instagram||"",
-      c.tiktok||"",
-      c.facebook||""
-    ].map(v=>{
-      const s=String(v??"");
-      return /[,"\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
-    });
-    csv += row.join(",")+"\n";
-  }
-
-  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=`barfly_host_export_${host.session}.csv`;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0);
-  showToast("Exported","CSV downloaded.");
-}
-
-async function copyText(txt){
-  try{ await navigator.clipboard.writeText(txt); showToast("Copied","Link copied."); }
-  catch{
-    const ta=document.createElement("textarea");
-    ta.value=txt; ta.style.position="fixed"; ta.style.left="-9999px";
-    document.body.appendChild(ta);
-    ta.select(); document.execCommand("copy");
-    ta.remove();
-    showToast("Copied","Link copied.");
-  }
-}
-
-function stopIntervals(){
-  if(timers.tvPurge){ clearInterval(timers.tvPurge); timers.tvPurge=null; }
-  if(timers.rebroadcastConfig){ clearInterval(timers.rebroadcastConfig); timers.rebroadcastConfig=null; }
-  if(timers.rosterSync){ clearInterval(timers.rosterSync); timers.rosterSync=null; }
-}
-function startIntervals(){
-  stopIntervals();
-
-  timers.tvPurge = setInterval(()=>{
-    const before=(tv.matches||[]).length;
-    tv.matches=(tv.matches||[]).filter(m=>m.expiresAt>now()).sort((a,b)=>b.score-a.score);
-    if((tv.matches||[]).length!==before){
-      saveJSON(STORAGE.TV,tv);
-      renderAll();
-      broadcastTVSync();
-    }
-  }, 30*1000);
-
-  timers.rebroadcastConfig = setInterval(()=>broadcastConfig(), 60*1000);
-  timers.rosterSync = setInterval(()=>{ if(WS_STATE==="CONNECTED") broadcastRosterSync(null); }, 25*1000);
-}
-
-/* =========================
-   QR HELPERS
-========================= */
-function openQR(title, url){
-  const back = $("qrBack");
-  $("qrTitle").textContent = title;
-  $("qrLinkTxt").textContent = url;
-
-  const qr = $("qrImg");
-  const api = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(url);
-  qr.src = api;
-
-  back.style.display = "flex";
-}
-function closeQR(){ $("qrBack").style.display = "none"; }
-function wireQR(){
-  $("btnCloseQR").addEventListener("click", closeQR);
-  $("qrBack").addEventListener("click", (e)=>{ if(e.target.id==="qrBack") closeQR(); });
-  window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeQR(); });
-}
-
-/* =========================
-   INIT
-========================= */
-function init(){
-  ensureDefaultBar();
-  saveJSON(STORAGE.BARS,bars);
-  saveJSON(STORAGE.HOST,host);
-  event.type = normalizeEventType(event.type);
-  saveJSON(STORAGE.EVENT,event);
-
-  $("btnHostPin").addEventListener("click", handlePinButton);
-  setPinPill();
-
-  $("searchAlias").value = ui.search || "";
-  setSearch(ui.search);
-
-  $("searchAlias").addEventListener("input", (e)=>{
-    setSearch(e.target.value);
-    renderAll();
-  });
-  $("searchAlias").addEventListener("keydown", (e)=>{
-    if(e.key==="Escape"){
-      e.preventDefault();
-      $("searchAlias").value="";
-      setSearch("");
-      renderAll();
-    }
-  });
-  $("btnClearSearch").addEventListener("click", ()=>{
-    $("searchAlias").value="";
-    setSearch("");
-    renderAll();
-  });
-
-  $("btnPhoneCheckin").addEventListener("click", phoneCheckIn);
-  $("checkinPhone").addEventListener("keydown", (e)=>{
-    if(e.key==="Enter") phoneCheckIn();
-  });
-
-  renderAll();
-  startIntervals();
-  wsConnect();
-
-  $("modeSelect").addEventListener("change", ()=>{
-    if(!requireUnlock()) { $("modeSelect").value = host.mode; return; }
-    host.mode = $("modeSelect").value;
-    saveJSON(STORAGE.HOST,host);
-
-    // reset counter when switching rooms logically
-    renderAll();
-    cleanupWs(); wsConnect();
-    broadcastConfig(); broadcastTVSync(); broadcastRosterSync(null);
-  });
-
-  $("sessionCode").addEventListener("change", ()=>{
-    if(!requireUnlock()) { $("sessionCode").value = host.session; return; }
-    host.session = $("sessionCode").value.trim() || host.session;
-    saveJSON(STORAGE.HOST,host);
-
-    renderAll();
-    cleanupWs(); wsConnect();
-    broadcastConfig(); broadcastTVSync(); broadcastRosterSync(null);
-  });
-
-  $("btnNewSession").addEventListener("click", ()=>{
-    if(!requireUnlock()) return;
-    host.session = genSession();
-    saveJSON(STORAGE.HOST,host);
-    tv.matches = [];
-    saveJSON(STORAGE.TV,tv);
-    dedupe = {};
-    saveJSON(STORAGE.DEDUPE, dedupe);
-
-    // reset numbering for new session
-    saveCounter(0);
-
-    cleanupWs(); wsConnect();
-    renderAll();
-    showToast("New session","Session refreshed. Numbering reset to 0001.");
-  });
-
-  $("barSelect").addEventListener("change", ()=>{
-    if(!requireUnlock()) { $("barSelect").value = host.activeBarId; return; }
-    host.activeBarId = $("barSelect").value;
-    saveJSON(STORAGE.HOST,host);
-    renderAll();
-    broadcastConfig();
-    broadcastTVSync();
-    broadcastRosterSync(null);
-  });
-
-  $("btnAddBar").addEventListener("click", ()=>{
-    const name=$("newBarName").value.trim();
-    if(!name) return showToast("Missing","Enter bar name.");
-    addBar(name);
-    $("newBarName").value="";
-  });
-
-  $("btnDeleteBar").addEventListener("click", deleteBar);
-  $("btnClearRoster").addEventListener("click", clearRoster);
-
-  $("btnCreateEvent").addEventListener("click", createOrUpdateEvent);
-
-  $("eventType").addEventListener("change", ()=>{
-    if(!requireUnlock()) { $("eventType").value = normalizeEventType(event.type); return; }
-    event.type = normalizeEventType($("eventType").value);
-    saveJSON(STORAGE.EVENT, event);
-    renderAll();
-    broadcastConfig();
-    showToast("Event type", `Set to ${event.type.toUpperCase()}.`);
-  });
-
-  $("barSelect").addEventListener("dblclick", ()=>{
-    if(host.mode!=="city") return;
-    toggleParticipating(host.activeBarId);
-    showToast("Participation", "Toggled participating for selected bar.");
-  });
-
-  $("btnRefresh").addEventListener("click", ()=>{ renderAll(); showToast("Updated","Refreshed view."); });
-
-  $("btnComputeMutuals").addEventListener("click", ()=>{
-    if(!requireUnlock()) return;
-
-    const pool = activePool();
-    const ids = pool.map(p=>p.id);
-    tv.matches = activeTvMatches();
-    const seen = new Set(tv.matches.map(m => pairKey(m.aId,m.bId)));
-
-    for(let i=0;i<ids.length;i++){
-      for(let j=i+1;j<ids.length;j++){
-        const aId=ids[i], bId=ids[j];
-        if(!isMutual(aId,bId)) continue;
-
-        const A = pool.find(x=>x.id===aId);
-        const B = pool.find(x=>x.id===bId);
-        if(!A || !B) continue;
-        if(A.status!=="checked_in" || B.status!=="checked_in") continue;
-
-        const plan = travelPlan(A,B);
-        if(!plan.allowed) continue;
-
-        const sc = scorePair(A,B);
-        if(sc < MIN_MATCH_SCORE) continue;
-
-        const key = pairKey(aId,bId);
-        if(!seen.has(key)){
-          tv.matches.push({
-            aId,bId,
-            score: sc,
-            plan: plan.plan,
-            code: makeMatchCode(),
-            createdAt: now(),
-            expiresAt: now() + TV_EXPIRE_MS
-          });
-          seen.add(key);
-        }
-      }
-    }
-
-    tv.matches.sort((x,y)=> y.score - x.score);
-    saveJSON(STORAGE.TV, tv);
-
-    renderAll();
-    broadcastTVSync();
-    showToast("Computed", `TV queue updated (${activeTvMatches().length} active).`);
-  });
-
-  $("btnBroadcastConfig").addEventListener("click", ()=>{
-    if(!requireUnlock()) return;
-    broadcastConfig();
-    broadcastRosterSync(null);
-    broadcastTVSync();
-    showToast("Broadcast","Config + roster + TV sent to room.");
-  });
-
-  $("btnExport").addEventListener("click", exportCSV);
-
-  const copyJoin = ()=>{ updateLinks(); copyText($("joinLink").textContent); };
-  const copyTV   = ()=>{ updateLinks(); copyText($("tvLink").textContent); };
-
-  $("btnCopyJoin").addEventListener("click", copyJoin);
-  $("btnCopyJoin2").addEventListener("click", copyJoin);
-  $("btnCopyTV").addEventListener("click", copyTV);
-  $("btnCopyTV2").addEventListener("click", copyTV);
-
-  $("btnShowJoinQR").addEventListener("click", ()=>{
-    updateLinks();
-    openQR("Join QR", $("joinLink").textContent);
-  });
-  $("btnShowTVQR").addEventListener("click", ()=>{
-    updateLinks();
-    openQR("TV QR", $("tvLink").textContent);
-  });
-  wireQR();
-
-  window.addEventListener("beforeunload", ()=>{
-    stopIntervals();
-    cleanupWs();
-  });
-}
-init();
+  render();
+})();
 </script>
 </body>
 </html>
+
+
 
 
 
