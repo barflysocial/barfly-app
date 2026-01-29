@@ -78,12 +78,14 @@
   <div class="footer">
     <div class="big" id="footerLead">See your alias pairing? Go to the host stand to connect.</div>
     <div id="footerTag">Barfly Social • Private Live Matchmaking</div>
+    <div class="mono" id="debugLine">debug: —</div>
   </div>
 </div>
 
 <script>
 /* ============================================================
-   Barfly Social — TV (Event-Type + Event-Name Aware)
+   Barfly Social — TV
+   FIX: also request/handle roster_sync so TV shows data even if tv_sync isn't implemented on relay.
 ============================================================ */
 
 const WS_URL = "wss://bar-match-relay.onrender.com";
@@ -134,13 +136,8 @@ function normalizeEventType(raw){
 }
 function inferEventTypeFromConfig(cfg){
   const candidates = [
-    cfg?.eventType,
-    cfg?.event,
-    cfg?.type,
-    cfg?.mode,
-    cfg?.event?.type,
-    cfg?.settings?.eventType,
-    cfg?.settings?.type
+    cfg?.eventType, cfg?.event, cfg?.type, cfg?.mode,
+    cfg?.event?.type, cfg?.settings?.eventType, cfg?.settings?.type
   ];
   for(const c of candidates){
     const n = normalizeEventType(c);
@@ -149,33 +146,23 @@ function inferEventTypeFromConfig(cfg){
   return "";
 }
 function inferEventNameFromConfig(cfg){
-  // Host dashboard broadcasts: event: { eventId, name, type }
   const n = (cfg?.event?.name ?? cfg?.name ?? cfg?.eventName ?? "").toString().trim();
   return n;
 }
-
 function buildEventLabel(){
   const t = EVENT_TYPE || "";
   const n = (EVENT_NAME || "").trim();
-
-  if(t === "networking"){
-    return n ? `💼 Professional Networking — ${n}` : `💼 Professional Networking`;
-  }
-  if(t === "dating"){
-    return n ? `💚 Dating Night — ${n}` : `💚 Dating Night`;
-  }
+  if(t === "networking") return n ? `💼 Professional Networking — ${n}` : `💼 Professional Networking`;
+  if(t === "dating") return n ? `💚 Dating Night — ${n}` : `💚 Dating Night`;
   return n ? `Live Event — ${n}` : `Live Event`;
 }
-
 function applyEventUI(){
   const pillWrap = $("eventPillWrap");
   const pill = $("eventPill");
-
   const title = $("titleText");
   const sub = $("subText");
   const footerLead = $("footerLead");
   const footerTag = $("footerTag");
-
   const t = EVENT_TYPE || "";
 
   let pillClass = "pill";
@@ -191,8 +178,6 @@ function applyEventUI(){
   }else if(t === "dating"){
     pillClass = "pill date";
     titleText = "Now Matching 💚";
-    footerLeadText = "See your alias pairing? Go to the host stand to connect.";
-    footerTagText = "Barfly Social • Private Live Matchmaking";
   }
 
   pillWrap.className = pillClass;
@@ -205,7 +190,6 @@ function applyEventUI(){
   footerLead.textContent = footerLeadText;
   footerTag.textContent = footerTagText;
 
-  // optional: reflect in <title>
   const short = (EVENT_TYPE==="networking") ? "Networking" : (EVENT_TYPE==="dating") ? "Dating" : "Live";
   document.title = EVENT_NAME ? `Barfly Social — TV • ${short} • ${EVENT_NAME}` : `Barfly Social — TV • ${short}`;
 }
@@ -231,7 +215,6 @@ function applyVenuePillUI(){
   const v = normVenue(q.venue);
   const wrap = $("venuePillWrap");
   const pill = $("venuePill");
-
   if(!v){
     wrap.classList.add("hidden");
   }else{
@@ -241,25 +224,37 @@ function applyVenuePillUI(){
 }
 
 /* =========================
-   WS STATE
+   WS STATE + DATA
 ========================= */
 let WS=null;
 let WS_STATE="DISCONNECTED";
-let matches=[];
-let page=0;
 
+let matches=[];   // tv_sync / matches lists (pairs)
+let roster=[];    // roster_sync fallback (people list)
+
+let page=0;
 let reconnectTimer=null;
 let hbTimer=null;
 let staleTimer=null;
 
 let lastTrafficAt = Date.now();
 let lastTvSyncAt  = 0;
+let lastRosterAt  = 0;
 let lastCountsAt  = 0;
+
+let lastMsgType = "—";
+
+function setDebug(){
+  const a = lastTvSyncAt ? `${Math.round((Date.now()-lastTvSyncAt)/1000)}s` : "—";
+  const b = lastRosterAt ? `${Math.round((Date.now()-lastRosterAt)/1000)}s` : "—";
+  $("debugLine").textContent = `debug: last=${lastMsgType} • tv_sync_age=${a} • roster_age=${b} • matches=${matches.length} • roster=${roster.length}`;
+}
 
 function setWsStatus(s){
   WS_STATE=s;
   $("wsPill").textContent=s;
   $("wsPillWrap").className = "pill " + (s==="CONNECTED"?"good": s==="CONNECTING"?"warn": s==="ERROR"?"bad":"");
+  setDebug();
 }
 function setSyncPill(){
   const age = lastTvSyncAt ? Math.max(0, Math.round((Date.now()-lastTvSyncAt)/1000)) : null;
@@ -283,6 +278,11 @@ function requestSync(){
   const q=qs();
   if(!q.room || !q.session) return;
   safeSend({ type:"request_tv_sync", roomId: q.room, room: q.room, barId: q.room, session: q.session });
+}
+function requestRoster(){
+  const q=qs();
+  if(!q.room || !q.session) return;
+  safeSend({ type:"request_roster", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 }
 function requestConfig(){
   const q=qs();
@@ -325,7 +325,7 @@ function isCheckedInFlag(m, side){
   if(typeof v1 === "boolean") return v1;
   if(typeof v2 === "boolean") return v2;
   if(typeof st === "string") return st.toLowerCase().includes("check");
-  return true; // old host fallback
+  return true; // older payloads fallback
 }
 
 function filteredMatches(){
@@ -362,7 +362,6 @@ function computeHotspotFromList(list){
 
 function setCountsFromMsg(msg){
   const c = msg.counts || msg.stats || msg.summary || {};
-
   const expected =
     (typeof c.expected === "number" ? c.expected :
     typeof c.pendingExpected === "number" ? c.pendingExpected :
@@ -422,36 +421,54 @@ function waitingCard(){
   const staleSync = hasHostSync ? (Date.now()-lastTvSyncAt) > SYNC_STALE_MS : true;
 
   const help = staleSync
-    ? `Host hasn’t broadcasted TV data yet (or it’s stale).`
+    ? `No TV match broadcast yet (waiting for tv_sync).`
     : `No checked-in pairs right now.`;
 
   const venue = normVenue(q.venue);
   const venueLine = venue ? `<div style="margin-top:6px">TV Venue Filter: <span class="mono">${esc(labelVenue(venue))}</span></div>` : ``;
-
-  const extra = (EVENT_TYPE==="networking")
-    ? `Guests must be <b>Checked In</b> by the host to appear on the networking TV.`
-    : `Guests must be <b>Checked In</b> by the host to appear on TV.`;
 
   return `
     <div class="card">
       <div class="pair">Waiting for checked-in pairs…</div>
       <div class="meta">
         ${esc(help)}<br/>
-        <span class="k">${extra}</span>
+        <span class="k">Host should broadcast TV matches (or relay must support <b>request_tv_sync</b>).</span>
         ${venueLine}
       </div>
       <div class="meta" style="margin-top:10px">
-        <span class="mono">Tip:</span> Host should click <b>Broadcast Config</b> and then <b>Compute → TV</b> if needed.
+        <span class="mono">Fallback:</span> TV will also show roster info if it receives <b>roster_sync</b>.
       </div>
+    </div>
+  `;
+}
+
+function rosterFallbackCard(){
+  const list = Array.isArray(roster) ? roster.slice(0, 12) : [];
+  const items = list.map(p=>{
+    const a = esc(p.alias || "Guest");
+    const v = p.venueId ? ` <span class="k">${esc(labelVenue(p.venueId))}</span>` : "";
+    const chk = (p.checkedIn===true || p.hostCheckedIn===true || p.guestCheckedIn===true) ? ` <span class="k"><b>CHECKED</b></span>` : "";
+    return `<div class="meta">• <b>${a}</b>${v}${chk}</div>`;
+  }).join("");
+
+  return `
+    <div class="card">
+      <div class="pair">Roster received (no TV matches yet)</div>
+      <div class="meta" style="margin-top:8px">
+        This means the relay is answering <b>request_roster</b> but not broadcasting <b>tv_sync</b>.
+      </div>
+      <div style="margin-top:10px">${items || `<div class="meta">Roster empty.</div>`}</div>
     </div>
   `;
 }
 
 function render(){
   setSyncPill();
+  setDebug();
 
   const grid=$("grid");
   grid.innerHTML="";
+
   const list = filteredMatches();
 
   if(Date.now() - lastCountsAt > 5000){
@@ -459,6 +476,11 @@ function render(){
   }
 
   if(!list.length){
+    // if we have roster but no matches, show roster fallback card
+    if(Array.isArray(roster) && roster.length){
+      grid.innerHTML = rosterFallbackCard();
+      return;
+    }
     grid.innerHTML = waitingCard();
     return;
   }
@@ -472,7 +494,6 @@ function render(){
 
   const labelCode = (EVENT_TYPE === "networking") ? "Connect Code" : "Match Code";
   const codeClass = (EVENT_TYPE === "networking") ? "code net" : "code";
-
   const defaultPlan = (EVENT_TYPE === "networking")
     ? "See host to connect professionally."
     : "See host to connect.";
@@ -544,13 +565,17 @@ function connectWS(){
 
     safeSend({ type:"join", role:"tv", roomId: q.room, room: q.room, barId: q.room, session: q.session });
 
+    // ✅ ask for everything we might need
     requestConfig();
-    requestSync();
+    requestSync();     // tv_sync path
+    requestRoster();   // roster_sync fallback path
   };
 
   WS.onmessage=(ev)=>{
     touchTraffic();
     let msg; try{ msg=JSON.parse(ev.data); }catch{ return; }
+    lastMsgType = msg.type || "unknown";
+    setDebug();
 
     if(msg.type === "ping"){
       const q=qs();
@@ -559,12 +584,13 @@ function connectWS(){
     }
     if(msg.type==="pong" || msg.type==="heartbeat" || msg.type==="pong_ack"){ return; }
 
-    if(msg.type==="config" || msg.type==="event_config"){
-      const q=qs();
-      const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
-      if(msg.session && msg.session !== q.session) return;
-      if(msgRoom && msgRoom !== q.room) return;
+    // room/session guard
+    const q=qs();
+    const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
+    if(msg.session && msg.session !== q.session) return;
+    if(msgRoom && msgRoom !== q.room) return;
 
+    if(msg.type==="config" || msg.type==="event_config"){
       HOST_CONFIG = msg;
 
       const fromHostType = inferEventTypeFromConfig(msg);
@@ -579,18 +605,26 @@ function connectWS(){
       return;
     }
 
-    if(msg.type==="tv_sync"){
-      const q=qs();
-      const msgRoom = (msg.roomId || msg.room || msg.barId || "").trim();
-      if(msg.session && msg.session !== q.session) return;
-      if(msgRoom && msgRoom !== q.room) return;
+    // ✅ accept roster sync as fallback
+    if(msg.type==="roster_sync" || msg.type==="people_sync"){
+      lastRosterAt = Date.now();
+      roster = Array.isArray(msg.people) ? msg.people.slice() : Array.isArray(msg.roster) ? msg.roster.slice() : [];
+      // some relays include eventType here too
+      const et = normalizeEventType(msg.eventType || msg.event);
+      if(et) EVENT_TYPE = et;
+      render();
+      return;
+    }
 
+    // ✅ accept TV match sync
+    if(msg.type==="tv_sync" || msg.type==="matches_sync" || msg.type==="tv_matches"){
       lastTvSyncAt = Date.now();
 
-      const fromSyncType = normalizeEventType(msg.eventType || msg.event || msg.type);
+      const fromSyncType = normalizeEventType(msg.eventType || msg.event);
       if(fromSyncType) EVENT_TYPE = fromSyncType;
 
-      matches = (msg.matches || []).map(m=>({
+      const list = Array.isArray(msg.matches) ? msg.matches : Array.isArray(msg.data?.matches) ? msg.data.matches : [];
+      matches = list.map(m=>({
         score: m.score || 0,
         code: m.code || "",
         plan: m.plan || "",
@@ -609,7 +643,6 @@ function connectWS(){
       }));
 
       setCountsFromMsg(msg);
-
       applyEventUI();
       page = 0;
       render();
@@ -631,21 +664,22 @@ function connectWS(){
 
 /* rotate + periodic resync */
 setInterval(()=>{ page++; render(); }, ROTATE_MS);
-setInterval(()=>{ if(WS_STATE==="CONNECTED") requestSync(); }, RESYNC_MS);
-setInterval(()=>{ setSyncPill(); }, 1000);
+setInterval(()=>{ if(WS_STATE==="CONNECTED"){ requestSync(); requestRoster(); } }, RESYNC_MS);
+setInterval(()=>{ setSyncPill(); setDebug(); }, 1000);
 
 /* boot */
 (function boot(){
   const q=qs();
   EVENT_TYPE = normalizeEventType(q.event) || "";
   applyEventUI();
-
   connectWS();
   render();
 })();
 </script>
 </body>
 </html>
+
+
 
 
 
